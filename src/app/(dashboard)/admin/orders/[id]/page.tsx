@@ -135,7 +135,10 @@ export default function OrderDetailPage() {
   )
 
   const transitions = STATUS_TRANSITIONS[order.status] ?? []
-  const totalPaid = order.payments.reduce((s, p) => s + p.amount, 0)
+  const payments = order.payments ?? []
+  const returns = order.returns ?? []
+  const lines = order.lines ?? []
+  const totalPaid = payments.reduce((s, p) => s + p.amount, 0)
   const remaining = Math.max(0, order.totalAmount - totalPaid)
 
   return (
@@ -292,12 +295,12 @@ export default function OrderDetailPage() {
             <CardHeader className="pb-2">
               <CardTitle className="text-sm flex items-center gap-1.5">
                 <Package className="h-4 w-4 text-gray-400" />
-                Artikujt e Porosisë ({order.lines.length})
+                Artikujt e Porosisë ({lines.length})
               </CardTitle>
             </CardHeader>
             <CardContent className="p-0">
               <div className="divide-y">
-                {order.lines.map(line => (
+                {lines.map(line => (
                   <div key={line.id} className="flex items-center gap-3 p-3">
                     <div className="w-10 h-10 rounded-lg bg-gray-100 shrink-0 overflow-hidden">
                       {line.product.photo && (
@@ -327,16 +330,16 @@ export default function OrderDetailPage() {
           </Card>
 
           {/* Payments */}
-          {order.payments.length > 0 && (
+          {payments.length > 0 && (
             <Card>
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm flex items-center gap-1.5">
                   <CheckCircle className="h-4 w-4 text-gray-400" />
-                  Pagesat ({order.payments.length})
+                  Pagesat ({payments.length})
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-2">
-                {order.payments.map(p => (
+                {payments.map(p => (
                   <div key={p.id} className="flex items-center justify-between p-3 rounded-lg border border-gray-100">
                     <div>
                       <p className="text-sm font-medium font-mono">{p.reference}</p>
@@ -353,16 +356,16 @@ export default function OrderDetailPage() {
           )}
 
           {/* Returns */}
-          {order.returns.length > 0 && (
+          {returns.length > 0 && (
             <Card>
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm flex items-center gap-1.5">
                   <Clock className="h-4 w-4 text-gray-400" />
-                  Kthimet ({order.returns.length})
+                  Kthimet ({returns.length})
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-2">
-                {order.returns.map(r => (
+                {returns.map(r => (
                   <div key={r.id} className="flex items-center justify-between p-3 rounded-lg border border-gray-100">
                     <div>
                       <p className="text-sm font-medium font-mono">{r.reference}</p>

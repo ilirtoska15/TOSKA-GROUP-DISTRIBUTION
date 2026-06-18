@@ -16,7 +16,7 @@ interface Order {
   totalAmount: number
   createdAt: string
   customer: { businessName: string; code: string }
-  lines: { id: string }[]
+  _count: { lines: number }
 }
 
 export default function AgjentOrdersPage() {
@@ -59,8 +59,9 @@ export default function AgjentOrdersPage() {
     SUBMITTED: 'bg-blue-100 text-blue-700',
     PRET_APROVIM: 'bg-amber-100 text-amber-700',
     APROVUAR: 'bg-green-100 text-green-700',
-    PERGATITJE: 'bg-purple-100 text-purple-700',
-    GATSHME: 'bg-teal-100 text-teal-700',
+    NE_PERGATITJE: 'bg-purple-100 text-purple-700',
+    GATI_PER_NGARKIM: 'bg-teal-100 text-teal-700',
+    NE_DERGESE: 'bg-blue-100 text-blue-700',
     DORËZUAR: 'bg-emerald-100 text-emerald-700',
     ANULUAR: 'bg-red-100 text-red-700',
   }
@@ -118,7 +119,7 @@ export default function AgjentOrdersPage() {
                 <p className="font-medium text-gray-900">{o.customer.businessName}</p>
                 <div className="flex items-center gap-3 text-xs text-gray-500 mt-0.5">
                   <span>{formatDate(o.createdAt)}</span>
-                  <span>{o.lines.length} artikuj</span>
+                  <span>{o._count?.lines ?? 0} artikuj</span>
                 </div>
               </div>
               <div className="text-right">

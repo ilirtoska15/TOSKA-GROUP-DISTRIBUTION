@@ -15,26 +15,32 @@ const updateSchema = z.object({
 })
 
 export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
-  const session = await auth()
-  if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  try {
+    const session = await auth()
+    if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const order = await db.order.findUnique({
-    where: { id: params.id },
-    include: {
-      customer: true,
-      createdBy: { select: { id: true, name: true } },
-      lines: {
-        include: { product: { select: { id: true, name: true, photo: true, code: true } } },
+    const order = await db.order.findUnique({
+      where: { id: params.id },
+      include: {
+        customer: true,
+        createdBy: { select: { id: true, name: true } },
+        lines: {
+          include: { product: { select: { id: true, name: true, photo: true, code: true } } },
+        },
+        delivery: { include: { driver: { select: { id: true, name: true } } } },
+        payments: { include: { collectedBy: { select: { name: true } } } },
+        returns: true,
       },
-      delivery: { include: { driver: { select: { id: true, name: true } } } },
-      payments: { include: { collectedBy: { select: { name: true } } } },
-      returns: { include: { lines: { include: { product: { select: { name: true } } } } } },
-    },
-  })
+    })
 
-  if (!order) return NextResponse.json({ error: 'Not found' }, { status: 404 })
+    if (!order) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
-  return NextResponse.json(order)
+    return NextResponse.json(order)
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : 'Internal server error'
+    console.error('[orders/id] GET error:', err)
+    return NextResponse.json({ error: msg }, { status: 500 })
+  }
 }
 
 export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {

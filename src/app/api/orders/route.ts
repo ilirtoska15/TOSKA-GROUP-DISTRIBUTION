@@ -1,4 +1,4 @@
-﻿import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { generateReference } from '@/lib/utils'
@@ -10,16 +10,17 @@ import { z } from 'zod'
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
 
+// quantity is the DISPLAY quantity (in selected unit).
+// salesPrice is intentionally absent — fetched from DB.
 const orderLineSchema = z.object({
-  productId: z.string(),
+  productId: z.string().min(1),
   unit: z.enum(['COPE', 'PAKO']),
   quantity: z.number().int().positive(),
-  salesPrice: z.number().min(0),
 })
 
 const createSchema = z.object({
-  customerId: z.string(),
-  lines: z.array(orderLineSchema).min(1),
+  customerId: z.string().min(1, 'Klienti kërkohet'),
+  lines: z.array(orderLineSchema).min(1, 'Porosia duhet të ketë të paktën një artikull'),
   notes: z.string().optional(),
   status: z.enum(['DRAFT', 'SUBMITTED']).default('DRAFT'),
 })
@@ -47,7 +48,6 @@ export async function GET(req: NextRequest) {
     if (status) where.status = status
     if (customerId) where.customerId = customerId
 
-    // Agents see only their own orders
     if (session.user.role === 'AGJENT') {
       where.createdById = session.user.id
     }
@@ -76,54 +76,69 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const session = await auth()
-  if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-
   try {
+    const session = await auth()
+    if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
     const body = await req.json()
-    const data = createSchema.parse(body)
+
+    let data: z.infer<typeof createSchema>
+    try {
+      data = createSchema.parse(body)
+    } catch (zodErr) {
+      if (zodErr instanceof z.ZodError) {
+        const msg = zodErr.errors[0]?.message ?? 'Të dhënat janë të pavlefshme'
+        return NextResponse.json({ error: msg, details: zodErr.errors }, { status: 400 })
+      }
+      throw zodErr
+    }
 
     // Validate customer
     const customer = await db.customer.findUnique({ where: { id: data.customerId } })
     if (!customer) return NextResponse.json({ error: 'Klienti nuk u gjet' }, { status: 404 })
     if (customer.status === 'BLOCKED') {
-      return NextResponse.json({ error: 'Klienti Ã«shtÃ« bllokuar. Nuk mund tÃ« krijohen porosi.' }, { status: 400 })
+      return NextResponse.json({ error: 'Klienti është bllokuar. Nuk mund të krijohen porosi.' }, { status: 400 })
     }
 
-    // Validate and build order lines
+    // Build order lines — fetch prices from DB, do conversion server-side
     const orderLines = []
     let totalAmount = 0
 
     for (const line of data.lines) {
       const product = await db.product.findUnique({ where: { id: line.productId } })
-      if (!product) return NextResponse.json({ error: `Produkti ${line.productId} nuk u gjet` }, { status: 404 })
-      if (product.status !== 'ACTIVE') return NextResponse.json({ error: `Produkti ${product.name} nuk Ã«shtÃ« aktiv` }, { status: 400 })
-
+      if (!product) {
+        return NextResponse.json({ error: `Produkti nuk u gjet (${line.productId})` }, { status: 404 })
+      }
+      if (product.status !== 'ACTIVE') {
+        return NextResponse.json({ error: `Produkti "${product.name}" nuk është aktiv` }, { status: 400 })
+      }
       if (line.unit === 'PAKO' && !product.pakoCopje) {
-        return NextResponse.json({ error: `Produkti ${product.name} nuk ka rregull konvertimi pÃ«r Pako` }, { status: 400 })
+        return NextResponse.json({ error: `Produkti "${product.name}" nuk ka konfigurim Pako` }, { status: 400 })
       }
 
+      // Convert display quantity to base copje — done server-side only
       const quantityCopje = convertToBase(line.quantity, line.unit, product.pakoCopje)
 
-      // Only validate stock if submitting (not draft)
+      // Stock check only for SUBMITTED orders
       if (data.status === 'SUBMITTED') {
         const stock = await getStockLevel(product.id)
         if (quantityCopje > stock) {
           return NextResponse.json({
-            error: `Stok i pamjaftueshÃ«m pÃ«r ${product.name}. DisponibÃ«l: ${stock} copÃ«, KÃ«rkuar: ${quantityCopje} copÃ«`,
+            error: `Stok i pamjaftueshëm për "${product.name}". Disponibël: ${stock} copë, Kërkuar: ${quantityCopje} copë`,
           }, { status: 400 })
         }
       }
 
-      const lineTotal = line.salesPrice * quantityCopje
+      // Use server-side price — never trust client
+      const lineTotal = product.salesPrice * quantityCopje
       totalAmount += lineTotal
 
       orderLines.push({
         productId: line.productId,
         unit: line.unit,
-        quantity: line.quantity,
-        quantityCopje,
-        salesPrice: line.salesPrice,
+        quantity: line.quantity,      // display quantity
+        quantityCopje,                // converted
+        salesPrice: product.salesPrice,
         lineTotal,
         productSnapshot: JSON.stringify({
           name: product.name,
@@ -134,20 +149,26 @@ export async function POST(req: NextRequest) {
       })
     }
 
-    // Check debt limit for submissions
+    // Debt limit check for submitted orders
     let orderStatus: string = data.status
     if (data.status === 'SUBMITTED') {
-      const deliveredAmount = await db.order.aggregate({
-        where: { customerId: data.customerId, status: 'DORÃ‹ZUAR' },
-        _sum: { totalAmount: true },
-      })
-      const paidAmount = await db.payment.aggregate({
-        where: { customerId: data.customerId },
-        _sum: { amount: true },
-      })
-      const currentDebt = (deliveredAmount._sum.totalAmount ?? 0) - (paidAmount._sum.amount ?? 0)
-      if (customer.debtLimit > 0 && currentDebt + totalAmount > customer.debtLimit) {
-        orderStatus = 'PRET_APROVIM'
+      try {
+        const [deliveredAgg, paidAgg] = await Promise.all([
+          db.order.aggregate({
+            where: { customerId: data.customerId, status: 'DORËZUAR' },
+            _sum: { totalAmount: true },
+          }),
+          db.payment.aggregate({
+            where: { customerId: data.customerId },
+            _sum: { amount: true },
+          }),
+        ])
+        const currentDebt = (deliveredAgg._sum.totalAmount ?? 0) - (paidAgg._sum.amount ?? 0)
+        if (customer.debtLimit > 0 && currentDebt + totalAmount > customer.debtLimit) {
+          orderStatus = 'PRET_APROVIM'
+        }
+      } catch {
+        // Non-fatal — proceed without debt check
       }
     }
 
@@ -167,8 +188,8 @@ export async function POST(req: NextRequest) {
       include: { lines: true },
     })
 
-    // Reserve stock for submitted orders
-    if (orderStatus === 'SUBMITTED' || orderStatus === 'APROVUAR') {
+    // Reserve stock for submitted/approved orders
+    if (orderStatus === 'SUBMITTED' || orderStatus === 'APROVUAR' || orderStatus === 'PRET_APROVIM') {
       for (const line of order.lines) {
         await addStockMovement({
           productId: line.productId,
@@ -177,8 +198,8 @@ export async function POST(req: NextRequest) {
           reference: order.reference,
           referenceId: order.id,
           userId: session.user.id,
-          reason: 'Porosi e aprovuar',
-        })
+          reason: 'Porosi e dërguar',
+        }).catch(() => null)
       }
     }
 
@@ -191,13 +212,13 @@ export async function POST(req: NextRequest) {
     })
 
     if (order.status === 'SUBMITTED' || order.status === 'PRET_APROVIM') {
-      sendPushToRole('ADMIN', 'Porosi e Re', `${order.reference} â€” Klient #${data.customerId.slice(-6)}`, '/admin/orders').catch(() => null)
+      sendPushToRole('ADMIN', 'Porosi e Re', `${order.reference} — Klient #${data.customerId.slice(-6)}`, '/admin/orders').catch(() => null)
     }
 
     return NextResponse.json(order, { status: 201 })
   } catch (err) {
-    if (err instanceof z.ZodError) return NextResponse.json({ error: err.errors }, { status: 400 })
-    console.error(err)
-    return NextResponse.json({ error: 'Server error' }, { status: 500 })
+    const msg = err instanceof Error ? err.message : 'Internal server error'
+    console.error('[orders] POST error:', err)
+    return NextResponse.json({ error: msg }, { status: 500 })
   }
 }

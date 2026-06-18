@@ -56,10 +56,6 @@ function priceInUnit(p: Product, unit: Unit): number {
   return p.salesPrice * (p.pakoCopje ?? 1)
 }
 
-function quantityToCopje(qty: number, unit: Unit, p: Product): number {
-  if (unit === 'COPE') return qty
-  return qty * (p.pakoCopje ?? 1)
-}
 
 export default function NewOrderPage() {
   const router = useRouter()
@@ -181,15 +177,13 @@ export default function NewOrderPage() {
 
     setSubmitting(true)
     try {
-      const lines = cart.map(line => {
-        const product = products.find(p => p.id === line.productId)!
-        return {
-          productId: line.productId,
-          unit: line.unit,
-          quantity: quantityToCopje(line.quantity, line.unit, product),
-          salesPrice: product.salesPrice,
-        }
-      })
+      // Send raw display quantity in selected unit.
+      // Backend does the copje conversion and fetches prices from DB.
+      const lines = cart.map(line => ({
+        productId: line.productId,
+        unit: line.unit,
+        quantity: line.quantity,
+      }))
 
       const res = await fetch('/api/orders', {
         method: 'POST',
@@ -197,16 +191,21 @@ export default function NewOrderPage() {
         body: JSON.stringify({ customerId, lines, notes, status }),
       })
 
-      const data = await res.json()
+      const data = await res.json().catch(() => ({ error: 'Server error' }))
 
       if (!res.ok) {
-        toast.error(data.error ?? 'Gabim gjatë ruajtjes')
+        toast.error(
+          typeof data.error === 'string'
+            ? data.error
+            : 'Gabim gjatë ruajtjes së porosisë'
+        )
         return
       }
 
       localStorage.removeItem(DRAFT_KEY)
 
-      if (data.order?.status === 'PRET_APROVIM') {
+      // API returns the order object directly (not wrapped in { order: ... })
+      if (data.status === 'PRET_APROVIM') {
         toast.warning('Porosia u dërgua — pret aprovim nga administratori (klient me borxh të lartë)')
       } else if (status === 'SUBMITTED') {
         toast.success('Porosia u dërgua me sukses')
