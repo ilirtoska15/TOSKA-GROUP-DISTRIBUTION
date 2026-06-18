@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import {
   ArrowLeft, ShoppingCart, Search, X, Plus, Minus,
-  AlertTriangle, Save, Send, Package
+  AlertTriangle, Save, Send, Package,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -65,7 +65,6 @@ function priceInUnit(p: Product, unit: Unit): number {
   return fp * (p.pakoCopje ?? 1)
 }
 
-
 export default function NewOrderPage() {
   const router = useRouter()
 
@@ -84,31 +83,22 @@ export default function NewOrderPage() {
   const [loadingProducts, setLoadingProducts] = useState(true)
   const draftRestored = useRef(false)
 
-  // Load customers
   useEffect(() => {
     fetch('/api/customers?limit=500')
-      .then(r => {
-        if (!r.ok) throw new Error(`customers ${r.status}`)
-        return r.json()
-      })
+      .then(r => { if (!r.ok) throw new Error(`customers ${r.status}`); return r.json() })
       .then(d => setCustomers(d.customers ?? []))
       .catch(e => console.error('[orders/new] customers fetch:', e))
       .finally(() => setLoadingCustomers(false))
   }, [])
 
-  // Load products
   useEffect(() => {
     fetch('/api/products?status=ACTIVE&limit=500')
-      .then(r => {
-        if (!r.ok) throw new Error(`products ${r.status}`)
-        return r.json()
-      })
+      .then(r => { if (!r.ok) throw new Error(`products ${r.status}`); return r.json() })
       .then(d => setProducts(d.products ?? []))
       .catch(e => console.error('[orders/new] products fetch:', e))
       .finally(() => setLoadingProducts(false))
   }, [])
 
-  // Load categories
   useEffect(() => {
     fetch('/api/categories')
       .then(r => r.ok ? r.json() : [])
@@ -116,7 +106,6 @@ export default function NewOrderPage() {
       .catch(() => setCategories([]))
   }, [])
 
-  // Restore draft once products are loaded
   useEffect(() => {
     if (loadingProducts || draftRestored.current) return
     draftRestored.current = true
@@ -140,22 +129,19 @@ export default function NewOrderPage() {
     } catch { /* ignore malformed draft */ }
   }, [loadingProducts, products])
 
-  // Autosave draft on change
   const saveDraft = useCallback(() => {
     try {
       localStorage.setItem(DRAFT_KEY, JSON.stringify({ customerId, notes, lines: cart }))
-    } catch { /* storage full — ignore */ }
+    } catch { /* storage full */ }
   }, [customerId, notes, cart])
 
   useEffect(() => { saveDraft() }, [saveDraft])
 
   const selectedCustomer = customers.find(c => c.id === customerId)
-
   const getUnit = (productId: string): Unit => units[productId] ?? 'COPE'
 
   function setUnit(productId: string, unit: Unit) {
     setUnits(u => ({ ...u, [productId]: unit }))
-    // Reset qty in cart when switching unit to avoid over-stock
     setCart(prev => prev.filter(l => l.productId !== productId))
   }
 
@@ -175,10 +161,12 @@ export default function NewOrderPage() {
   }
 
   const cartTotal = cart.reduce((sum, line) => {
-    const product = products.find(p => p.id === line.productId)
-    if (!product) return sum
-    return sum + priceInUnit(product, line.unit) * line.quantity
+    const p = products.find(p => p.id === line.productId)
+    if (!p) return sum
+    return sum + priceInUnit(p, line.unit) * line.quantity
   }, 0)
+
+  const cartItemCount = cart.reduce((s, l) => s + l.quantity, 0)
 
   const filteredProducts = products.filter(p => {
     if (categoryId && p.category?.id !== categoryId) return false
@@ -198,7 +186,7 @@ export default function NewOrderPage() {
     setSubmitting(true)
     try {
       // Send raw display quantity in selected unit.
-      // Backend does the copje conversion and fetches prices from DB.
+      // Backend does copje conversion and fetches prices from DB.
       const lines = cart.map(line => ({
         productId: line.productId,
         unit: line.unit,
@@ -214,17 +202,12 @@ export default function NewOrderPage() {
       const data = await res.json().catch(() => ({ error: 'Server error' }))
 
       if (!res.ok) {
-        toast.error(
-          typeof data.error === 'string'
-            ? data.error
-            : 'Gabim gjatë ruajtjes së porosisë'
-        )
+        toast.error(typeof data.error === 'string' ? data.error : 'Gabim gjatë ruajtjes së porosisë')
         return
       }
 
       localStorage.removeItem(DRAFT_KEY)
 
-      // API returns the order object directly (not wrapped in { order: ... })
       if (data.status === 'PRET_APROVIM') {
         toast.warning('Porosia u dërgua — pret aprovim nga administratori (klient me borxh të lartë)')
       } else if (status === 'SUBMITTED') {
@@ -243,24 +226,23 @@ export default function NewOrderPage() {
 
   return (
     <div className="flex flex-col min-h-screen bg-gray-50">
-      {/* Header */}
+
+      {/* ─── Header ─── */}
       <div className="sticky top-0 z-20 bg-white border-b shadow-sm">
         <div className="flex items-center gap-3 px-4 py-3">
           <Link href="/agjent/orders">
-            <button className="p-1.5 rounded-lg hover:bg-gray-100">
+            <button className="p-2 rounded-xl hover:bg-gray-100 w-11 h-11 flex items-center justify-center">
               <ArrowLeft className="h-5 w-5 text-gray-600" />
             </button>
           </Link>
-          <div className="flex-1">
-            <h1 className="font-semibold text-gray-900">Porosi e Re</h1>
-          </div>
+          <h1 className="flex-1 font-semibold text-gray-900">Porosi e Re</h1>
           <button
             onClick={() => setShowCart(!showCart)}
-            className="relative p-2 rounded-xl bg-primary text-white"
+            className="relative p-2 rounded-xl bg-primary text-white w-11 h-11 flex items-center justify-center"
           >
             <ShoppingCart className="h-5 w-5" />
             {cart.length > 0 && (
-              <span className="absolute -top-1.5 -right-1.5 bg-red-500 text-white text-[10px] font-bold rounded-full w-5 h-5 flex items-center justify-center">
+              <span className="absolute -top-1.5 -right-1.5 bg-red-500 text-white text-[10px] font-bold rounded-full w-5 h-5 flex items-center justify-center leading-none">
                 {cart.length}
               </span>
             )}
@@ -268,7 +250,7 @@ export default function NewOrderPage() {
         </div>
       </div>
 
-      {/* Cart Panel */}
+      {/* ─── Cart Slide Panel ─── */}
       {showCart && (
         <div className="fixed inset-0 z-30 bg-black/40" onClick={() => setShowCart(false)}>
           <div
@@ -277,38 +259,43 @@ export default function NewOrderPage() {
           >
             <div className="flex items-center justify-between px-4 py-3 border-b">
               <h2 className="font-semibold text-gray-900">Shporta ({cart.length})</h2>
-              <button onClick={() => setShowCart(false)} className="p-1 hover:bg-gray-100 rounded-lg">
+              <button
+                onClick={() => setShowCart(false)}
+                className="w-11 h-11 flex items-center justify-center hover:bg-gray-100 rounded-xl"
+              >
                 <X className="h-5 w-5" />
               </button>
             </div>
 
             <div className="flex-1 overflow-y-auto p-4 space-y-3">
               {cart.length === 0 ? (
-                <p className="text-center text-gray-500 py-8">Shporta është bosh</p>
+                <p className="text-center text-gray-500 py-10">Shporta është bosh</p>
               ) : cart.map(line => {
-                const product = products.find(p => p.id === line.productId)
-                if (!product) return null
+                const p = products.find(p => p.id === line.productId)
+                if (!p) return null
                 return (
                   <div key={line.productId} className="flex items-start gap-3 bg-gray-50 rounded-xl p-3">
-                    <div className="w-10 h-10 relative rounded-lg overflow-hidden bg-gray-100 shrink-0">
-                      {product.photo ? (
-                        <Image src={product.photo} alt={product.name} fill className="object-cover" />
+                    <div className="w-10 h-10 relative rounded-lg overflow-hidden bg-gray-200 shrink-0">
+                      {p.photo ? (
+                        <Image src={p.photo} alt={p.name} fill className="object-cover" />
                       ) : (
-                        <Package className="h-5 w-5 text-gray-400 m-2.5" />
+                        <div className="flex items-center justify-center h-full">
+                          <Package className="h-5 w-5 text-gray-300" />
+                        </div>
                       )}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-gray-900 truncate">{product.name}</p>
+                      <p className="text-sm font-medium text-gray-900 truncate">{p.name}</p>
                       <p className="text-xs text-gray-500">
-                        {line.quantity} {line.unit === 'COPE' ? 'copë' : 'pako'} × {formatCurrency(priceInUnit(product, line.unit))}
+                        {line.quantity} {line.unit === 'COPE' ? 'copë' : 'pako'} × {formatCurrency(priceInUnit(p, line.unit))}
                       </p>
                       <p className="text-xs font-semibold text-primary">
-                        {formatCurrency(priceInUnit(product, line.unit) * line.quantity)}
+                        {formatCurrency(priceInUnit(p, line.unit) * line.quantity)}
                       </p>
                     </div>
                     <button
-                      onClick={() => setQty(product, 0)}
-                      className="p-1 hover:bg-red-100 rounded-lg text-red-500"
+                      onClick={() => setQty(p, 0)}
+                      className="w-11 h-11 flex items-center justify-center hover:bg-red-100 rounded-xl text-red-500 shrink-0"
                     >
                       <X className="h-4 w-4" />
                     </button>
@@ -322,20 +309,18 @@ export default function NewOrderPage() {
                 <span className="font-medium text-gray-700">Total</span>
                 <span className="text-xl font-bold text-primary">{formatCurrency(cartTotal)}</span>
               </div>
-
               <textarea
                 placeholder="Shënime për porosinë..."
-                className="w-full border rounded-lg px-3 py-2 text-sm resize-none h-20 focus:outline-none focus:ring-2 focus:ring-primary/30"
+                className="w-full border rounded-xl px-3 py-2.5 text-sm resize-none h-20 focus:outline-none focus:ring-2 focus:ring-primary/30"
                 value={notes}
                 onChange={e => setNotes(e.target.value)}
               />
-
               <div className="grid grid-cols-2 gap-2">
                 <Button
                   variant="outline"
                   onClick={() => { setShowCart(false); handleSubmit('DRAFT') }}
                   disabled={submitting || !customerId || cart.length === 0}
-                  className="gap-1.5"
+                  className="gap-1.5 h-11"
                 >
                   <Save className="h-4 w-4" />
                   Ruaj Draft
@@ -343,17 +328,16 @@ export default function NewOrderPage() {
                 <Button
                   onClick={() => { setShowCart(false); handleSubmit('SUBMITTED') }}
                   disabled={submitting || !customerId || cart.length === 0 || selectedCustomer?.status === 'BLOCKED'}
-                  className="gap-1.5"
+                  className="gap-1.5 h-11"
                 >
                   <Send className="h-4 w-4" />
                   Dërgo
                 </Button>
               </div>
-
               {selectedCustomer?.status === 'BLOCKED' && (
-                <div className="flex items-center gap-2 text-red-600 bg-red-50 rounded-lg px-3 py-2 text-sm">
+                <div className="flex items-center gap-2 text-red-600 bg-red-50 rounded-xl px-3 py-2 text-sm">
                   <AlertTriangle className="h-4 w-4 shrink-0" />
-                  Ky klient është bllokuar. Nuk mund të dërgosh porosi.
+                  Ky klient është bllokuar.
                 </div>
               )}
             </div>
@@ -361,15 +345,17 @@ export default function NewOrderPage() {
         </div>
       )}
 
-      <div className="flex-1 p-4 space-y-4 pb-24">
+      {/* ─── Main Content ─── */}
+      <div className="flex-1 px-4 py-4 space-y-4 pb-28">
+
         {/* Customer selector */}
-        <div className="bg-white rounded-xl border p-4 space-y-2">
-          <label className="text-sm font-medium text-gray-700">Klienti *</label>
+        <div className="bg-white rounded-2xl border p-4 space-y-2">
+          <label className="text-sm font-semibold text-gray-700">Klienti *</label>
           {loadingCustomers ? (
-            <div className="h-10 bg-gray-100 rounded-lg animate-pulse" />
+            <div className="h-11 bg-gray-100 rounded-xl animate-pulse" />
           ) : (
             <select
-              className="w-full h-10 px-3 rounded-lg border border-gray-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary/30"
+              className="w-full h-11 px-3 rounded-xl border border-gray-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary/30"
               value={customerId}
               onChange={e => setCustomerId(e.target.value)}
             >
@@ -383,28 +369,28 @@ export default function NewOrderPage() {
           )}
           {selectedCustomer?.status === 'BLOCKED' && (
             <div className="flex items-center gap-2 text-red-600 text-sm">
-              <AlertTriangle className="h-4 w-4" />
+              <AlertTriangle className="h-4 w-4 shrink-0" />
               Klienti është bllokuar — porosia nuk mund të dërgohet
             </div>
           )}
         </div>
 
-        {/* Search + Category filter */}
+        {/* Search + Category */}
         <div className="flex gap-2">
           <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
             <Input
               placeholder="Kërko produkte..."
-              className="pl-9 bg-white"
+              className="pl-9 bg-white h-11 rounded-xl border-gray-200"
               value={search}
               onChange={e => setSearch(e.target.value)}
             />
           </div>
           {categories.length > 0 && (
             <select
-              className="h-10 px-3 rounded-lg border border-gray-200 text-sm bg-white min-w-[130px]"
+              className="h-11 px-3 rounded-xl border border-gray-200 text-sm bg-white shrink-0 max-w-[140px] focus:outline-none focus:ring-2 focus:ring-primary/30"
               value={categoryId}
-              onChange={e => { setCategoryId(e.target.value) }}
+              onChange={e => setCategoryId(e.target.value)}
             >
               <option value="">Të gjitha</option>
               {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
@@ -412,20 +398,28 @@ export default function NewOrderPage() {
           )}
         </div>
 
-        {/* Product grid */}
+        {/* Product count row */}
+        {!loadingProducts && (
+          <div className="flex items-center justify-between px-0.5">
+            <span className="text-sm font-semibold text-gray-700">Produkte</span>
+            <span className="text-sm text-gray-400">{filteredProducts.length} produkte</span>
+          </div>
+        )}
+
+        {/* ─── Product List ─── */}
         {loadingProducts ? (
-          <div className="grid grid-cols-2 gap-3">
-            {Array.from({ length: 6 }).map((_, i) => (
-              <div key={i} className="h-48 bg-gray-100 rounded-xl animate-pulse" />
+          <div className="space-y-3">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <div key={i} className="h-32 bg-white rounded-2xl border animate-pulse" />
             ))}
           </div>
         ) : filteredProducts.length === 0 ? (
-          <div className="p-12 text-center bg-white rounded-xl border text-gray-500">
+          <div className="py-16 text-center bg-white rounded-2xl border">
             <Package className="h-10 w-10 mx-auto mb-3 text-gray-300" />
-            <p>Nuk u gjet asnjë produkt</p>
+            <p className="text-gray-500 text-sm">Nuk u gjet asnjë produkt</p>
           </div>
         ) : (
-          <div className="grid grid-cols-2 gap-3">
+          <div className="space-y-3">
             {filteredProducts.map(product => {
               const unit = getUnit(product.id)
               const qty = getCartQty(product.id)
@@ -434,102 +428,137 @@ export default function NewOrderPage() {
               const hasPako = !!product.pakoCopje && product.pakoCopje > 1
               const inCart = qty > 0
               const discount = product.discountPercent ?? 0
+              const oldPrice = unit === 'COPE'
+                ? product.salesPrice
+                : product.salesPrice * (product.pakoCopje ?? 1)
 
               return (
                 <div
                   key={product.id}
-                  className={`bg-white rounded-xl border overflow-hidden flex flex-col transition-all ${inCart ? 'border-primary shadow-sm ring-1 ring-primary/20' : 'border-gray-200'}`}
+                  className={`bg-white rounded-2xl border shadow-sm transition-all ${
+                    inCart ? 'border-primary ring-1 ring-primary/20' : 'border-gray-200'
+                  } ${maxStock === 0 ? 'opacity-60' : ''}`}
                 >
-                  {/* Photo */}
-                  <div className="relative aspect-square bg-gray-50">
-                    {product.photo ? (
-                      <Image
-                        src={product.photo}
-                        alt={product.name}
-                        fill
-                        className="object-cover"
-                        sizes="(max-width: 640px) 50vw, 200px"
-                      />
-                    ) : (
-                      <div className="flex items-center justify-center h-full">
-                        <Package className="h-10 w-10 text-gray-300" />
-                      </div>
-                    )}
-                    {discount > 0 && (
-                      <span className="absolute top-1 left-1 bg-orange-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full">
-                        -{discount}%
-                      </span>
-                    )}
-                    {maxStock === 0 && (
-                      <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
-                        <span className="text-white text-xs font-bold bg-red-500 px-2 py-0.5 rounded">Pa Stok</span>
-                      </div>
-                    )}
-                  </div>
+                  {/* ─ Top section: photo + info ─ */}
+                  <div className="flex gap-3 p-3 pb-2">
 
-                  {/* Info */}
-                  <div className="p-2.5 flex flex-col gap-2 flex-1">
-                    <div>
-                      <p className="text-xs font-semibold text-gray-900 leading-tight line-clamp-2">{product.name}</p>
-                      {product.category && (
-                        <p className="text-[10px] text-blue-500 mt-0.5">{product.category.name}</p>
+                    {/* Photo */}
+                    <div className="relative w-24 h-24 shrink-0 rounded-xl overflow-hidden bg-gray-100">
+                      {product.photo ? (
+                        <Image
+                          src={product.photo}
+                          alt={product.name}
+                          fill
+                          className="object-cover"
+                          sizes="96px"
+                        />
+                      ) : (
+                        <div className="flex items-center justify-center h-full">
+                          <Package className="h-8 w-8 text-gray-300" />
+                        </div>
                       )}
-                      {product.brand && (
-                        <p className="text-[10px] text-gray-400">{product.brand.name}</p>
+                      {discount > 0 && (
+                        <span className="absolute top-1.5 left-1.5 bg-orange-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full leading-none">
+                          -{discount}%
+                        </span>
+                      )}
+                      {maxStock === 0 && (
+                        <div className="absolute inset-0 bg-black/40 flex items-center justify-center rounded-xl">
+                          <span className="text-white text-[10px] font-bold bg-red-500 px-2 py-0.5 rounded-full">
+                            Pa Stok
+                          </span>
+                        </div>
                       )}
                     </div>
 
-                    {/* Unit toggle */}
+                    {/* Info */}
+                    <div className="flex-1 min-w-0 flex flex-col gap-1">
+                      <p className="font-semibold text-gray-900 text-sm leading-snug line-clamp-2">
+                        {product.name}
+                      </p>
+
+                      <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+                        {product.category && (
+                          <span className="text-xs font-medium text-blue-600">{product.category.name}</span>
+                        )}
+                        {product.brand && (
+                          <span className="text-xs text-gray-400">{product.brand.name}</span>
+                        )}
+                      </div>
+
+                      <p className={`text-xs font-medium ${
+                        maxStock === 0 ? 'text-red-500' :
+                        maxStock < 5 ? 'text-amber-500' :
+                        'text-gray-400'
+                      }`}>
+                        {maxStock === 0
+                          ? 'Pa stok'
+                          : `${maxStock} ${unit === 'COPE' ? 'copë' : 'pako'} disponibël`}
+                      </p>
+
+                      {/* Price */}
+                      <div className="flex items-baseline gap-1.5 mt-auto">
+                        <span className="text-base font-bold text-primary leading-none">
+                          {formatCurrency(price)}
+                        </span>
+                        {discount > 0 && (
+                          <span className="text-xs text-gray-400 line-through">
+                            {formatCurrency(oldPrice)}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* ─ Controls row ─ */}
+                  <div className="flex items-center gap-2 px-3 pb-3">
+                    {/* Unit toggle (Copë / Pako) */}
                     {hasPako && (
-                      <div className="flex rounded-lg border border-gray-200 overflow-hidden text-[10px] font-medium">
+                      <div className="flex rounded-xl border border-gray-200 overflow-hidden shrink-0">
                         <button
-                          className={`flex-1 py-1 transition-colors ${unit === 'COPE' ? 'bg-primary text-white' : 'text-gray-500 hover:bg-gray-50'}`}
+                          className={`px-3 h-10 text-xs font-semibold transition-colors ${
+                            unit === 'COPE'
+                              ? 'bg-primary text-white'
+                              : 'text-gray-600 bg-white hover:bg-gray-50 active:bg-gray-100'
+                          }`}
                           onClick={() => setUnit(product.id, 'COPE')}
                         >
-                          Cope
+                          Copë
                         </button>
                         <button
-                          className={`flex-1 py-1 transition-colors ${unit === 'PAKO' ? 'bg-primary text-white' : 'text-gray-500 hover:bg-gray-50'}`}
+                          className={`px-3 h-10 text-xs font-semibold transition-colors border-l border-gray-200 ${
+                            unit === 'PAKO'
+                              ? 'bg-primary text-white'
+                              : 'text-gray-600 bg-white hover:bg-gray-50 active:bg-gray-100'
+                          }`}
                           onClick={() => setUnit(product.id, 'PAKO')}
-                          disabled={maxStock === 0 && unit !== 'PAKO'}
                         >
                           Pako×{product.pakoCopje}
                         </button>
                       </div>
                     )}
 
-                    {/* Price + stock */}
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <span className="text-sm font-bold text-primary">{formatCurrency(price)}</span>
-                        {discount > 0 && (
-                          <span className="text-[10px] text-gray-400 line-through ml-1">
-                            {formatCurrency(unit === 'COPE' ? product.salesPrice : product.salesPrice * (product.pakoCopje ?? 1))}
-                          </span>
-                        )}
-                      </div>
-                      <span className={`text-[10px] ${maxStock === 0 ? 'text-red-500' : maxStock < 5 ? 'text-amber-500' : 'text-gray-400'}`}>
-                        {maxStock > 0 ? `${maxStock} ${unit === 'COPE' ? 'cp' : 'pk'}` : 'Pa stok'}
-                      </span>
-                    </div>
-
                     {/* Qty controls */}
-                    {maxStock > 0 && (
-                      qty === 0 ? (
+                    <div className="flex-1">
+                      {maxStock === 0 ? (
+                        <div className="w-full text-center text-xs text-red-500 font-medium py-2.5 bg-red-50 rounded-xl">
+                          Pa Stok
+                        </div>
+                      ) : qty === 0 ? (
                         <button
-                          className="w-full bg-primary text-white rounded-lg py-1.5 text-xs font-medium hover:bg-primary/90 transition-colors"
+                          className="w-full bg-primary text-white rounded-xl text-sm font-semibold hover:bg-primary/90 active:bg-primary/80 transition-colors h-11 flex items-center justify-center gap-1.5"
                           onClick={() => setQty(product, 1)}
                         >
-                          <Plus className="h-3.5 w-3.5 inline mr-1" />
+                          <Plus className="h-4 w-4" />
                           Shto
                         </button>
                       ) : (
-                        <div className="flex items-center gap-1.5">
+                        <div className="flex items-center gap-2">
                           <button
-                            className="flex-none w-8 h-8 rounded-lg border border-gray-200 flex items-center justify-center hover:bg-gray-50"
+                            className="w-11 h-11 rounded-xl border border-gray-200 flex items-center justify-center hover:bg-gray-50 active:bg-gray-100 transition-colors shrink-0"
                             onClick={() => setQty(product, qty - 1)}
                           >
-                            <Minus className="h-3.5 w-3.5" />
+                            <Minus className="h-4 w-4 text-gray-700" />
                           </button>
                           <input
                             type="number"
@@ -537,18 +566,18 @@ export default function NewOrderPage() {
                             max={maxStock}
                             value={qty}
                             onChange={e => setQty(product, parseInt(e.target.value) || 0)}
-                            className="flex-1 h-8 text-center text-sm font-semibold border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-primary/30 w-0"
+                            className="flex-1 h-11 text-center text-sm font-bold border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/30 min-w-0"
                           />
                           <button
-                            className="flex-none w-8 h-8 rounded-lg border border-gray-200 flex items-center justify-center hover:bg-gray-50 disabled:opacity-40"
+                            className="w-11 h-11 rounded-xl border border-gray-200 flex items-center justify-center hover:bg-gray-50 active:bg-gray-100 transition-colors shrink-0 disabled:opacity-40 disabled:cursor-not-allowed"
                             onClick={() => setQty(product, qty + 1)}
                             disabled={qty >= maxStock}
                           >
-                            <Plus className="h-3.5 w-3.5" />
+                            <Plus className="h-4 w-4 text-gray-700" />
                           </button>
                         </div>
-                      )
-                    )}
+                      )}
+                    </div>
                   </div>
                 </div>
               )
@@ -557,32 +586,36 @@ export default function NewOrderPage() {
         )}
       </div>
 
-      {/* Sticky bottom bar when cart has items */}
+      {/* ─── Sticky Bottom Bar ─── */}
       {cart.length > 0 && (
-        <div className="fixed bottom-0 left-0 right-0 z-20 bg-white border-t shadow-lg px-4 pt-3 pb-[max(12px,env(safe-area-inset-bottom))] flex items-center gap-3">
-          <div className="flex-1">
-            <p className="text-xs text-gray-500">{cart.length} produkte</p>
-            <p className="font-bold text-gray-900">{formatCurrency(cartTotal)}</p>
+        <div className="fixed bottom-0 left-0 right-0 z-20 bg-white border-t shadow-lg px-4 pt-3 pb-[max(12px,env(safe-area-inset-bottom))]">
+          <div className="flex items-center gap-3">
+            <div className="flex-1 min-w-0">
+              <p className="text-xs text-gray-500 truncate">
+                {cartItemCount} artikuj · {cart.length} {cart.length === 1 ? 'produkt' : 'produkte'}
+              </p>
+              <p className="font-bold text-gray-900 text-base leading-tight">
+                {formatCurrency(cartTotal)}
+              </p>
+            </div>
+            <Button
+              variant="outline"
+              onClick={() => handleSubmit('DRAFT')}
+              disabled={submitting || !customerId}
+              className="gap-1.5 shrink-0 h-11 px-4"
+            >
+              <Save className="h-4 w-4" />
+              Draft
+            </Button>
+            <Button
+              onClick={() => handleSubmit('SUBMITTED')}
+              disabled={submitting || !customerId || selectedCustomer?.status === 'BLOCKED'}
+              className="gap-1.5 shrink-0 h-11 px-4"
+            >
+              <Send className="h-4 w-4" />
+              Dërgo
+            </Button>
           </div>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => handleSubmit('DRAFT')}
-            disabled={submitting || !customerId}
-            className="gap-1.5 shrink-0"
-          >
-            <Save className="h-4 w-4" />
-            Draft
-          </Button>
-          <Button
-            size="sm"
-            onClick={() => handleSubmit('SUBMITTED')}
-            disabled={submitting || !customerId || selectedCustomer?.status === 'BLOCKED'}
-            className="gap-1.5 shrink-0"
-          >
-            <Send className="h-4 w-4" />
-            Dërgo
-          </Button>
         </div>
       )}
     </div>
