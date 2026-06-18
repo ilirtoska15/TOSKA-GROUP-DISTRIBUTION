@@ -1,10 +1,12 @@
-import { NextRequest, NextResponse } from 'next/server'
+﻿import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { generateReference } from '@/lib/utils'
 import { createAuditLog } from '@/lib/audit'
 import { addStockMovement, convertToBase } from '@/lib/stock'
 import { z } from 'zod'
+
+export const dynamic = 'force-dynamic'
 
 const returnLineSchema = z.object({
   productId: z.string(),
@@ -96,7 +98,7 @@ export async function POST(req: NextRequest) {
                 reference: ret.reference,
                 referenceId: ret.id,
                 userId: session.user.id,
-                reason: 'Kthim i pranuar në stok',
+                reason: 'Kthim i pranuar nÃ« stok',
               })
             }
           }

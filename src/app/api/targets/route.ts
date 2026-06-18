@@ -1,7 +1,9 @@
-import { NextRequest, NextResponse } from 'next/server'
+﻿import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { z } from 'zod'
+
+export const dynamic = 'force-dynamic'
 
 const createSchema = z.object({
   agentId: z.string().min(1),
@@ -42,7 +44,7 @@ export async function GET(req: NextRequest) {
       db.order.aggregate({
         where: {
           createdById: t.userId,
-          status: { in: ['APROVUAR', 'PERGATITJE', 'GATSHME', 'DORËZUAR'] },
+          status: { in: ['APROVUAR', 'PERGATITJE', 'GATSHME', 'DORÃ‹ZUAR'] },
           createdAt: { gte: startOfMonth, lte: endOfMonth },
         },
         _sum: { totalAmount: true },

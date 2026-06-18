@@ -1,10 +1,12 @@
-import { NextRequest, NextResponse } from 'next/server'
+﻿import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { generateReference } from '@/lib/utils'
 import { createAuditLog } from '@/lib/audit'
 import { addStockMovement } from '@/lib/stock'
 import { z } from 'zod'
+
+export const dynamic = 'force-dynamic'
 
 const createSchema = z.object({
   lines: z.array(z.object({

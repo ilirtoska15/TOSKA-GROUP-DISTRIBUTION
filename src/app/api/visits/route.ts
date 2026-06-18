@@ -1,8 +1,10 @@
-import { NextRequest, NextResponse } from 'next/server'
+﻿import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { generateReference } from '@/lib/utils'
 import { z } from 'zod'
+
+export const dynamic = 'force-dynamic'
 
 const openVisitSchema = z.object({
   customerId: z.string(),
@@ -87,7 +89,7 @@ export async function POST(req: NextRequest) {
         where: { agentId: session.user.id, status: 'OPEN' },
       })
       if (existingOpen) {
-        return NextResponse.json({ error: 'Keni një vizitë të hapur. Mbylleni para se të hapni një tjetër.' }, { status: 400 })
+        return NextResponse.json({ error: 'Keni njÃ« vizitÃ« tÃ« hapur. Mbylleni para se tÃ« hapni njÃ« tjetÃ«r.' }, { status: 400 })
       }
 
       const reference = await generateReference(db, 'visit')

@@ -1,6 +1,8 @@
-import { NextRequest, NextResponse } from 'next/server'
+﻿import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
+
+export const dynamic = 'force-dynamic'
 
 export async function GET(req: NextRequest) {
   const session = await auth()
@@ -58,7 +60,7 @@ export async function GET(req: NextRequest) {
     const customers = await db.customer.findMany({
       where: { status: 'ACTIVE' },
       include: {
-        orders: { where: { status: 'DORËZUAR' }, select: { totalAmount: true } },
+        orders: { where: { status: 'DORÃ‹ZUAR' }, select: { totalAmount: true } },
         payments: { select: { amount: true } },
       },
     })

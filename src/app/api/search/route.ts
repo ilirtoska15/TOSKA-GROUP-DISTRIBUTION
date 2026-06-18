@@ -1,6 +1,8 @@
-import { NextRequest, NextResponse } from 'next/server'
+﻿import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
+
+export const dynamic = 'force-dynamic'
 
 export async function GET(req: NextRequest) {
   const session = await auth()
@@ -58,7 +60,7 @@ export async function GET(req: NextRequest) {
     ...customers.map((c) => ({ type: 'customer', id: c.id, label: c.businessName, sub: c.code, href: `/admin/customers/${c.id}`, status: c.status })),
     ...products.map((p) => ({ type: 'product', id: p.id, label: p.name, sub: p.code, href: `/admin/products/${p.id}`, status: p.status })),
     ...orders.map((o) => ({ type: 'order', id: o.id, label: o.reference, sub: o.customer.businessName, href: `/admin/orders/${o.id}`, status: o.status })),
-    ...payments.map((p) => ({ type: 'payment', id: p.id, label: p.reference, sub: `${p.amount} €`, href: `/admin/payments`, status: p.method })),
+    ...payments.map((p) => ({ type: 'payment', id: p.id, label: p.reference, sub: `${p.amount} â‚¬`, href: `/admin/payments`, status: p.method })),
     ...returns.map((r) => ({ type: 'return', id: r.id, label: r.reference, sub: '', href: `/admin/returns/${r.id}`, status: r.status })),
   ]
 

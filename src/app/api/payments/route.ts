@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server'
+﻿import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { generateReference } from '@/lib/utils'
@@ -6,10 +6,12 @@ import { createAuditLog } from '@/lib/audit'
 import { hasPermission } from '@/lib/permissions'
 import { z } from 'zod'
 
+export const dynamic = 'force-dynamic'
+
 const createSchema = z.object({
   customerId: z.string(),
   orderId: z.string().optional(),
-  amount: z.number().positive('Shuma duhet të jetë pozitive'),
+  amount: z.number().positive('Shuma duhet tÃ« jetÃ« pozitive'),
   method: z.enum(['CASH', 'BANK']),
   notes: z.string().optional(),
 })
@@ -65,7 +67,7 @@ export async function POST(req: NextRequest) {
   // Check permission
   const userPermissions = await db.userPermission.findMany({ where: { userId: session.user.id } })
   if (!hasPermission(session.user.role, userPermissions, 'collect_payments')) {
-    return NextResponse.json({ error: 'Nuk keni leje për të mbledhur pagesa' }, { status: 403 })
+    return NextResponse.json({ error: 'Nuk keni leje pÃ«r tÃ« mbledhur pagesa' }, { status: 403 })
   }
 
   try {
@@ -73,7 +75,7 @@ export async function POST(req: NextRequest) {
     const data = createSchema.parse(body)
 
     if (data.amount <= 0) {
-      return NextResponse.json({ error: 'Shuma duhet të jetë pozitive' }, { status: 400 })
+      return NextResponse.json({ error: 'Shuma duhet tÃ« jetÃ« pozitive' }, { status: 400 })
     }
 
     const reference = await generateReference(db, 'payment')

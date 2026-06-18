@@ -1,7 +1,9 @@
-import { NextRequest, NextResponse } from 'next/server'
+﻿import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { z } from 'zod'
+
+export const dynamic = 'force-dynamic'
 
 const assignSchema = z.object({
   orderId: z.string(),
@@ -101,7 +103,7 @@ export async function POST(req: NextRequest) {
       if (data.status === 'DELIVERED') {
         updateData.deliveredAt = new Date()
         // Update order status
-        await db.order.update({ where: { id: delivery.orderId }, data: { status: 'DORËZUAR', isLocked: true } })
+        await db.order.update({ where: { id: delivery.orderId }, data: { status: 'DORÃ‹ZUAR', isLocked: true } })
       }
       if (data.status === 'FAILED') {
         updateData.failedAt = new Date()

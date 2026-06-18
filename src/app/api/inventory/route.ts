@@ -1,9 +1,11 @@
-import { NextRequest, NextResponse } from 'next/server'
+﻿import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { addStockMovement, getStockLevel } from '@/lib/stock'
 import { createAuditLog } from '@/lib/audit'
 import { z } from 'zod'
+
+export const dynamic = 'force-dynamic'
 
 const adjustSchema = z.object({
   productId: z.string(),

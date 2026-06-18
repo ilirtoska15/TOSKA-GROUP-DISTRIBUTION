@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server'
+﻿import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { generateReference } from '@/lib/utils'
@@ -6,14 +6,16 @@ import { createAuditLog } from '@/lib/audit'
 import { getMultipleStockLevels } from '@/lib/stock'
 import { z } from 'zod'
 
+export const dynamic = 'force-dynamic'
+
 const createSchema = z.object({
   name: z.string().min(1),
   brandId: z.string().optional(),
   categoryId: z.string().optional(),
   description: z.string().optional(),
-  photo: z.string().min(1, 'Foto e produktit kërkohet').refine(
+  photo: z.string().min(1, 'Foto e produktit kÃ«rkohet').refine(
     (v) => v.startsWith('/uploads/'),
-    'Fotoja duhet të ngarkohet nga sistemi'
+    'Fotoja duhet tÃ« ngarkohet nga sistemi'
   ),
   salesPrice: z.number().min(0),
   barcode: z.string().optional(),

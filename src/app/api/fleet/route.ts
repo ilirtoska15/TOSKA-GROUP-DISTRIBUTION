@@ -1,7 +1,9 @@
-import { NextRequest, NextResponse } from 'next/server'
+﻿import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { z } from 'zod'
+
+export const dynamic = 'force-dynamic'
 
 const createSchema = z.object({
   plate: z.string().min(1),
@@ -20,7 +22,7 @@ export async function GET() {
     orderBy: { plate: 'asc' },
   })
 
-  // Normalize: Vehicle schema has no make/model/year — store in notes as JSON
+  // Normalize: Vehicle schema has no make/model/year â€” store in notes as JSON
   const normalized = vehicles.map(v => {
     let extra: Record<string, unknown> = {}
     try { extra = JSON.parse(v.notes ?? '{}') } catch {}
@@ -44,7 +46,7 @@ export async function POST(req: NextRequest) {
     const data = createSchema.parse(body)
 
     const existing = await db.vehicle.findUnique({ where: { plate: data.plate } })
-    if (existing) return NextResponse.json({ error: 'Targa ekziston tashmë' }, { status: 400 })
+    if (existing) return NextResponse.json({ error: 'Targa ekziston tashmÃ«' }, { status: 400 })
 
     const notes = JSON.stringify({ make: data.make, model: data.model, year: data.year })
 

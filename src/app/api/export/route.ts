@@ -1,7 +1,9 @@
-import { NextRequest, NextResponse } from 'next/server'
+﻿import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
 import ExcelJS from 'exceljs'
+
+export const dynamic = 'force-dynamic'
 
 export async function GET(req: NextRequest) {
   const session = await auth()
@@ -41,7 +43,7 @@ export async function GET(req: NextRequest) {
       { header: 'Klienti', key: 'customer', width: 28 },
       { header: 'Kodi Klientit', key: 'code', width: 14 },
       { header: 'Agjenti', key: 'agent', width: 20 },
-      { header: 'Shuma (€)', key: 'amount', width: 14 },
+      { header: 'Shuma (â‚¬)', key: 'amount', width: 14 },
       { header: 'Statusi', key: 'status', width: 14 },
       { header: 'Data', key: 'date', width: 16 },
     ]
@@ -77,11 +79,11 @@ export async function GET(req: NextRequest) {
     ws.columns = [
       { header: 'Klienti', key: 'customer', width: 28 },
       { header: 'Kodi', key: 'code', width: 14 },
-      { header: 'Shuma (€)', key: 'amount', width: 14 },
+      { header: 'Shuma (â‚¬)', key: 'amount', width: 14 },
       { header: 'Metoda', key: 'method', width: 12 },
       { header: 'Mbledhur nga', key: 'agent', width: 20 },
       { header: 'Data', key: 'date', width: 16 },
-      { header: 'Shënim', key: 'note', width: 30 },
+      { header: 'ShÃ«nim', key: 'note', width: 30 },
     ]
     ws.getRow(1).eachCell(cell => { Object.assign(cell, headerStyle) })
     ws.getRow(1).height = 22
@@ -102,7 +104,7 @@ export async function GET(req: NextRequest) {
     const rawCustomers = await db.customer.findMany({
       where: { status: 'ACTIVE' },
       include: {
-        orders: { where: { status: 'DORËZUAR' }, select: { totalAmount: true } },
+        orders: { where: { status: 'DORÃ‹ZUAR' }, select: { totalAmount: true } },
         payments: { select: { amount: true } },
       },
     })
@@ -120,8 +122,8 @@ export async function GET(req: NextRequest) {
     ws.columns = [
       { header: 'Klienti', key: 'customer', width: 28 },
       { header: 'Kodi', key: 'code', width: 14 },
-      { header: 'Borxhi (€)', key: 'debt', width: 14 },
-      { header: 'Limiti (€)', key: 'limit', width: 14 },
+      { header: 'Borxhi (â‚¬)', key: 'debt', width: 14 },
+      { header: 'Limiti (â‚¬)', key: 'limit', width: 14 },
       { header: 'Telefon', key: 'phone', width: 16 },
     ]
     ws.getRow(1).eachCell(cell => { Object.assign(cell, headerStyle) })

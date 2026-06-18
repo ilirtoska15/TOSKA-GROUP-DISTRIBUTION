@@ -4,6 +4,8 @@ import { db } from '@/lib/db'
 import { createAuditLog } from '@/lib/audit'
 import { addStockMovement } from '@/lib/stock'
 
+export const dynamic = 'force-dynamic'
+
 export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
   const session = await auth()
   if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })

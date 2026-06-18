@@ -3,6 +3,8 @@ import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { createAuditLog } from '@/lib/audit'
 import { getStockLevel } from '@/lib/stock'
+
+export const dynamic = 'force-dynamic'
 import { z } from 'zod'
 
 const updateSchema = z.object({

@@ -1,8 +1,10 @@
-import { NextRequest, NextResponse } from 'next/server'
+﻿import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import { writeFile, mkdir } from 'fs/promises'
 import { join } from 'path'
 import { existsSync } from 'fs'
+
+export const dynamic = 'force-dynamic'
 
 const ALLOWED_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp']
 const MAX_SIZE = 5 * 1024 * 1024 // 5MB
@@ -18,15 +20,15 @@ export async function POST(req: NextRequest) {
     const file = formData.get('file') as File | null
 
     if (!file) {
-      return NextResponse.json({ error: 'Nuk u gjet asnjë file' }, { status: 400 })
+      return NextResponse.json({ error: 'Nuk u gjet asnjÃ« file' }, { status: 400 })
     }
 
     if (!ALLOWED_TYPES.includes(file.type)) {
-      return NextResponse.json({ error: 'Lloji i file-it nuk lejohet. Përdor JPG, PNG ose WebP.' }, { status: 400 })
+      return NextResponse.json({ error: 'Lloji i file-it nuk lejohet. PÃ«rdor JPG, PNG ose WebP.' }, { status: 400 })
     }
 
     if (file.size > MAX_SIZE) {
-      return NextResponse.json({ error: 'File shumë i madh. Maksimumi 5MB.' }, { status: 400 })
+      return NextResponse.json({ error: 'File shumÃ« i madh. Maksimumi 5MB.' }, { status: 400 })
     }
 
     const uploadDir = join(process.cwd(), 'public', 'uploads', 'products')
@@ -45,6 +47,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ url })
   } catch (err) {
     console.error('Upload error:', err)
-    return NextResponse.json({ error: 'Gabim në upload' }, { status: 500 })
+    return NextResponse.json({ error: 'Gabim nÃ« upload' }, { status: 500 })
   }
 }

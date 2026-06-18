@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server'
+﻿import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { generateReference } from '@/lib/utils'
@@ -6,6 +6,8 @@ import { createAuditLog } from '@/lib/audit'
 import { getStockLevel, addStockMovement, convertToBase } from '@/lib/stock'
 import { sendPushToRole } from '@/lib/push'
 import { z } from 'zod'
+
+export const dynamic = 'force-dynamic'
 
 const orderLineSchema = z.object({
   productId: z.string(),
@@ -78,7 +80,7 @@ export async function POST(req: NextRequest) {
     const customer = await db.customer.findUnique({ where: { id: data.customerId } })
     if (!customer) return NextResponse.json({ error: 'Klienti nuk u gjet' }, { status: 404 })
     if (customer.status === 'BLOCKED') {
-      return NextResponse.json({ error: 'Klienti është bllokuar. Nuk mund të krijohen porosi.' }, { status: 400 })
+      return NextResponse.json({ error: 'Klienti Ã«shtÃ« bllokuar. Nuk mund tÃ« krijohen porosi.' }, { status: 400 })
     }
 
     // Validate and build order lines
@@ -88,10 +90,10 @@ export async function POST(req: NextRequest) {
     for (const line of data.lines) {
       const product = await db.product.findUnique({ where: { id: line.productId } })
       if (!product) return NextResponse.json({ error: `Produkti ${line.productId} nuk u gjet` }, { status: 404 })
-      if (product.status !== 'ACTIVE') return NextResponse.json({ error: `Produkti ${product.name} nuk është aktiv` }, { status: 400 })
+      if (product.status !== 'ACTIVE') return NextResponse.json({ error: `Produkti ${product.name} nuk Ã«shtÃ« aktiv` }, { status: 400 })
 
       if (line.unit === 'PAKO' && !product.pakoCopje) {
-        return NextResponse.json({ error: `Produkti ${product.name} nuk ka rregull konvertimi për Pako` }, { status: 400 })
+        return NextResponse.json({ error: `Produkti ${product.name} nuk ka rregull konvertimi pÃ«r Pako` }, { status: 400 })
       }
 
       const quantityCopje = convertToBase(line.quantity, line.unit, product.pakoCopje)
@@ -101,7 +103,7 @@ export async function POST(req: NextRequest) {
         const stock = await getStockLevel(product.id)
         if (quantityCopje > stock) {
           return NextResponse.json({
-            error: `Stok i pamjaftueshëm për ${product.name}. Disponibël: ${stock} copë, Kërkuar: ${quantityCopje} copë`,
+            error: `Stok i pamjaftueshÃ«m pÃ«r ${product.name}. DisponibÃ«l: ${stock} copÃ«, KÃ«rkuar: ${quantityCopje} copÃ«`,
           }, { status: 400 })
         }
       }
@@ -129,7 +131,7 @@ export async function POST(req: NextRequest) {
     let orderStatus: string = data.status
     if (data.status === 'SUBMITTED') {
       const deliveredAmount = await db.order.aggregate({
-        where: { customerId: data.customerId, status: 'DORËZUAR' },
+        where: { customerId: data.customerId, status: 'DORÃ‹ZUAR' },
         _sum: { totalAmount: true },
       })
       const paidAmount = await db.payment.aggregate({
@@ -182,7 +184,7 @@ export async function POST(req: NextRequest) {
     })
 
     if (order.status === 'SUBMITTED' || order.status === 'PRET_APROVIM') {
-      sendPushToRole('ADMIN', 'Porosi e Re', `${order.reference} — Klient #${data.customerId.slice(-6)}`, '/admin/orders').catch(() => null)
+      sendPushToRole('ADMIN', 'Porosi e Re', `${order.reference} â€” Klient #${data.customerId.slice(-6)}`, '/admin/orders').catch(() => null)
     }
 
     return NextResponse.json(order, { status: 201 })

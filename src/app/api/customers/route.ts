@@ -1,9 +1,11 @@
-import { NextRequest, NextResponse } from 'next/server'
+﻿import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { generateReference } from '@/lib/utils'
 import { createAuditLog } from '@/lib/audit'
 import { z } from 'zod'
+
+export const dynamic = 'force-dynamic'
 
 const createSchema = z.object({
   businessName: z.string().min(1),

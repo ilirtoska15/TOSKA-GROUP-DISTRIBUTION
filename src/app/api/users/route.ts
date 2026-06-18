@@ -1,9 +1,11 @@
-import { NextRequest, NextResponse } from 'next/server'
+﻿import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { createAuditLog } from '@/lib/audit'
 import bcrypt from 'bcryptjs'
 import { z } from 'zod'
+
+export const dynamic = 'force-dynamic'
 
 const createSchema = z.object({
   name: z.string().min(1),
@@ -47,7 +49,7 @@ export async function POST(req: NextRequest) {
     const data = createSchema.parse(body)
 
     const existing = await db.user.findUnique({ where: { email: data.email } })
-    if (existing) return NextResponse.json({ error: 'Email ekziston tashmë' }, { status: 400 })
+    if (existing) return NextResponse.json({ error: 'Email ekziston tashmÃ«' }, { status: 400 })
 
     const hashed = await bcrypt.hash(data.password, 10)
 

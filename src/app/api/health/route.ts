@@ -1,6 +1,8 @@
-import { NextResponse } from 'next/server'
+﻿import { NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
+
+export const dynamic = 'force-dynamic'
 
 export async function GET() {
   const session = await auth()
@@ -51,7 +53,7 @@ export async function GET() {
         status: 'ACTIVE',
         orders: {
           some: {
-            status: 'DORËZUAR',
+            status: 'DORÃ‹ZUAR',
             createdAt: { lt: thirtyDaysAgo },
           },
         },
