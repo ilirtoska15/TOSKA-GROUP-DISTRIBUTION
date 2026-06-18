@@ -51,7 +51,7 @@ const NAV_ITEMS: NavItem[] = [
   { href: '/agjent/targets', label: 'Targetat', icon: TrendingUp, roles: ['AGJENT'] },
   // SHOFER
   { href: '/shofer', label: 'Dashboard', icon: LayoutDashboard, roles: ['SHOFER'] },
-  { href: '/shofer/route', label: 'Rruga', icon: MapPin, roles: ['SHOFER'] },
+  { href: '/shofer/rruga', label: 'Rruga', icon: MapPin, roles: ['SHOFER'] },
   { href: '/shofer/deliveries', label: 'Dërgesat', icon: Truck, roles: ['SHOFER'] },
   { href: '/shofer/payments', label: 'Pagesat', icon: DollarSign, roles: ['SHOFER'] },
   { href: '/shofer/returns', label: 'Kthimet', icon: RotateCcw, roles: ['SHOFER'] },

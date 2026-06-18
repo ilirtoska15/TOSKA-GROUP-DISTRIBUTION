@@ -29,7 +29,7 @@ const MOBILE_NAV: MobileNavItem[] = [
   { href: '/agjent/payments', label: 'Pagesa', icon: DollarSign, roles: ['AGJENT'] },
 
   { href: '/shofer', label: 'Dashboard', icon: LayoutDashboard, roles: ['SHOFER'] },
-  { href: '/shofer/route', label: 'Rruga', icon: MapPin, roles: ['SHOFER'] },
+  { href: '/shofer/rruga', label: 'Rruga', icon: MapPin, roles: ['SHOFER'] },
   { href: '/shofer/deliveries', label: 'Dërgesa', icon: Truck, roles: ['SHOFER'] },
   { href: '/shofer/payments', label: 'Pagesa', icon: DollarSign, roles: ['SHOFER'] },
   { href: '/shofer/returns', label: 'Kthime', icon: RotateCcw, roles: ['SHOFER'] },

@@ -38,7 +38,7 @@ export default async function ShoferDashboard() {
       <div className="grid grid-cols-2 gap-3">
         <StatCard title="Dërgesa Sot" value={String(stats.todayDeliveries)} icon={Truck} color="blue" href="/shofer/deliveries" />
         <StatCard title="Dorëzuar" value={String(stats.delivered)} icon={CheckCircle} color="green" href="/shofer/deliveries?status=DELIVERED" />
-        <StatCard title="Në Pritje" value={String(stats.pendingDeliveries)} icon={Clock} color="yellow" href="/shofer/route" />
+        <StatCard title="Në Pritje" value={String(stats.pendingDeliveries)} icon={Clock} color="yellow" href="/shofer/rruga" />
         <StatCard title="Inkaso Sot" value={formatCurrency(stats.collectionsToday)} icon={DollarSign} color="emerald" href="/shofer/payments" />
       </div>
 
@@ -52,7 +52,7 @@ export default async function ShoferDashboard() {
       )}
 
       <div className="grid grid-cols-2 gap-3">
-        <Link href="/shofer/route">
+        <Link href="/shofer/rruga">
           <div className="bg-primary rounded-xl p-4 text-white flex items-center gap-3 cursor-pointer hover:opacity-90">
             <MapPin className="h-5 w-5" />
             <span className="text-sm font-semibold">Rruga Sot</span>
