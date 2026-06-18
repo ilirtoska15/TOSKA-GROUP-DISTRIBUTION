@@ -21,7 +21,7 @@ interface NavItem {
   badge?: number
 }
 
-const NAV_ITEMS: NavItem[] = [
+export const NAV_ITEMS: NavItem[] = [
   // ADMIN
   { href: '/admin', label: 'Dashboard', icon: LayoutDashboard, roles: ['ADMIN'] },
   { href: '/admin/customers', label: 'Klientët', icon: Users, roles: ['ADMIN'] },

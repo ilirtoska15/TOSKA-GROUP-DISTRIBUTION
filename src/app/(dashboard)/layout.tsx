@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation'
 import { auth } from '@/lib/auth'
 import { Sidebar } from '@/components/layout/sidebar'
 import { MobileNav } from '@/components/layout/mobile-nav'
+import { MobileHeader } from '@/components/layout/mobile-header'
 import { PushInit } from '@/components/push-init'
 
 export const dynamic = 'force-dynamic'
@@ -29,6 +30,7 @@ export default async function DashboardLayout({
 
       {/* Main content */}
       <main className="flex-1 flex flex-col overflow-hidden">
+        <MobileHeader userRole={role} userName={name} />
         <div className="flex-1 overflow-y-auto pb-16 lg:pb-0">
           {children}
         </div>
