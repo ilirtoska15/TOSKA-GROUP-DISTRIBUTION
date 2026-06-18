@@ -108,7 +108,7 @@ export default function NewProductPage() {
   }
 
   return (
-    <div className="max-w-3xl mx-auto space-y-6">
+    <div className="max-w-3xl mx-auto space-y-6 p-4 sm:p-6">
       <div className="flex items-center gap-3">
         <Link href="/admin/products">
           <Button variant="ghost" size="icon-sm">
@@ -146,7 +146,7 @@ export default function NewProductPage() {
               <Input id="name" {...register('name')} placeholder="p.sh. Ujë Mineral 1.5L" />
               {errors.name && <p className="text-xs text-red-500 mt-1">{errors.name.message}</p>}
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <Label htmlFor="categoryId">Kategoria</Label>
                 <select
@@ -187,7 +187,7 @@ export default function NewProductPage() {
             <CardTitle className="text-base">Çmimi dhe Njësia</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <Label htmlFor="salesPrice">Çmimi i Shitjes (ALL) *</Label>
                 <Input
@@ -214,7 +214,7 @@ export default function NewProductPage() {
                 {errors.discountPercent && <p className="text-xs text-red-500 mt-1">{errors.discountPercent.message}</p>}
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <Label htmlFor="pakoCopje">Copë për Pako</Label>
                 <Input
@@ -227,7 +227,7 @@ export default function NewProductPage() {
                 <p className="text-xs text-gray-400 mt-0.5">Lër bosh nëse produkti shitet vetëm copë</p>
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <Label htmlFor="barcode">Barkodi</Label>
                 <Input id="barcode" {...register('barcode')} placeholder="EAN / ISBN / kod tjetër" />

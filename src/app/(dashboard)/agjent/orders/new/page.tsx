@@ -559,7 +559,7 @@ export default function NewOrderPage() {
 
       {/* Sticky bottom bar when cart has items */}
       {cart.length > 0 && (
-        <div className="fixed bottom-0 left-0 right-0 z-20 bg-white border-t shadow-lg px-4 py-3 flex items-center gap-3">
+        <div className="fixed bottom-0 left-0 right-0 z-20 bg-white border-t shadow-lg px-4 pt-3 pb-[max(12px,env(safe-area-inset-bottom))] flex items-center gap-3">
           <div className="flex-1">
             <p className="text-xs text-gray-500">{cart.length} produkte</p>
             <p className="font-bold text-gray-900">{formatCurrency(cartTotal)}</p>

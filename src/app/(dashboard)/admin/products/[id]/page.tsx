@@ -231,7 +231,7 @@ export default function ProductDetailPage() {
               <Input id="name" {...register('name')} placeholder="Emri i produktit" />
               {errors.name && <p className="text-xs text-red-500 mt-1">{errors.name.message}</p>}
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <Label htmlFor="categoryId">Kategoria</Label>
                 <select
@@ -266,7 +266,7 @@ export default function ProductDetailPage() {
         <Card>
           <CardHeader><CardTitle className="text-base">Çmimi dhe Njësia</CardTitle></CardHeader>
           <CardContent className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <Label htmlFor="salesPrice">Çmimi i Shitjes *</Label>
                 <Input id="salesPrice" type="number" step="0.01" min="0" {...register('salesPrice')} />
@@ -278,13 +278,13 @@ export default function ProductDetailPage() {
                 {errors.discountPercent && <p className="text-xs text-red-500 mt-1">{errors.discountPercent.message}</p>}
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <Label htmlFor="pakoCopje">Copë për Pako</Label>
                 <Input id="pakoCopje" type="number" min="1" {...register('pakoCopje')} placeholder="Lër bosh nëse vetëm copë" />
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <Label htmlFor="barcode">Barkodi</Label>
                 <Input id="barcode" {...register('barcode')} placeholder="EAN / ISBN / kod tjetër" />

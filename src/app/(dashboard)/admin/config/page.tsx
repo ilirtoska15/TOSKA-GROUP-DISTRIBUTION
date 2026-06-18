@@ -51,15 +51,15 @@ export default function ConfigPage() {
 
   return (
     <div className="p-4 sm:p-6 space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex items-start justify-between gap-3 flex-wrap">
         <div className="flex items-center gap-3">
-          <Settings className="h-6 w-6 text-primary" />
+          <Settings className="h-6 w-6 text-primary shrink-0" />
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Konfigurim i Sistemit</h1>
+            <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Konfigurim i Sistemit</h1>
             <p className="text-sm text-gray-500">Ndrysho parametrat pa programues</p>
           </div>
         </div>
-        <Button onClick={save} loading={saving} className="gap-2">
+        <Button onClick={save} loading={saving} className="gap-2 shrink-0">
           <Save className="h-4 w-4" />
           Ruaj
         </Button>

@@ -79,12 +79,12 @@ export default function DepoistReturnsPage() {
         <p className="text-sm text-gray-500">{total} kthime</p>
       </div>
 
-      <div className="flex gap-2">
+      <div className="flex gap-2 flex-wrap">
         {FILTER_OPTIONS.map(opt => (
           <button
             key={opt.value}
             onClick={() => setActiveFilter(opt.value)}
-            className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${activeFilter === opt.value ? 'bg-primary text-white' : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'}`}
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors min-h-[44px] ${activeFilter === opt.value ? 'bg-primary text-white' : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'}`}
           >
             {opt.label}
           </button>

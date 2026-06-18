@@ -114,13 +114,13 @@ export default function DepoistDamagePage() {
             <div className="space-y-2">
               <Label>Produktet e Dëmtuara</Label>
               {lines.map((line, i) => (
-                <div key={i} className="flex gap-2 items-center">
-                  <select className="flex-1 h-10 px-3 rounded-lg border border-gray-200 text-sm bg-white"
+                <div key={i} className="flex flex-wrap gap-2 items-center">
+                  <select className="flex-1 min-w-[140px] h-10 px-3 rounded-lg border border-gray-200 text-sm bg-white"
                     value={line.productId} onChange={e => updateLine(i, 'productId', e.target.value)}>
                     <option value="">-- Zgjidh produkt --</option>
                     {products.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                   </select>
-                  <Input type="number" min="1" className="w-24" value={line.quantity}
+                  <Input type="number" min="1" className="w-24 h-10" value={line.quantity}
                     onChange={e => updateLine(i, 'quantity', Number(e.target.value))} />
                   <select className="h-10 px-2 rounded-lg border border-gray-200 text-sm bg-white"
                     value={line.unit} onChange={e => updateLine(i, 'unit', e.target.value)}>
@@ -128,7 +128,7 @@ export default function DepoistDamagePage() {
                     <option value="pako">Pako</option>
                   </select>
                   {lines.length > 1 && (
-                    <button onClick={() => removeLine(i)} className="text-gray-400 hover:text-red-500">
+                    <button onClick={() => removeLine(i)} className="p-2 text-gray-400 hover:text-red-500 min-h-[44px]">
                       <X className="h-4 w-4" />
                     </button>
                   )}

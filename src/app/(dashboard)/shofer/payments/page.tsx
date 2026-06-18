@@ -98,7 +98,7 @@ export default function ShoferPaymentsPage() {
                 {customers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
               </select>
             </div>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <Label>Shuma (ALL) *</Label>
                 <Input type="number" min="0.01" step="0.01" value={form.amount}

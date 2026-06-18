@@ -435,7 +435,7 @@ export default function AgentCatalogPage() {
           <div className="absolute right-0 top-0 bottom-0 w-full max-w-md bg-white flex flex-col shadow-2xl">
             <div className="flex items-center justify-between p-4 border-b">
               <h2 className="text-lg font-bold">Porosia ({cart.items.length})</h2>
-              <button onClick={() => setCartOpen(false)}><X className="h-5 w-5" /></button>
+              <button onClick={() => setCartOpen(false)} className="p-2 -m-2 rounded-lg hover:bg-gray-100"><X className="h-5 w-5" /></button>
             </div>
 
             {/* Customer selector */}
@@ -467,8 +467,8 @@ export default function AgentCatalogPage() {
                       </div>
                       <div className="text-right">
                         <p className="text-sm font-semibold">{formatCurrency(fp * copje)}</p>
-                        <button onClick={() => removeFromCart(i)} className="text-red-400 hover:text-red-600">
-                          <X className="h-3.5 w-3.5" />
+                        <button onClick={() => removeFromCart(i)} className="p-1.5 -m-1.5 text-red-400 hover:text-red-600 rounded-lg">
+                          <X className="h-4 w-4" />
                         </button>
                       </div>
                     </div>
