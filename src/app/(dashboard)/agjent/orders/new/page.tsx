@@ -6,6 +6,7 @@ import Image from 'next/image'
 import {
   ArrowLeft, ShoppingCart, Search, X, Plus, Minus,
   AlertTriangle, Save, Send, Package,
+  MapPin, Phone, Building2, CreditCard, Calendar, User, Store,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -40,6 +41,24 @@ interface Customer {
   status: string
 }
 
+interface CustomerDetail {
+  id: string
+  code: string
+  businessName: string
+  businessAddress: string
+  city: string
+  phone: string
+  businessNumber: string | null
+  vatNumber: string | null
+  status: string
+  debtLimit: number
+  paymentTermDays: number
+  currentDebt: number
+  agent: { id: string; name: string } | null
+  zone: { id: string; name: string } | null
+  region: { id: string; name: string } | null
+}
+
 interface CartLine {
   productId: string
   unit: Unit
@@ -65,6 +84,172 @@ function priceInUnit(p: Product, unit: Unit): number {
   return fp * (p.pakoCopje ?? 1)
 }
 
+// ─── Customer Card ─────────────────────────────────────────────
+function CustomerCard({
+  customer,
+  loading,
+  onClear,
+}: {
+  customer: CustomerDetail | null
+  loading: boolean
+  onClear: () => void
+}) {
+  if (loading) {
+    return (
+      <div className="bg-white rounded-2xl border p-4 space-y-3 animate-pulse">
+        <div className="h-5 bg-gray-200 rounded w-2/3" />
+        <div className="h-4 bg-gray-100 rounded w-1/3" />
+        <div className="h-3 bg-gray-100 rounded w-1/2 mt-1" />
+        <div className="h-3 bg-gray-100 rounded w-1/3" />
+        <div className="h-2 bg-gray-100 rounded-full mt-2" />
+      </div>
+    )
+  }
+
+  if (!customer) {
+    return (
+      <div className="bg-white rounded-2xl border p-4 flex items-center justify-between">
+        <p className="text-sm text-red-500">Gabim gjatë ngarkimit të klientit</p>
+        <button onClick={onClear} className="text-xs text-primary underline">Ndrysho</button>
+      </div>
+    )
+  }
+
+  const isBlocked = customer.status === 'BLOCKED'
+  const ratio = customer.debtLimit > 0 ? customer.currentDebt / customer.debtLimit : 0
+  const pct = Math.min(ratio * 100, 100)
+  const barColor = pct >= 80 ? 'bg-red-500' : pct >= 50 ? 'bg-amber-500' : 'bg-green-500'
+  const debtTextColor = pct >= 80 ? 'text-red-600' : pct >= 50 ? 'text-amber-600' : 'text-green-600'
+
+  const dash = (v: string | null | undefined) => v || '—'
+
+  return (
+    <div className={`bg-white rounded-2xl border shadow-sm ${isBlocked ? 'border-red-200' : 'border-gray-200'}`}>
+      {/* Header */}
+      <div className={`flex items-start justify-between gap-2 px-4 pt-4 pb-3 ${isBlocked ? 'bg-red-50/60 rounded-t-2xl' : ''}`}>
+        <div className="flex items-start gap-2.5 min-w-0">
+          <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${isBlocked ? 'bg-red-100' : 'bg-primary/10'}`}>
+            <Store className={`h-5 w-5 ${isBlocked ? 'text-red-500' : 'text-primary'}`} />
+          </div>
+          <div className="min-w-0">
+            <p className="font-bold text-gray-900 text-base leading-tight truncate">{customer.businessName}</p>
+            <p className="text-xs text-gray-400 font-mono mt-0.5">{customer.code}</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-2 shrink-0">
+          <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${
+            isBlocked
+              ? 'bg-red-100 text-red-700'
+              : customer.status === 'ACTIVE'
+                ? 'bg-green-100 text-green-700'
+                : 'bg-gray-100 text-gray-600'
+          }`}>
+            {isBlocked ? 'Bllokuar' : customer.status === 'ACTIVE' ? 'Aktiv' : 'Joaktiv'}
+          </span>
+        </div>
+      </div>
+
+      {/* Blocked warning */}
+      {isBlocked && (
+        <div className="mx-4 mb-3 flex items-start gap-2 bg-red-100 border border-red-200 rounded-xl px-3 py-2.5">
+          <AlertTriangle className="h-4 w-4 text-red-600 shrink-0 mt-0.5" />
+          <div>
+            <p className="text-sm font-semibold text-red-700">Klienti është i bllokuar.</p>
+            <p className="text-xs text-red-600">Nuk mund të krijohen porosi.</p>
+          </div>
+        </div>
+      )}
+
+      {/* Contact info */}
+      <div className="px-4 pb-3 space-y-1.5">
+        {customer.businessAddress && (
+          <div className="flex items-start gap-2">
+            <MapPin className="h-3.5 w-3.5 text-gray-400 mt-0.5 shrink-0" />
+            <p className="text-xs text-gray-600">
+              {customer.businessAddress}{customer.city ? `, ${customer.city}` : ''}
+              {customer.zone ? ` · ${customer.zone.name}` : ''}
+            </p>
+          </div>
+        )}
+        {customer.phone && (
+          <div className="flex items-center gap-2">
+            <Phone className="h-3.5 w-3.5 text-gray-400 shrink-0" />
+            <p className="text-xs text-gray-600">{customer.phone}</p>
+          </div>
+        )}
+        {customer.businessNumber && (
+          <div className="flex items-center gap-2">
+            <Building2 className="h-3.5 w-3.5 text-gray-400 shrink-0" />
+            <p className="text-xs text-gray-600">Nr Biznesit: {dash(customer.businessNumber)}</p>
+          </div>
+        )}
+        {customer.agent && (
+          <div className="flex items-center gap-2">
+            <User className="h-3.5 w-3.5 text-gray-400 shrink-0" />
+            <p className="text-xs text-gray-600">Agjenti: {customer.agent.name}</p>
+          </div>
+        )}
+      </div>
+
+      {/* Debt section */}
+      <div className="mx-4 mb-3 bg-gray-50 rounded-xl px-3 py-2.5 space-y-2">
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-1.5">
+            <CreditCard className="h-3.5 w-3.5 text-gray-400" />
+            <span className="text-xs font-medium text-gray-600">Borxhi aktual</span>
+          </div>
+          <span className={`text-sm font-bold ${debtTextColor}`}>
+            {formatCurrency(customer.currentDebt)}
+          </span>
+        </div>
+
+        {customer.debtLimit > 0 && (
+          <>
+            <div className="w-full bg-gray-200 rounded-full h-1.5 overflow-hidden">
+              <div
+                className={`h-1.5 rounded-full transition-all ${barColor}`}
+                style={{ width: `${pct}%` }}
+              />
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] text-gray-400">
+                {formatCurrency(customer.currentDebt)} / {formatCurrency(customer.debtLimit)}
+              </span>
+              <span className="text-[10px] font-medium text-gray-500">{Math.round(pct)}%</span>
+            </div>
+            {pct >= 80 && (
+              <div className="flex items-center gap-1.5 text-red-600">
+                <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+                <p className="text-[11px] font-medium">Klienti po afrohet limitit të borxhit</p>
+              </div>
+            )}
+          </>
+        )}
+
+        {customer.debtLimit === 0 && (
+          <p className="text-xs text-gray-400">Limit: Pa limit</p>
+        )}
+
+        <div className="flex items-center gap-1.5">
+          <Calendar className="h-3.5 w-3.5 text-gray-400" />
+          <span className="text-xs text-gray-500">Afati i pagesës: {customer.paymentTermDays} ditë</span>
+        </div>
+      </div>
+
+      {/* Change button */}
+      <div className="px-4 pb-4">
+        <button
+          onClick={onClear}
+          className="w-full h-10 rounded-xl border border-gray-200 text-sm font-medium text-gray-600 hover:bg-gray-50 active:bg-gray-100 transition-colors"
+        >
+          Ndrysho Klientin
+        </button>
+      </div>
+    </div>
+  )
+}
+
+// ─── Main Page ─────────────────────────────────────────────────
 export default function NewOrderPage() {
   const router = useRouter()
 
@@ -72,6 +257,8 @@ export default function NewOrderPage() {
   const [products, setProducts] = useState<Product[]>([])
   const [categories, setCategories] = useState<Category[]>([])
   const [customerId, setCustomerId] = useState('')
+  const [customerDetail, setCustomerDetail] = useState<CustomerDetail | null>(null)
+  const [loadingDetail, setLoadingDetail] = useState(false)
   const [search, setSearch] = useState('')
   const [categoryId, setCategoryId] = useState('')
   const [cart, setCart] = useState<CartLine[]>([])
@@ -106,6 +293,17 @@ export default function NewOrderPage() {
       .catch(() => setCategories([]))
   }, [])
 
+  // Fetch full customer detail when selection changes
+  useEffect(() => {
+    if (!customerId) { setCustomerDetail(null); return }
+    setLoadingDetail(true)
+    fetch(`/api/customers/${customerId}`)
+      .then(r => r.ok ? r.json() : null)
+      .then(data => setCustomerDetail(data))
+      .catch(() => setCustomerDetail(null))
+      .finally(() => setLoadingDetail(false))
+  }, [customerId])
+
   useEffect(() => {
     if (loadingProducts || draftRestored.current) return
     draftRestored.current = true
@@ -137,7 +335,7 @@ export default function NewOrderPage() {
 
   useEffect(() => { saveDraft() }, [saveDraft])
 
-  const selectedCustomer = customers.find(c => c.id === customerId)
+  const isBlocked = customerDetail?.status === 'BLOCKED'
   const getUnit = (productId: string): Unit => units[productId] ?? 'COPE'
 
   function setUnit(productId: string, unit: Unit) {
@@ -185,8 +383,6 @@ export default function NewOrderPage() {
 
     setSubmitting(true)
     try {
-      // Send raw display quantity in selected unit.
-      // Backend does copje conversion and fetches prices from DB.
       const lines = cart.map(line => ({
         productId: line.productId,
         unit: line.unit,
@@ -327,14 +523,14 @@ export default function NewOrderPage() {
                 </Button>
                 <Button
                   onClick={() => { setShowCart(false); handleSubmit('SUBMITTED') }}
-                  disabled={submitting || !customerId || cart.length === 0 || selectedCustomer?.status === 'BLOCKED'}
+                  disabled={submitting || !customerId || cart.length === 0 || isBlocked}
                   className="gap-1.5 h-11"
                 >
                   <Send className="h-4 w-4" />
                   Dërgo
                 </Button>
               </div>
-              {selectedCustomer?.status === 'BLOCKED' && (
+              {isBlocked && (
                 <div className="flex items-center gap-2 text-red-600 bg-red-50 rounded-xl px-3 py-2 text-sm">
                   <AlertTriangle className="h-4 w-4 shrink-0" />
                   Ky klient është bllokuar.
@@ -348,241 +544,261 @@ export default function NewOrderPage() {
       {/* ─── Main Content ─── */}
       <div className="flex-1 px-4 py-4 space-y-4 pb-28">
 
-        {/* Customer selector */}
-        <div className="bg-white rounded-2xl border p-4 space-y-2">
-          <label className="text-sm font-semibold text-gray-700">Klienti *</label>
-          {loadingCustomers ? (
-            <div className="h-11 bg-gray-100 rounded-xl animate-pulse" />
-          ) : (
-            <select
-              className="w-full h-11 px-3 rounded-xl border border-gray-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary/30"
-              value={customerId}
-              onChange={e => setCustomerId(e.target.value)}
-            >
-              <option value="">— Zgjidh klientin —</option>
-              {customers.map(c => (
-                <option key={c.id} value={c.id} disabled={c.status === 'BLOCKED'}>
-                  {c.businessName} ({c.code}){c.status === 'BLOCKED' ? ' — BLLOKUAR' : ''}
-                </option>
-              ))}
-            </select>
-          )}
-          {selectedCustomer?.status === 'BLOCKED' && (
-            <div className="flex items-center gap-2 text-red-600 text-sm">
-              <AlertTriangle className="h-4 w-4 shrink-0" />
-              Klienti është bllokuar — porosia nuk mund të dërgohet
-            </div>
-          )}
-        </div>
-
-        {/* Search + Category */}
-        <div className="flex gap-2">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
-            <Input
-              placeholder="Kërko produkte..."
-              className="pl-9 bg-white h-11 rounded-xl border-gray-200"
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-            />
+        {/* ─ Customer selector OR card ─ */}
+        {!customerId ? (
+          <div className="bg-white rounded-2xl border p-4 space-y-2">
+            <label className="text-sm font-semibold text-gray-700">Klienti *</label>
+            {loadingCustomers ? (
+              <div className="h-11 bg-gray-100 rounded-xl animate-pulse" />
+            ) : (
+              <select
+                className="w-full h-11 px-3 rounded-xl border border-gray-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary/30"
+                value={customerId}
+                onChange={e => setCustomerId(e.target.value)}
+              >
+                <option value="">— Zgjidh klientin —</option>
+                {customers.map(c => (
+                  <option key={c.id} value={c.id} disabled={c.status === 'BLOCKED'}>
+                    {c.businessName} ({c.code}){c.status === 'BLOCKED' ? ' — BLLOKUAR' : ''}
+                  </option>
+                ))}
+              </select>
+            )}
           </div>
-          {categories.length > 0 && (
-            <select
-              className="h-11 px-3 rounded-xl border border-gray-200 text-sm bg-white shrink-0 max-w-[140px] focus:outline-none focus:ring-2 focus:ring-primary/30"
-              value={categoryId}
-              onChange={e => setCategoryId(e.target.value)}
-            >
-              <option value="">Të gjitha</option>
-              {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-            </select>
-          )}
-        </div>
+        ) : (
+          <CustomerCard
+            customer={customerDetail}
+            loading={loadingDetail}
+            onClear={() => { setCustomerId(''); setCustomerDetail(null) }}
+          />
+        )}
 
-        {/* Product count row */}
-        {!loadingProducts && (
-          <div className="flex items-center justify-between px-0.5">
-            <span className="text-sm font-semibold text-gray-700">Produkte</span>
-            <span className="text-sm text-gray-400">{filteredProducts.length} produkte</span>
+        {/* ─ Empty state when no customer ─ */}
+        {!customerId && !loadingCustomers && (
+          <div className="py-14 text-center bg-white rounded-2xl border">
+            <Store className="h-10 w-10 mx-auto mb-3 text-gray-200" />
+            <p className="text-sm font-medium text-gray-500">Zgjidh klientin për të vazhduar</p>
+            <p className="text-xs text-gray-400 mt-1">Produktet do të shfaqen pas zgjedhjes</p>
           </div>
         )}
 
-        {/* ─── Product List ─── */}
-        {loadingProducts ? (
-          <div className="space-y-3">
-            {Array.from({ length: 5 }).map((_, i) => (
-              <div key={i} className="h-32 bg-white rounded-2xl border animate-pulse" />
-            ))}
-          </div>
-        ) : filteredProducts.length === 0 ? (
-          <div className="py-16 text-center bg-white rounded-2xl border">
-            <Package className="h-10 w-10 mx-auto mb-3 text-gray-300" />
-            <p className="text-gray-500 text-sm">Nuk u gjet asnjë produkt</p>
-          </div>
-        ) : (
-          <div className="space-y-3">
-            {filteredProducts.map(product => {
-              const unit = getUnit(product.id)
-              const qty = getCartQty(product.id)
-              const maxStock = stockInUnit(product, unit)
-              const price = priceInUnit(product, unit)
-              const hasPako = !!product.pakoCopje && product.pakoCopje > 1
-              const inCart = qty > 0
-              const discount = product.discountPercent ?? 0
-              const oldPrice = unit === 'COPE'
-                ? product.salesPrice
-                : product.salesPrice * (product.pakoCopje ?? 1)
-
-              return (
-                <div
-                  key={product.id}
-                  className={`bg-white rounded-2xl border shadow-sm transition-all ${
-                    inCart ? 'border-primary ring-1 ring-primary/20' : 'border-gray-200'
-                  } ${maxStock === 0 ? 'opacity-60' : ''}`}
+        {/* ─ Products section — only when customer selected ─ */}
+        {customerId && !loadingDetail && (
+          <>
+            {/* Search + Category */}
+            <div className="flex gap-2">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
+                <Input
+                  placeholder="Kërko produkte..."
+                  className="pl-9 bg-white h-11 rounded-xl border-gray-200"
+                  value={search}
+                  onChange={e => setSearch(e.target.value)}
+                />
+              </div>
+              {categories.length > 0 && (
+                <select
+                  className="h-11 px-3 rounded-xl border border-gray-200 text-sm bg-white shrink-0 max-w-[140px] focus:outline-none focus:ring-2 focus:ring-primary/30"
+                  value={categoryId}
+                  onChange={e => setCategoryId(e.target.value)}
                 >
-                  {/* ─ Top section: photo + info ─ */}
-                  <div className="flex gap-3 p-3 pb-2">
+                  <option value="">Të gjitha</option>
+                  {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                </select>
+              )}
+            </div>
 
-                    {/* Photo */}
-                    <div className="relative w-24 h-24 shrink-0 rounded-xl overflow-hidden bg-gray-100">
-                      {product.photo ? (
-                        <Image
-                          src={product.photo}
-                          alt={product.name}
-                          fill
-                          className="object-cover"
-                          sizes="96px"
-                        />
-                      ) : (
-                        <div className="flex items-center justify-center h-full">
-                          <Package className="h-8 w-8 text-gray-300" />
+            {/* Product count row */}
+            {!loadingProducts && (
+              <div className="flex items-center justify-between px-0.5">
+                <span className="text-sm font-semibold text-gray-700">Produkte</span>
+                <span className="text-sm text-gray-400">{filteredProducts.length} produkte</span>
+              </div>
+            )}
+
+            {/* ─── Product List ─── */}
+            {loadingProducts ? (
+              <div className="space-y-3">
+                {Array.from({ length: 5 }).map((_, i) => (
+                  <div key={i} className="h-32 bg-white rounded-2xl border animate-pulse" />
+                ))}
+              </div>
+            ) : filteredProducts.length === 0 ? (
+              <div className="py-16 text-center bg-white rounded-2xl border">
+                <Package className="h-10 w-10 mx-auto mb-3 text-gray-300" />
+                <p className="text-gray-500 text-sm">Nuk u gjet asnjë produkt</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {filteredProducts.map(product => {
+                  const unit = getUnit(product.id)
+                  const qty = getCartQty(product.id)
+                  const maxStock = stockInUnit(product, unit)
+                  const price = priceInUnit(product, unit)
+                  const hasPako = !!product.pakoCopje && product.pakoCopje > 1
+                  const inCart = qty > 0
+                  const discount = product.discountPercent ?? 0
+                  const oldPrice = unit === 'COPE'
+                    ? product.salesPrice
+                    : product.salesPrice * (product.pakoCopje ?? 1)
+
+                  return (
+                    <div
+                      key={product.id}
+                      className={`bg-white rounded-2xl border shadow-sm transition-all ${
+                        inCart ? 'border-primary ring-1 ring-primary/20' : 'border-gray-200'
+                      } ${maxStock === 0 ? 'opacity-60' : ''}`}
+                    >
+                      {/* ─ Top section: photo + info ─ */}
+                      <div className="flex gap-3 p-3 pb-2">
+
+                        {/* Photo */}
+                        <div className="relative w-24 h-24 shrink-0 rounded-xl overflow-hidden bg-gray-100">
+                          {product.photo ? (
+                            <Image
+                              src={product.photo}
+                              alt={product.name}
+                              fill
+                              className="object-cover"
+                              sizes="96px"
+                            />
+                          ) : (
+                            <div className="flex items-center justify-center h-full">
+                              <Package className="h-8 w-8 text-gray-300" />
+                            </div>
+                          )}
+                          {discount > 0 && (
+                            <span className="absolute top-1.5 left-1.5 bg-orange-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full leading-none">
+                              -{discount}%
+                            </span>
+                          )}
+                          {maxStock === 0 && (
+                            <div className="absolute inset-0 bg-black/40 flex items-center justify-center rounded-xl">
+                              <span className="text-white text-[10px] font-bold bg-red-500 px-2 py-0.5 rounded-full">
+                                Pa Stok
+                              </span>
+                            </div>
+                          )}
                         </div>
-                      )}
-                      {discount > 0 && (
-                        <span className="absolute top-1.5 left-1.5 bg-orange-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full leading-none">
-                          -{discount}%
-                        </span>
-                      )}
-                      {maxStock === 0 && (
-                        <div className="absolute inset-0 bg-black/40 flex items-center justify-center rounded-xl">
-                          <span className="text-white text-[10px] font-bold bg-red-500 px-2 py-0.5 rounded-full">
-                            Pa Stok
-                          </span>
+
+                        {/* Info */}
+                        <div className="flex-1 min-w-0 flex flex-col gap-1">
+                          <p className="font-semibold text-gray-900 text-sm leading-snug line-clamp-2">
+                            {product.name}
+                          </p>
+
+                          <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+                            {product.category && (
+                              <span className="text-xs font-medium text-blue-600">{product.category.name}</span>
+                            )}
+                            {product.brand && (
+                              <span className="text-xs text-gray-400">{product.brand.name}</span>
+                            )}
+                          </div>
+
+                          <p className={`text-xs font-medium ${
+                            maxStock === 0 ? 'text-red-500' :
+                            maxStock < 5 ? 'text-amber-500' :
+                            'text-gray-400'
+                          }`}>
+                            {maxStock === 0
+                              ? 'Pa stok'
+                              : `${maxStock} ${unit === 'COPE' ? 'copë' : 'pako'} disponibël`}
+                          </p>
+
+                          {/* Price */}
+                          <div className="flex items-baseline gap-1.5 mt-auto">
+                            <span className="text-base font-bold text-primary leading-none">
+                              {formatCurrency(price)}
+                            </span>
+                            {discount > 0 && (
+                              <span className="text-xs text-gray-400 line-through">
+                                {formatCurrency(oldPrice)}
+                              </span>
+                            )}
+                          </div>
                         </div>
-                      )}
-                    </div>
-
-                    {/* Info */}
-                    <div className="flex-1 min-w-0 flex flex-col gap-1">
-                      <p className="font-semibold text-gray-900 text-sm leading-snug line-clamp-2">
-                        {product.name}
-                      </p>
-
-                      <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
-                        {product.category && (
-                          <span className="text-xs font-medium text-blue-600">{product.category.name}</span>
-                        )}
-                        {product.brand && (
-                          <span className="text-xs text-gray-400">{product.brand.name}</span>
-                        )}
                       </div>
 
-                      <p className={`text-xs font-medium ${
-                        maxStock === 0 ? 'text-red-500' :
-                        maxStock < 5 ? 'text-amber-500' :
-                        'text-gray-400'
-                      }`}>
-                        {maxStock === 0
-                          ? 'Pa stok'
-                          : `${maxStock} ${unit === 'COPE' ? 'copë' : 'pako'} disponibël`}
-                      </p>
-
-                      {/* Price */}
-                      <div className="flex items-baseline gap-1.5 mt-auto">
-                        <span className="text-base font-bold text-primary leading-none">
-                          {formatCurrency(price)}
-                        </span>
-                        {discount > 0 && (
-                          <span className="text-xs text-gray-400 line-through">
-                            {formatCurrency(oldPrice)}
-                          </span>
+                      {/* ─ Controls row ─ */}
+                      <div className="flex items-center gap-2 px-3 pb-3">
+                        {/* Unit toggle (Copë / Pako) */}
+                        {hasPako && (
+                          <div className="flex rounded-xl border border-gray-200 overflow-hidden shrink-0">
+                            <button
+                              className={`px-3 h-10 text-xs font-semibold transition-colors ${
+                                unit === 'COPE'
+                                  ? 'bg-primary text-white'
+                                  : 'text-gray-600 bg-white hover:bg-gray-50 active:bg-gray-100'
+                              }`}
+                              onClick={() => setUnit(product.id, 'COPE')}
+                            >
+                              Copë
+                            </button>
+                            <button
+                              className={`px-3 h-10 text-xs font-semibold transition-colors border-l border-gray-200 ${
+                                unit === 'PAKO'
+                                  ? 'bg-primary text-white'
+                                  : 'text-gray-600 bg-white hover:bg-gray-50 active:bg-gray-100'
+                              }`}
+                              onClick={() => setUnit(product.id, 'PAKO')}
+                            >
+                              Pako×{product.pakoCopje}
+                            </button>
+                          </div>
                         )}
+
+                        {/* Qty controls */}
+                        <div className="flex-1">
+                          {maxStock === 0 ? (
+                            <div className="w-full text-center text-xs text-red-500 font-medium py-2.5 bg-red-50 rounded-xl">
+                              Pa Stok
+                            </div>
+                          ) : isBlocked ? (
+                            <div className="w-full text-center text-xs text-red-500 font-medium py-2.5 bg-red-50 rounded-xl">
+                              Klienti i bllokuar
+                            </div>
+                          ) : qty === 0 ? (
+                            <button
+                              className="w-full bg-primary text-white rounded-xl text-sm font-semibold hover:bg-primary/90 active:bg-primary/80 transition-colors h-11 flex items-center justify-center gap-1.5"
+                              onClick={() => setQty(product, 1)}
+                            >
+                              <Plus className="h-4 w-4" />
+                              Shto
+                            </button>
+                          ) : (
+                            <div className="flex items-center gap-2">
+                              <button
+                                className="w-11 h-11 rounded-xl border border-gray-200 flex items-center justify-center hover:bg-gray-50 active:bg-gray-100 transition-colors shrink-0"
+                                onClick={() => setQty(product, qty - 1)}
+                              >
+                                <Minus className="h-4 w-4 text-gray-700" />
+                              </button>
+                              <input
+                                type="number"
+                                min={1}
+                                max={maxStock}
+                                value={qty}
+                                onChange={e => setQty(product, parseInt(e.target.value) || 0)}
+                                className="flex-1 h-11 text-center text-sm font-bold border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/30 min-w-0"
+                              />
+                              <button
+                                className="w-11 h-11 rounded-xl border border-gray-200 flex items-center justify-center hover:bg-gray-50 active:bg-gray-100 transition-colors shrink-0 disabled:opacity-40 disabled:cursor-not-allowed"
+                                onClick={() => setQty(product, qty + 1)}
+                                disabled={qty >= maxStock}
+                              >
+                                <Plus className="h-4 w-4 text-gray-700" />
+                              </button>
+                            </div>
+                          )}
+                        </div>
                       </div>
                     </div>
-                  </div>
-
-                  {/* ─ Controls row ─ */}
-                  <div className="flex items-center gap-2 px-3 pb-3">
-                    {/* Unit toggle (Copë / Pako) */}
-                    {hasPako && (
-                      <div className="flex rounded-xl border border-gray-200 overflow-hidden shrink-0">
-                        <button
-                          className={`px-3 h-10 text-xs font-semibold transition-colors ${
-                            unit === 'COPE'
-                              ? 'bg-primary text-white'
-                              : 'text-gray-600 bg-white hover:bg-gray-50 active:bg-gray-100'
-                          }`}
-                          onClick={() => setUnit(product.id, 'COPE')}
-                        >
-                          Copë
-                        </button>
-                        <button
-                          className={`px-3 h-10 text-xs font-semibold transition-colors border-l border-gray-200 ${
-                            unit === 'PAKO'
-                              ? 'bg-primary text-white'
-                              : 'text-gray-600 bg-white hover:bg-gray-50 active:bg-gray-100'
-                          }`}
-                          onClick={() => setUnit(product.id, 'PAKO')}
-                        >
-                          Pako×{product.pakoCopje}
-                        </button>
-                      </div>
-                    )}
-
-                    {/* Qty controls */}
-                    <div className="flex-1">
-                      {maxStock === 0 ? (
-                        <div className="w-full text-center text-xs text-red-500 font-medium py-2.5 bg-red-50 rounded-xl">
-                          Pa Stok
-                        </div>
-                      ) : qty === 0 ? (
-                        <button
-                          className="w-full bg-primary text-white rounded-xl text-sm font-semibold hover:bg-primary/90 active:bg-primary/80 transition-colors h-11 flex items-center justify-center gap-1.5"
-                          onClick={() => setQty(product, 1)}
-                        >
-                          <Plus className="h-4 w-4" />
-                          Shto
-                        </button>
-                      ) : (
-                        <div className="flex items-center gap-2">
-                          <button
-                            className="w-11 h-11 rounded-xl border border-gray-200 flex items-center justify-center hover:bg-gray-50 active:bg-gray-100 transition-colors shrink-0"
-                            onClick={() => setQty(product, qty - 1)}
-                          >
-                            <Minus className="h-4 w-4 text-gray-700" />
-                          </button>
-                          <input
-                            type="number"
-                            min={1}
-                            max={maxStock}
-                            value={qty}
-                            onChange={e => setQty(product, parseInt(e.target.value) || 0)}
-                            className="flex-1 h-11 text-center text-sm font-bold border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/30 min-w-0"
-                          />
-                          <button
-                            className="w-11 h-11 rounded-xl border border-gray-200 flex items-center justify-center hover:bg-gray-50 active:bg-gray-100 transition-colors shrink-0 disabled:opacity-40 disabled:cursor-not-allowed"
-                            onClick={() => setQty(product, qty + 1)}
-                            disabled={qty >= maxStock}
-                          >
-                            <Plus className="h-4 w-4 text-gray-700" />
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              )
-            })}
-          </div>
+                  )
+                })}
+              </div>
+            )}
+          </>
         )}
       </div>
 
@@ -609,7 +825,7 @@ export default function NewOrderPage() {
             </Button>
             <Button
               onClick={() => handleSubmit('SUBMITTED')}
-              disabled={submitting || !customerId || selectedCustomer?.status === 'BLOCKED'}
+              disabled={submitting || !customerId || isBlocked}
               className="gap-1.5 shrink-0 h-11 px-4"
             >
               <Send className="h-4 w-4" />
