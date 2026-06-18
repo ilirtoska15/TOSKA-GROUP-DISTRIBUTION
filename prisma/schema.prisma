@@ -1,0 +1,717 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================
+// ENUMS
+// ============================================================
+
+model User {
+  id            String    @id @default(cuid())
+  name          String
+  email         String    @unique
+  emailVerified DateTime?
+  password      String?
+  image         String?
+  role          String    @default("AGJENT") // ADMIN, AGJENT, SHOFER, DEPOIST
+  status        String    @default("ACTIVE") // ACTIVE, INACTIVE
+  phone         String?
+  regionId      String?
+  zoneId        String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  region Region? @relation(fields: [regionId], references: [id])
+  zone   Zone?   @relation(fields: [zoneId], references: [id])
+
+  permissions     UserPermission[]
+  customersAgent  Customer[]          @relation("AgentCustomers")
+  ordersCreated   Order[]             @relation("OrderCreatedBy")
+  visitsCreated   Visit[]
+  paymentsCollected Payment[]         @relation("PaymentCollectedBy")
+  returnsCreated  Return[]            @relation("ReturnCreatedBy")
+  damagesReported Damage[]            @relation("DamageReportedBy")
+  deliveriesDriver Delivery[]         @relation("DeliveryDriver")
+  expensesCreated Expense[]           @relation("ExpenseCreatedBy")
+  auditLogs       AuditLog[]
+  sessions        UserSession[]
+  targets         Target[]
+  notifications      Notification[]
+  pushSubscriptions  PushSubscription[]
+
+  @@map("users")
+}
+
+model UserPermission {
+  id         String  @id @default(cuid())
+  userId     String
+  permission String
+  enabled    Boolean @default(true)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, permission])
+  @@map("user_permissions")
+}
+
+model UserSession {
+  id           String   @id @default(cuid())
+  userId       String
+  device       String?
+  ipAddress    String?
+  userAgent    String?
+  loginAt      DateTime @default(now())
+  lastActivity DateTime @default(now())
+  isActive     Boolean  @default(true)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_sessions")
+}
+
+// ============================================================
+// REGIONS & ZONES
+// ============================================================
+
+model Region {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  createdAt DateTime @default(now())
+
+  zones     Zone[]
+  customers Customer[]
+  users     User[]
+
+  @@map("regions")
+}
+
+model Zone {
+  id        String   @id @default(cuid())
+  name      String
+  regionId  String
+  createdAt DateTime @default(now())
+
+  region    Region     @relation(fields: [regionId], references: [id])
+  customers Customer[]
+  users     User[]
+
+  @@unique([name, regionId])
+  @@map("zones")
+}
+
+// ============================================================
+// CUSTOMERS / MARKETS
+// ============================================================
+
+model Customer {
+  id             String   @id @default(cuid())
+  code           String   @unique // MK000001
+  businessName   String
+  businessAddress String
+  city           String
+  regionId       String?
+  zoneId         String?
+  lat            Float?
+  lng            Float?
+  businessNumber  String?
+  vatNumber      String?
+  phone          String
+  phone2         String?
+  contactPerson  String?
+  agentId        String?
+  debtLimit      Float    @default(0)
+  paymentTermDays Int     @default(30)
+  status         String   @default("ACTIVE") // ACTIVE, INACTIVE, BLOCKED
+  notes          String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  region  Region?  @relation(fields: [regionId], references: [id])
+  zone    Zone?    @relation(fields: [zoneId], references: [id])
+  agent   User?    @relation("AgentCustomers", fields: [agentId], references: [id])
+
+  orders    Order[]
+  visits    Visit[]
+  payments  Payment[]
+  returns   Return[]
+  documents Document[]
+
+  @@map("customers")
+}
+
+model NewMarketRequest {
+  id            String   @id @default(cuid())
+  businessName  String
+  address       String
+  phone         String
+  contactPerson String?
+  lat           Float?
+  lng           Float?
+  businessNumber String?
+  vatNumber     String?
+  notes         String?
+  status        String   @default("PENDING") // PENDING, APPROVED, REJECTED
+  submittedById String
+  reviewedById  String?
+  reviewNotes   String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@map("new_market_requests")
+}
+
+// ============================================================
+// CATEGORIES & BRANDS
+// ============================================================
+
+model Category {
+  id        String    @id @default(cuid())
+  name      String    @unique
+  createdAt DateTime  @default(now())
+  products  Product[]
+
+  @@map("categories")
+}
+
+model Brand {
+  id        String    @id @default(cuid())
+  name      String    @unique
+  createdAt DateTime  @default(now())
+  products  Product[]
+
+  @@map("brands")
+}
+
+// ============================================================
+// PRODUCTS
+// ============================================================
+
+model Product {
+  id              String   @id @default(cuid())
+  code            String   @unique // PR000001
+  barcode         String?  @unique
+  qrCode          String?  @unique
+  brandId         String?
+  categoryId      String?
+  name            String
+  description     String?
+  photo           String   // required
+  salesPrice      Float
+  pakoCopje       Int?     // how many copje per pako (null = pako not available)
+  promotionActive Boolean  @default(false)
+  promotionText   String?
+  promotionEnds   DateTime?
+  expiryDate      DateTime?
+  lotNumber       String?
+  status          String   @default("ACTIVE") // ACTIVE, INACTIVE
+  showPricePublic Boolean  @default(false)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  brand    Brand?    @relation(fields: [brandId], references: [id])
+  category Category? @relation(fields: [categoryId], references: [id])
+
+  orderLines     OrderLine[]
+  stockMovements StockMovement[]
+  returnLines    ReturnLine[]
+  damageLines    DamageLine[]
+  supplierProducts SupplierProduct[]
+
+  @@map("products")
+}
+
+// ============================================================
+// INVENTORY / STOCK
+// ============================================================
+
+model StockMovement {
+  id          String   @id @default(cuid())
+  productId   String
+  type        String   // IN, OUT, ADJUSTMENT, RESERVATION, RESERVATION_RELEASE, RETURN, DAMAGE
+  quantityCopje Int
+  reason      String?
+  reference   String?  // order ref, return ref, etc.
+  referenceId String?
+  userId      String?
+  notes       String?
+  createdAt   DateTime @default(now())
+
+  product Product @relation(fields: [productId], references: [id])
+
+  @@map("stock_movements")
+}
+
+model InventoryRecord {
+  id              String   @id @default(cuid())
+  type            String   @default("FULL") // FULL, PARTIAL, QUICK
+  status          String   @default("DRAFT") // DRAFT, COMPLETED
+  conductedById   String
+  notes           String?
+  startedAt       DateTime @default(now())
+  completedAt     DateTime?
+  createdAt       DateTime @default(now())
+
+  lines InventoryLine[]
+
+  @@map("inventory_records")
+}
+
+model InventoryLine {
+  id              String @id @default(cuid())
+  inventoryId     String
+  productId       String
+  systemQty       Int
+  countedQty      Int
+  differenceQty   Int
+  reason          String?
+
+  inventory InventoryRecord @relation(fields: [inventoryId], references: [id], onDelete: Cascade)
+
+  @@map("inventory_lines")
+}
+
+// ============================================================
+// ORDERS
+// ============================================================
+
+model Order {
+  id            String   @id @default(cuid())
+  reference     String   @unique // ORD-YYYY-000001
+  customerId    String
+  createdById   String
+  agentId       String?
+  status        String   @default("DRAFT")
+  // DRAFT, SUBMITTED, PRET_APROVIM, APROVUAR, NE_PERGATITJE, GATI_PER_NGARKIM, NE_DERGESE, DORËZUAR, DESHTUAR, ANULUAR
+  approvedById  String?
+  approvedAt    DateTime?
+  rejectedById  String?
+  rejectedAt    DateTime?
+  rejectionNote String?
+  totalAmount   Float    @default(0)
+  notes         String?
+  isLocked      Boolean  @default(false)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  customer  Customer @relation(fields: [customerId], references: [id])
+  createdBy User     @relation("OrderCreatedBy", fields: [createdById], references: [id])
+
+  lines    OrderLine[]
+  delivery Delivery?
+  payments Payment[]
+  returns  Return[]
+
+  @@map("orders")
+}
+
+model OrderLine {
+  id              String @id @default(cuid())
+  orderId         String
+  productId       String
+  unit            String @default("COPE") // COPE, PAKO
+  quantity        Int
+  quantityCopje   Int
+  salesPrice      Float
+  lineTotal       Float
+  productSnapshot String // JSON snapshot
+
+  order   Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id])
+
+  @@map("order_lines")
+}
+
+// ============================================================
+// VISITS
+// ============================================================
+
+model Visit {
+  id           String    @id @default(cuid())
+  reference    String    @unique // VIS-YYYY-000001
+  customerId   String
+  agentId      String
+  status       String    @default("OPEN") // OPEN, CLOSED
+  openedAt     DateTime  @default(now())
+  openedLat    Float?
+  openedLng    Float?
+  closedAt     DateTime?
+  closedLat    Float?
+  closedLng    Float?
+  hasOrder     Boolean   @default(false)
+  noOrderReason String?
+  orderId      String?
+  notes        String?
+  createdAt    DateTime  @default(now())
+
+  customer Customer @relation(fields: [customerId], references: [id])
+  agent    User     @relation(fields: [agentId], references: [id])
+
+  @@map("visits")
+}
+
+// ============================================================
+// DELIVERIES
+// ============================================================
+
+model Delivery {
+  id             String    @id @default(cuid())
+  orderId        String    @unique
+  driverId       String?
+  status         String    @default("ASSIGNED") // ASSIGNED, LOADED, IN_DELIVERY, DELIVERED, FAILED
+  assignedAt     DateTime  @default(now())
+  loadedAt       DateTime?
+  startedAt      DateTime?
+  deliveredAt    DateTime?
+  failedAt       DateTime?
+  failureReason  String?
+  notes          String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  order  Order @relation(fields: [orderId], references: [id])
+  driver User? @relation("DeliveryDriver", fields: [driverId], references: [id])
+
+  @@map("deliveries")
+}
+
+// ============================================================
+// PAYMENTS
+// ============================================================
+
+model Payment {
+  id          String   @id @default(cuid())
+  reference   String   @unique // PAY-YYYY-000001
+  customerId  String
+  orderId     String?
+  amount      Float
+  method      String   // CASH, BANK
+  collectedById String
+  notes       String?
+  correctionOf  String? // if this is a correction payment
+  createdAt   DateTime @default(now())
+
+  customer    Customer @relation(fields: [customerId], references: [id])
+  order       Order?   @relation(fields: [orderId], references: [id])
+  collectedBy User     @relation("PaymentCollectedBy", fields: [collectedById], references: [id])
+
+  @@map("payments")
+}
+
+// ============================================================
+// RETURNS
+// ============================================================
+
+model Return {
+  id           String   @id @default(cuid())
+  reference    String   @unique // RET-YYYY-000001
+  customerId   String
+  orderId      String?
+  status       String   @default("NE_PRITJE")
+  // NE_PRITJE, APROVUAR, REFUZUAR, MARRE_NGA_SHOFERI, KTHYER_NE_DEPO, PERFUNDUAR
+  createdById  String
+  approvedById String?
+  approvedAt   DateTime?
+  driverId     String?
+  pickedUpAt   DateTime?
+  receivedAt   DateTime?
+  warehouseAction String? // RETURN_TO_STOCK, MARK_DAMAGED
+  notes        String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  customer  Customer @relation(fields: [customerId], references: [id])
+  order     Order?   @relation(fields: [orderId], references: [id])
+  createdBy User     @relation("ReturnCreatedBy", fields: [createdById], references: [id])
+
+  lines ReturnLine[]
+
+  @@map("returns")
+}
+
+model ReturnLine {
+  id            String  @id @default(cuid())
+  returnId      String
+  productId     String
+  unit          String  @default("COPE")
+  quantity      Int
+  quantityCopje Int
+  reason        String?
+  photo         String?
+
+  return  Return  @relation(fields: [returnId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id])
+
+  @@map("return_lines")
+}
+
+// ============================================================
+// DAMAGES
+// ============================================================
+
+model Damage {
+  id           String   @id @default(cuid())
+  reference    String   @unique // DMG-YYYY-000001
+  reportedById String
+  notes        String?
+  createdAt    DateTime @default(now())
+
+  reportedBy User        @relation("DamageReportedBy", fields: [reportedById], references: [id])
+  lines      DamageLine[]
+
+  @@map("damages")
+}
+
+model DamageLine {
+  id         String  @id @default(cuid())
+  damageId   String
+  productId  String
+  quantity   Int
+  reason     String  // DAMAGED_WAREHOUSE, DAMAGED_TRANSPORT, RETURNED_DAMAGED, EXPIRED
+  photo      String?
+  returnId   String?
+  orderId    String?
+
+  damage  Damage  @relation(fields: [damageId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id])
+
+  @@map("damage_lines")
+}
+
+// ============================================================
+// SUPPLIERS
+// ============================================================
+
+model Supplier {
+  id            String   @id @default(cuid())
+  name          String
+  phone         String?
+  email         String?
+  address       String?
+  contactPerson String?
+  businessNumber String?
+  vatNumber     String?
+  status        String   @default("ACTIVE")
+  notes         String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  products  SupplierProduct[]
+  documents Document[]
+
+  @@map("suppliers")
+}
+
+model SupplierProduct {
+  id         String @id @default(cuid())
+  supplierId String
+  productId  String
+
+  supplier Supplier @relation(fields: [supplierId], references: [id])
+  product  Product  @relation(fields: [productId], references: [id])
+
+  @@unique([supplierId, productId])
+  @@map("supplier_products")
+}
+
+// ============================================================
+// FLEET / VEHICLES
+// ============================================================
+
+model Vehicle {
+  id                  String    @id @default(cuid())
+  plate               String    @unique
+  driverId            String?
+  registrationExpiry  DateTime?
+  insuranceExpiry     DateTime?
+  notes               String?
+  status              String    @default("ACTIVE")
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  serviceHistory VehicleService[]
+  documents      Document[]
+
+  @@map("vehicles")
+}
+
+model VehicleService {
+  id          String   @id @default(cuid())
+  vehicleId   String
+  description String
+  date        DateTime
+  cost        Float?
+  notes       String?
+  createdAt   DateTime @default(now())
+
+  vehicle Vehicle @relation(fields: [vehicleId], references: [id])
+
+  @@map("vehicle_services")
+}
+
+// ============================================================
+// EXPENSES
+// ============================================================
+
+model Expense {
+  id           String   @id @default(cuid())
+  createdById  String
+  type         String   // FUEL, SERVICE, PARKING, TOLLS, WAREHOUSE_SUPPLIES, OTHER
+  amount       Float
+  description  String
+  receiptPhoto String?
+  status       String   @default("PENDING") // PENDING, APPROVED, REJECTED
+  approvedById String?
+  approvedAt   DateTime?
+  notes        String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  createdBy User @relation("ExpenseCreatedBy", fields: [createdById], references: [id])
+
+  @@map("expenses")
+}
+
+// ============================================================
+// TARGETS / BONUSES / COMMISSIONS
+// ============================================================
+
+model Target {
+  id           String   @id @default(cuid())
+  userId       String
+  month        Int
+  year         Int
+  salesTarget  Float    @default(0)
+  visitTarget  Int      @default(0)
+  orderTarget  Int      @default(0)
+  bonusAmount  Float?
+  commissionPct Float?
+  notes        String?
+  createdAt    DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@unique([userId, month, year])
+  @@map("targets")
+}
+
+// ============================================================
+// DOCUMENTS
+// ============================================================
+
+model Document {
+  id          String    @id @default(cuid())
+  name        String
+  type        String    // CONTRACT, AGREEMENT, CERTIFICATE, OTHER
+  fileUrl     String
+  expiryDate  DateTime?
+  customerId  String?
+  supplierId  String?
+  vehicleId   String?
+  notes       String?
+  createdAt   DateTime  @default(now())
+
+  customer Customer? @relation(fields: [customerId], references: [id])
+  supplier Supplier? @relation(fields: [supplierId], references: [id])
+  vehicle  Vehicle?  @relation(fields: [vehicleId], references: [id])
+
+  @@map("documents")
+}
+
+// ============================================================
+// NOTIFICATIONS
+// ============================================================
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  type      String
+  title     String
+  message   String
+  link      String?
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("notifications")
+}
+
+model PushSubscription {
+  id        String   @id @default(cuid())
+  userId    String
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("push_subscriptions")
+}
+
+// ============================================================
+// AUDIT LOG
+// ============================================================
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  userId     String?
+  module     String
+  action     String
+  recordId   String?
+  prevValue  String?  // JSON
+  newValue   String?  // JSON
+  ipAddress  String?
+  createdAt  DateTime @default(now())
+
+  user User? @relation(fields: [userId], references: [id])
+
+  @@map("audit_logs")
+}
+
+// ============================================================
+// SYSTEM CONFIGURATION
+// ============================================================
+
+model SystemConfig {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  value     String
+  updatedAt DateTime @updatedAt
+
+  @@map("system_config")
+}
+
+// ============================================================
+// SEQUENCE COUNTERS
+// ============================================================
+
+model SequenceCounter {
+  id     String @id @default(cuid())
+  name   String @unique // customer, product, order, payment, return, damage, visit
+  year   Int
+  value  Int    @default(0)
+
+  @@unique([name, year])
+  @@map("sequence_counters")
+}
+
+// ============================================================
+// ERROR LOG
+// ============================================================
+
+model ErrorLog {
+  id        String   @id @default(cuid())
+  message   String
+  module    String?
+  userId    String?
+  context   String?  // JSON
+  createdAt DateTime @default(now())
+
+  @@map("error_logs")
+}
