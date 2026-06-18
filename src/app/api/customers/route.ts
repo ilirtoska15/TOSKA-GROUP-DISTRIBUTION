@@ -6,6 +6,7 @@ import { createAuditLog } from '@/lib/audit'
 import { z } from 'zod'
 
 export const dynamic = 'force-dynamic'
+export const runtime = 'nodejs'
 
 const createSchema = z.object({
   businessName: z.string().min(1),

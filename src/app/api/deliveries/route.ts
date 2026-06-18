@@ -4,6 +4,7 @@ import { db } from '@/lib/db'
 import { z } from 'zod'
 
 export const dynamic = 'force-dynamic'
+export const runtime = 'nodejs'
 
 const assignSchema = z.object({
   orderId: z.string(),

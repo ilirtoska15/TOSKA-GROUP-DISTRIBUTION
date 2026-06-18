@@ -7,6 +7,7 @@ import { addStockMovement } from '@/lib/stock'
 import { z } from 'zod'
 
 export const dynamic = 'force-dynamic'
+export const runtime = 'nodejs'
 
 const createSchema = z.object({
   lines: z.array(z.object({

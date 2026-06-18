@@ -4,6 +4,7 @@ import { db } from '@/lib/db'
 import ExcelJS from 'exceljs'
 
 export const dynamic = 'force-dynamic'
+export const runtime = 'nodejs'
 
 export async function GET(req: NextRequest) {
   const session = await auth()

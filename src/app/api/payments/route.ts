@@ -7,6 +7,7 @@ import { hasPermission } from '@/lib/permissions'
 import { z } from 'zod'
 
 export const dynamic = 'force-dynamic'
+export const runtime = 'nodejs'
 
 const createSchema = z.object({
   customerId: z.string(),

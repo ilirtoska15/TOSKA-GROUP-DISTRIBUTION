@@ -2,6 +2,7 @@
 import { db } from '@/lib/db'
 
 export const dynamic = 'force-dynamic'
+export const runtime = 'nodejs'
 
 // Public endpoint - no auth required
 export async function GET(req: NextRequest) {

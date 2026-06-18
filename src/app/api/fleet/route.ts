@@ -4,6 +4,7 @@ import { db } from '@/lib/db'
 import { z } from 'zod'
 
 export const dynamic = 'force-dynamic'
+export const runtime = 'nodejs'
 
 const createSchema = z.object({
   plate: z.string().min(1),

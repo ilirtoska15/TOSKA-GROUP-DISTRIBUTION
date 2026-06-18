@@ -1,10 +1,11 @@
 import { redirect } from 'next/navigation'
 import { auth } from '@/lib/auth'
-
-export const dynamic = 'force-dynamic'
 import { Sidebar } from '@/components/layout/sidebar'
 import { MobileNav } from '@/components/layout/mobile-nav'
 import { PushInit } from '@/components/push-init'
+
+export const dynamic = 'force-dynamic'
+export const runtime = 'nodejs'
 
 export default async function DashboardLayout({
   children,

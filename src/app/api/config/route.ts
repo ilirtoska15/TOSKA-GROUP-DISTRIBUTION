@@ -4,6 +4,7 @@ import { db } from '@/lib/db'
 import { createAuditLog } from '@/lib/audit'
 
 export const dynamic = 'force-dynamic'
+export const runtime = 'nodejs'
 
 export async function GET(_req: NextRequest) {
   const session = await auth()

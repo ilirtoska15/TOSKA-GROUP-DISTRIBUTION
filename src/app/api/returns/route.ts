@@ -7,6 +7,7 @@ import { addStockMovement, convertToBase } from '@/lib/stock'
 import { z } from 'zod'
 
 export const dynamic = 'force-dynamic'
+export const runtime = 'nodejs'
 
 const returnLineSchema = z.object({
   productId: z.string(),

@@ -5,6 +5,7 @@ import { generateReference } from '@/lib/utils'
 import { z } from 'zod'
 
 export const dynamic = 'force-dynamic'
+export const runtime = 'nodejs'
 
 const openVisitSchema = z.object({
   customerId: z.string(),

@@ -1,10 +1,11 @@
-import { NextRequest, NextResponse } from 'next/server'
+﻿import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { createAuditLog } from '@/lib/audit'
 import bcrypt from 'bcryptjs'
 
 export const dynamic = 'force-dynamic'
+export const runtime = 'nodejs'
 import { z } from 'zod'
 
 const updateSchema = z.object({

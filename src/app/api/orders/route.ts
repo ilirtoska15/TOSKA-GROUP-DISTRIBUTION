@@ -8,6 +8,7 @@ import { sendPushToRole } from '@/lib/push'
 import { z } from 'zod'
 
 export const dynamic = 'force-dynamic'
+export const runtime = 'nodejs'
 
 const orderLineSchema = z.object({
   productId: z.string(),
