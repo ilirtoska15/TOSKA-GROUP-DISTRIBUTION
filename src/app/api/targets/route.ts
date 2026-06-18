@@ -16,64 +16,70 @@ const createSchema = z.object({
 })
 
 export async function GET(req: NextRequest) {
-  const session = await auth()
-  if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  try {
+    const session = await auth()
+    if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const { searchParams } = new URL(req.url)
-  const year = parseInt(searchParams.get('year') ?? String(new Date().getFullYear()))
-  const month = parseInt(searchParams.get('month') ?? String(new Date().getMonth() + 1))
+    const { searchParams } = new URL(req.url)
+    const year = parseInt(searchParams.get('year') ?? String(new Date().getFullYear()))
+    const month = parseInt(searchParams.get('month') ?? String(new Date().getMonth() + 1))
 
-  const where: Record<string, unknown> = { year, month }
-  if (session.user.role === 'AGJENT') {
-    where.userId = session.user.id
-  } else if (session.user.role !== 'ADMIN') {
-    return NextResponse.json({ targets: [] })
-  }
-
-  const targets = await db.target.findMany({
-    where,
-    include: { user: { select: { id: true, name: true } } },
-    orderBy: [{ year: 'desc' }, { month: 'desc' }],
-  })
-
-  // Calculate achieved amounts
-  const enriched = await Promise.all(targets.map(async t => {
-    const startOfMonth = new Date(t.year, t.month - 1, 1)
-    const endOfMonth = new Date(t.year, t.month, 0, 23, 59, 59)
-
-    const [orders, visits] = await Promise.all([
-      db.order.aggregate({
-        where: {
-          createdById: t.userId,
-          status: { in: ['APROVUAR', 'PERGATITJE', 'GATSHME', 'DORÃ‹ZUAR'] },
-          createdAt: { gte: startOfMonth, lte: endOfMonth },
-        },
-        _sum: { totalAmount: true },
-        _count: true,
-      }),
-      db.visit.count({
-        where: {
-          agentId: t.userId,
-          createdAt: { gte: startOfMonth, lte: endOfMonth },
-        },
-      }),
-    ])
-
-    return {
-      id: t.id,
-      month: t.month,
-      year: t.year,
-      targetAmount: t.salesTarget,
-      targetVisits: t.visitTarget,
-      targetOrders: t.orderTarget,
-      achievedAmount: orders._sum.totalAmount ?? 0,
-      achievedVisits: visits,
-      achievedOrders: orders._count,
-      agent: { id: t.userId, name: t.user.name },
+    const where: Record<string, unknown> = { year, month }
+    if (session.user.role === 'AGJENT') {
+      where.userId = session.user.id
+    } else if (session.user.role !== 'ADMIN') {
+      return NextResponse.json({ targets: [] })
     }
-  }))
 
-  return NextResponse.json({ targets: enriched })
+    const targets = await db.target.findMany({
+      where,
+      include: { user: { select: { id: true, name: true } } },
+      orderBy: [{ year: 'desc' }, { month: 'desc' }],
+    })
+
+    // Calculate achieved amounts
+    const enriched = await Promise.all(targets.map(async t => {
+      const startOfMonth = new Date(t.year, t.month - 1, 1)
+      const endOfMonth = new Date(t.year, t.month, 0, 23, 59, 59)
+
+      const [orders, visits] = await Promise.all([
+        db.order.aggregate({
+          where: {
+            createdById: t.userId,
+            status: { in: ['APROVUAR', 'NE_PERGATITJE', 'GATI_PER_NGARKIM', 'NE_DERGESE', 'DORËZUAR'] },
+            createdAt: { gte: startOfMonth, lte: endOfMonth },
+          },
+          _sum: { totalAmount: true },
+          _count: true,
+        }),
+        db.visit.count({
+          where: {
+            agentId: t.userId,
+            createdAt: { gte: startOfMonth, lte: endOfMonth },
+          },
+        }),
+      ])
+
+      return {
+        id: t.id,
+        month: t.month,
+        year: t.year,
+        targetAmount: t.salesTarget,
+        targetVisits: t.visitTarget,
+        targetOrders: t.orderTarget,
+        achievedAmount: orders._sum.totalAmount ?? 0,
+        achievedVisits: visits,
+        achievedOrders: orders._count,
+        agent: { id: t.userId, name: t.user.name },
+      }
+    }))
+
+    return NextResponse.json({ targets: enriched })
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : 'Internal server error'
+    console.error('[targets] GET error:', err)
+    return NextResponse.json({ error: msg }, { status: 500 })
+  }
 }
 
 export async function POST(req: NextRequest) {

@@ -15,30 +15,36 @@ const createSchema = z.object({
 })
 
 export async function GET(req: NextRequest) {
-  const session = await auth()
-  if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  try {
+    const session = await auth()
+    if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const { searchParams } = new URL(req.url)
-  const search = searchParams.get('search') ?? ''
+    const { searchParams } = new URL(req.url)
+    const search = searchParams.get('search') ?? ''
 
-  const where: Record<string, unknown> = {}
-  if (search) {
-    where.OR = [
-      { name: { contains: search } },
-      { contactPerson: { contains: search } },
-    ]
+    const where: Record<string, unknown> = {}
+    if (search.trim()) {
+      where.OR = [
+        { name: { contains: search, mode: 'insensitive' } },
+        { contactPerson: { contains: search, mode: 'insensitive' } },
+      ]
+    }
+
+    const [suppliers, total] = await Promise.all([
+      db.supplier.findMany({
+        where,
+        include: { _count: { select: { products: true } } },
+        orderBy: { name: 'asc' },
+      }),
+      db.supplier.count({ where }),
+    ])
+
+    return NextResponse.json({ suppliers: suppliers.map(s => ({ ...s, contact: s.contactPerson })), total })
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : 'Internal server error'
+    console.error('[suppliers] GET error:', err)
+    return NextResponse.json({ error: msg }, { status: 500 })
   }
-
-  const [suppliers, total] = await Promise.all([
-    db.supplier.findMany({
-      where,
-      include: { _count: { select: { products: true } } },
-      orderBy: { name: 'asc' },
-    }),
-    db.supplier.count({ where }),
-  ])
-
-  return NextResponse.json({ suppliers: suppliers.map(s => ({ ...s, contact: s.contactPerson })), total })
 }
 
 export async function POST(req: NextRequest) {

@@ -48,12 +48,25 @@ export default function OrdersPage() {
 
   const fetchOrders = useCallback(async () => {
     setLoading(true)
-    const params = new URLSearchParams({ page: String(page), limit: '20', search, status: statusFilter })
-    const res = await fetch(`/api/orders?${params}`)
-    const data = await res.json()
-    setOrders(data.orders)
-    setTotal(data.total)
-    setLoading(false)
+    try {
+      const params = new URLSearchParams({ page: String(page), limit: '20', search, status: statusFilter })
+      const res = await fetch(`/api/orders?${params}`)
+      if (!res.ok) {
+        console.error('[orders] fetch error:', res.status)
+        setOrders([])
+        setTotal(0)
+        return
+      }
+      const data = await res.json()
+      setOrders(data.orders ?? [])
+      setTotal(data.total ?? 0)
+    } catch (e) {
+      console.error('[orders] fetch failed:', e)
+      setOrders([])
+      setTotal(0)
+    } finally {
+      setLoading(false)
+    }
   }, [page, search, statusFilter])
 
   useEffect(() => { fetchOrders() }, [fetchOrders])

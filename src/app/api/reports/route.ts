@@ -6,10 +6,11 @@ export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
 
 export async function GET(req: NextRequest) {
-  const session = await auth()
-  if (!session?.user || !['ADMIN'].includes(session.user.role)) {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-  }
+  try {
+    const session = await auth()
+    if (!session?.user || !['ADMIN'].includes(session.user.role)) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
 
   const { searchParams } = new URL(req.url)
   const type = searchParams.get('type') ?? 'sales'
@@ -114,5 +115,10 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ customers })
   }
 
-  return NextResponse.json({ error: 'Invalid report type' }, { status: 400 })
+    return NextResponse.json({ error: 'Invalid report type' }, { status: 400 })
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : 'Internal server error'
+    console.error('[reports] GET error:', err)
+    return NextResponse.json({ error: msg }, { status: 500 })
+  }
 }

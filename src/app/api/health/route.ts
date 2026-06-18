@@ -28,13 +28,13 @@ export async function GET() {
       db.product.count({ where: { status: 'ACTIVE' } }),
       db.product.findMany({ where: { status: 'ACTIVE' }, select: { id: true, expiryDate: true } }),
       db.customer.count({ where: { status: 'ACTIVE' } }),
-      db.order.count({ where: { status: { in: ['SUBMITTED', 'APROVUAR', 'PERGATITJE', 'GATSHME'] } } }),
+      db.order.count({ where: { status: { in: ['SUBMITTED', 'APROVUAR', 'NE_PERGATITJE', 'GATI_PER_NGARKIM'] } } }),
       db.order.count({ where: { status: 'PRET_APROVIM' } }),
       db.return.count({ where: { status: 'NE_PRITJE' } }),
       db.visit.count({ where: { status: 'OPEN' } }),
       db.delivery.count({ where: { status: 'FAILED' } }),
       db.order.aggregate({
-        where: { status: { in: ['SUBMITTED', 'APROVUAR', 'PERGATITJE', 'GATSHME'] } },
+        where: { status: { in: ['SUBMITTED', 'APROVUAR', 'NE_PERGATITJE', 'GATI_PER_NGARKIM'] } },
         _sum: { totalAmount: true },
       }),
     ])

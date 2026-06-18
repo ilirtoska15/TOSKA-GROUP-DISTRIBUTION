@@ -25,48 +25,54 @@ const createSchema = z.object({
 })
 
 export async function GET(req: NextRequest) {
-  const session = await auth()
-  if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  try {
+    const session = await auth()
+    if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const { searchParams } = new URL(req.url)
-  const search = searchParams.get('search') ?? ''
-  const status = searchParams.get('status') ?? ''
-  const customerId = searchParams.get('customerId') ?? ''
-  const page = parseInt(searchParams.get('page') ?? '1')
-  const limit = parseInt(searchParams.get('limit') ?? '20')
-  const skip = (page - 1) * limit
+    const { searchParams } = new URL(req.url)
+    const search = searchParams.get('search') ?? ''
+    const status = searchParams.get('status') ?? ''
+    const customerId = searchParams.get('customerId') ?? ''
+    const page = parseInt(searchParams.get('page') ?? '1')
+    const limit = parseInt(searchParams.get('limit') ?? '20')
+    const skip = (page - 1) * limit
 
-  const where: Record<string, unknown> = {}
-  if (search) {
-    where.OR = [
-      { reference: { contains: search } },
-      { customer: { businessName: { contains: search } } },
-    ]
+    const where: Record<string, unknown> = {}
+    if (search.trim()) {
+      where.OR = [
+        { reference: { contains: search, mode: 'insensitive' } },
+        { customer: { businessName: { contains: search, mode: 'insensitive' } } },
+      ]
+    }
+    if (status) where.status = status
+    if (customerId) where.customerId = customerId
+
+    // Agents see only their own orders
+    if (session.user.role === 'AGJENT') {
+      where.createdById = session.user.id
+    }
+
+    const [orders, total] = await Promise.all([
+      db.order.findMany({
+        where,
+        include: {
+          customer: { select: { id: true, businessName: true, code: true } },
+          createdBy: { select: { id: true, name: true } },
+          _count: { select: { lines: true } },
+        },
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: limit,
+      }),
+      db.order.count({ where }),
+    ])
+
+    return NextResponse.json({ orders, total, page, limit })
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : 'Internal server error'
+    console.error('[orders] GET error:', err)
+    return NextResponse.json({ error: msg }, { status: 500 })
   }
-  if (status) where.status = status
-  if (customerId) where.customerId = customerId
-
-  // Agents see only their own orders
-  if (session.user.role === 'AGJENT') {
-    where.createdById = session.user.id
-  }
-
-  const [orders, total] = await Promise.all([
-    db.order.findMany({
-      where,
-      include: {
-        customer: { select: { id: true, businessName: true, code: true } },
-        createdBy: { select: { id: true, name: true } },
-        _count: { select: { lines: true } },
-      },
-      orderBy: { createdAt: 'desc' },
-      skip,
-      take: limit,
-    }),
-    db.order.count({ where }),
-  ])
-
-  return NextResponse.json({ orders, total, page, limit })
 }
 
 export async function POST(req: NextRequest) {

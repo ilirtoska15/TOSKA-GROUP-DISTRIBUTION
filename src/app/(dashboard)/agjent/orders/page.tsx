@@ -29,12 +29,25 @@ export default function AgjentOrdersPage() {
 
   const fetchOrders = useCallback(async () => {
     setLoading(true)
-    const params = new URLSearchParams({ page: String(page), limit: '20', search, status })
-    const res = await fetch(`/api/orders?${params}`)
-    const data = await res.json()
-    setOrders(data.orders ?? [])
-    setTotal(data.total ?? 0)
-    setLoading(false)
+    try {
+      const params = new URLSearchParams({ page: String(page), limit: '20', search, status })
+      const res = await fetch(`/api/orders?${params}`)
+      if (!res.ok) {
+        console.error('[agjent/orders] fetch error:', res.status)
+        setOrders([])
+        setTotal(0)
+        return
+      }
+      const data = await res.json()
+      setOrders(data.orders ?? [])
+      setTotal(data.total ?? 0)
+    } catch (e) {
+      console.error('[agjent/orders] fetch failed:', e)
+      setOrders([])
+      setTotal(0)
+    } finally {
+      setLoading(false)
+    }
   }, [page, search, status])
 
   useEffect(() => { fetchOrders() }, [fetchOrders])

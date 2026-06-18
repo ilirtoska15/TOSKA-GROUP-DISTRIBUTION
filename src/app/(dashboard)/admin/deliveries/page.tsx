@@ -34,17 +34,33 @@ export default function AdminDeliveriesPage() {
 
   const fetchData = useCallback(async () => {
     setLoading(true)
-    const params = new URLSearchParams({ page: String(page), limit: '30', search, status })
-    const [delRes, drvRes] = await Promise.all([
-      fetch(`/api/deliveries?${params}`),
-      fetch('/api/users?role=SHOFER'),
-    ])
-    const delData = await delRes.json()
-    const drvData = await drvRes.json()
-    setDeliveries(delData.deliveries ?? [])
-    setTotal(delData.total ?? 0)
-    setDrivers(drvData.users ?? [])
-    setLoading(false)
+    try {
+      const params = new URLSearchParams({ page: String(page), limit: '30', search, status })
+      const [delRes, drvRes] = await Promise.all([
+        fetch(`/api/deliveries?${params}`),
+        fetch('/api/users?role=SHOFER'),
+      ])
+      if (!delRes.ok) {
+        console.error('[deliveries] fetch error:', delRes.status)
+        setDeliveries([])
+        setTotal(0)
+      } else {
+        const delData = await delRes.json()
+        setDeliveries(delData.deliveries ?? [])
+        setTotal(delData.total ?? 0)
+      }
+      if (drvRes.ok) {
+        const drvData = await drvRes.json()
+        // users endpoint returns array directly
+        setDrivers(Array.isArray(drvData) ? drvData : (drvData.users ?? []))
+      }
+    } catch (e) {
+      console.error('[deliveries] fetch failed:', e)
+      setDeliveries([])
+      setTotal(0)
+    } finally {
+      setLoading(false)
+    }
   }, [page, search, status])
 
   useEffect(() => { fetchData() }, [fetchData])

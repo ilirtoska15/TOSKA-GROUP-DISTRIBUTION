@@ -35,12 +35,25 @@ export default function ProductsPage() {
 
   const fetchProducts = useCallback(async () => {
     setLoading(true)
-    const params = new URLSearchParams({ page: String(page), limit: '24', search })
-    const res = await fetch(`/api/products?${params}`)
-    const data = await res.json()
-    setProducts(data.products)
-    setTotal(data.total)
-    setLoading(false)
+    try {
+      const params = new URLSearchParams({ page: String(page), limit: '24', search })
+      const res = await fetch(`/api/products?${params}`)
+      if (!res.ok) {
+        console.error('[products] fetch error:', res.status)
+        setProducts([])
+        setTotal(0)
+        return
+      }
+      const data = await res.json()
+      setProducts(data.products ?? [])
+      setTotal(data.total ?? 0)
+    } catch (e) {
+      console.error('[products] fetch failed:', e)
+      setProducts([])
+      setTotal(0)
+    } finally {
+      setLoading(false)
+    }
   }, [page, search])
 
   useEffect(() => { fetchProducts() }, [fetchProducts])

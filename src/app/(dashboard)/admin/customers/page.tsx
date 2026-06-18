@@ -33,17 +33,30 @@ export default function CustomersPage() {
 
   const fetchCustomers = useCallback(async () => {
     setLoading(true)
-    const params = new URLSearchParams({
-      page: String(page),
-      limit: '20',
-      search,
-      status: statusFilter,
-    })
-    const res = await fetch(`/api/customers?${params}`)
-    const data = await res.json()
-    setCustomers(data.customers)
-    setTotal(data.total)
-    setLoading(false)
+    try {
+      const params = new URLSearchParams({
+        page: String(page),
+        limit: '20',
+        search,
+        status: statusFilter,
+      })
+      const res = await fetch(`/api/customers?${params}`)
+      if (!res.ok) {
+        console.error('[customers] fetch error:', res.status)
+        setCustomers([])
+        setTotal(0)
+        return
+      }
+      const data = await res.json()
+      setCustomers(data.customers ?? [])
+      setTotal(data.total ?? 0)
+    } catch (e) {
+      console.error('[customers] fetch failed:', e)
+      setCustomers([])
+      setTotal(0)
+    } finally {
+      setLoading(false)
+    }
   }, [page, search, statusFilter])
 
   useEffect(() => { fetchCustomers() }, [fetchCustomers])

@@ -6,13 +6,14 @@ export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
 
 export async function GET(req: NextRequest) {
-  const session = await auth()
-  if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  try {
+    const session = await auth()
+    if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const { searchParams } = new URL(req.url)
-  const q = searchParams.get('q') ?? ''
+    const { searchParams } = new URL(req.url)
+    const q = searchParams.get('q') ?? ''
 
-  if (q.length < 2) return NextResponse.json({ results: [] })
+    if (q.length < 2) return NextResponse.json({ results: [] })
 
   const [customers, products, orders, payments, returns] = await Promise.all([
     db.customer.findMany({
@@ -65,5 +66,10 @@ export async function GET(req: NextRequest) {
     ...returns.map((r) => ({ type: 'return', id: r.id, label: r.reference, sub: '', href: `/admin/returns/${r.id}`, status: r.status })),
   ]
 
-  return NextResponse.json({ results })
+    return NextResponse.json({ results })
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : 'Internal server error'
+    console.error('[search] GET error:', err)
+    return NextResponse.json({ error: msg }, { status: 500 })
+  }
 }
