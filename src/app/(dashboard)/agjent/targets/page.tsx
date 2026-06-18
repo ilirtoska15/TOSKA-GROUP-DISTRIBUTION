@@ -1,8 +1,10 @@
-'use client'
+﻿'use client'
 
 import { useState, useEffect } from 'react'
 import { Target, TrendingUp, Calendar } from 'lucide-react'
 import { formatCurrency } from '@/lib/utils'
+
+export const dynamic = 'force-dynamic'
 
 interface TargetRecord {
   id: string

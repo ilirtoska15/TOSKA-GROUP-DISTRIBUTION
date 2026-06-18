@@ -1,9 +1,11 @@
-import { auth } from '@/lib/auth'
+﻿import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { formatCurrency } from '@/lib/utils'
 
 import { Truck, MapPin, DollarSign, RotateCcw, CheckCircle, Clock } from 'lucide-react'
 import Link from 'next/link'
+
+export const dynamic = 'force-dynamic'
 
 async function getDriverStats(userId: string) {
   const today = new Date()

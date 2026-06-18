@@ -1,10 +1,12 @@
-'use client'
+﻿'use client'
 
 import { useState, useEffect } from 'react'
 import { MapPin, Navigation, Phone } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { formatCurrency } from '@/lib/utils'
+
+export const dynamic = 'force-dynamic'
 
 interface RouteStop {
   id: string

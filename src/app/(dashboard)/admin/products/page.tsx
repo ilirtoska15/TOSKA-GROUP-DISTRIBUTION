@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useState, useEffect, useCallback } from 'react'
 import { Plus, Search, Package } from 'lucide-react'
@@ -8,6 +8,8 @@ import { Input } from '@/components/ui/input'
 import { formatCurrency, debounce } from '@/lib/utils'
 import Link from 'next/link'
 import Image from 'next/image'
+
+export const dynamic = 'force-dynamic'
 
 interface Product {
   id: string

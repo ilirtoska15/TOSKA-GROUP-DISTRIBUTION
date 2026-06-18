@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useState, useEffect } from 'react'
 import { Settings, Save } from 'lucide-react'
@@ -7,6 +7,8 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
 import { toast } from 'sonner'
+
+export const dynamic = 'force-dynamic'
 
 const CONFIG_KEYS = [
   { key: 'catalog_show_price', label: 'Shfaq çmimin në katalogun publik', type: 'boolean' },

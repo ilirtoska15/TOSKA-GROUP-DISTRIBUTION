@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useState, useEffect, useCallback } from 'react'
 import { Package, CheckCircle, Truck, ShoppingCart } from 'lucide-react'
@@ -6,6 +6,8 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { formatCurrency, formatDate } from '@/lib/utils'
 import { toast } from 'sonner'
+
+export const dynamic = 'force-dynamic'
 
 interface OrderLine {
   id: string

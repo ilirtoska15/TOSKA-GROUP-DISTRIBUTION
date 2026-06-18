@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useState, useEffect, useCallback } from 'react'
 import { Building2, Search, Plus, Phone, Mail, MapPin, Edit2 } from 'lucide-react'
@@ -8,6 +8,8 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { toast } from 'sonner'
+
+export const dynamic = 'force-dynamic'
 
 interface Supplier {
   id: string

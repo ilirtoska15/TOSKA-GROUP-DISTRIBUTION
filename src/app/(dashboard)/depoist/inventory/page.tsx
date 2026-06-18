@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { Camera, Keyboard, Search, Plus, CheckCircle, AlertTriangle, X } from 'lucide-react'
@@ -8,6 +8,8 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { toast } from 'sonner'
+
+export const dynamic = 'force-dynamic'
 
 interface Product {
   id: string

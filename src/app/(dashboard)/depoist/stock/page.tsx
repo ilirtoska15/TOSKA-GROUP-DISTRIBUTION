@@ -1,10 +1,12 @@
-'use client'
+﻿'use client'
 
 import { useState, useEffect, useCallback } from 'react'
 import { Package, Search, AlertTriangle, TrendingDown } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import Image from 'next/image'
+
+export const dynamic = 'force-dynamic'
 
 interface Product {
   id: string

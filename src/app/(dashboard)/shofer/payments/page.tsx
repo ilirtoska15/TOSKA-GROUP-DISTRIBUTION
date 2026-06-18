@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useState, useEffect, useCallback } from 'react'
 import { Wallet, Plus } from 'lucide-react'
@@ -9,6 +9,8 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { formatCurrency, formatDate } from '@/lib/utils'
 import { toast } from 'sonner'
+
+export const dynamic = 'force-dynamic'
 
 interface Payment {
   id: string

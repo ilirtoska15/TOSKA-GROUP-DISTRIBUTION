@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useState, useEffect, useCallback } from 'react'
 import { ShoppingCart, Search } from 'lucide-react'
@@ -6,6 +6,8 @@ import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { formatCurrency, formatDate, getStatusLabel } from '@/lib/utils'
 import Link from 'next/link'
+
+export const dynamic = 'force-dynamic'
 
 interface Order {
   id: string

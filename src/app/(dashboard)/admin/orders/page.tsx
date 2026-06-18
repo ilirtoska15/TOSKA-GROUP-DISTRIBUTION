@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useState, useEffect, useCallback } from 'react'
 import { Plus, Search } from 'lucide-react'
@@ -9,6 +9,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { formatCurrency, formatDateTime, getStatusColor, getStatusLabel, debounce } from '@/lib/utils'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
+
+export const dynamic = 'force-dynamic'
 
 interface Order {
   id: string

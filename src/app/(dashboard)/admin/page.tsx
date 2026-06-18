@@ -1,4 +1,4 @@
-import { auth } from '@/lib/auth'
+﻿import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { formatCurrency, formatNumber } from '@/lib/utils'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -9,6 +9,8 @@ import {
 } from 'lucide-react'
 import Link from 'next/link'
 import { getMultipleStockLevels } from '@/lib/stock'
+
+export const dynamic = 'force-dynamic'
 
 async function getAdminStats() {
   const today = new Date()

@@ -1,10 +1,12 @@
-'use client'
+﻿'use client'
 
 import { useState, useEffect } from 'react'
 import { Activity, RefreshCw, AlertTriangle, CheckCircle, XCircle, Package, Users, ShoppingCart, Wallet } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { formatCurrency } from '@/lib/utils'
+
+export const dynamic = 'force-dynamic'
 
 interface HealthData {
   status: 'ok' | 'warning' | 'critical'

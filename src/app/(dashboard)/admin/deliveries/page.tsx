@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useState, useEffect, useCallback } from 'react'
 import { Truck, Search, User } from 'lucide-react'
@@ -7,6 +7,8 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 
 import { toast } from 'sonner'
+
+export const dynamic = 'force-dynamic'
 
 interface Delivery {
   id: string

@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useState, useEffect, useCallback } from 'react'
 import { ClipboardList, Calendar, User, Package2 } from 'lucide-react'
@@ -6,6 +6,8 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { formatDate } from '@/lib/utils'
 import Link from 'next/link'
+
+export const dynamic = 'force-dynamic'
 
 interface InventoryLine {
   id: string

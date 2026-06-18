@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useState, useEffect, useCallback } from 'react'
 import { AlertTriangle, Search, Plus, X } from 'lucide-react'
@@ -9,6 +9,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Label } from '@/components/ui/label'
 import { formatDate } from '@/lib/utils'
 import { toast } from 'sonner'
+
+export const dynamic = 'force-dynamic'
 
 interface DamageLine { id: string; quantity: number; product: { name: string; code: string } }
 interface Damage {

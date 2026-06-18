@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useState, useEffect, useCallback } from 'react'
 import { Search, ShoppingCart, Plus, Minus, X, Check } from 'lucide-react'
@@ -10,6 +10,8 @@ import { formatCurrency, debounce } from '@/lib/utils'
 import { toast } from 'sonner'
 import Image from 'next/image'
 import { useRouter } from 'next/navigation'
+
+export const dynamic = 'force-dynamic'
 
 interface Product {
   id: string

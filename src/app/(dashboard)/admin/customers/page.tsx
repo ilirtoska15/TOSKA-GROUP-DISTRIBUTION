@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useState, useEffect, useCallback } from 'react'
 import { Plus, Search } from 'lucide-react'
@@ -8,6 +8,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { getStatusColor, getStatusLabel, debounce } from '@/lib/utils'
 import Link from 'next/link'
+
+export const dynamic = 'force-dynamic'
 
 interface Customer {
   id: string

@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useState, useEffect, useCallback } from 'react'
 import { Users, Search, MapPin, Phone, AlertCircle } from 'lucide-react'
@@ -7,6 +7,8 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { formatCurrency } from '@/lib/utils'
 import Link from 'next/link'
+
+export const dynamic = 'force-dynamic'
 
 interface Customer {
   id: string

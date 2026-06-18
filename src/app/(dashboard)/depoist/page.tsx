@@ -1,9 +1,11 @@
-import { auth } from '@/lib/auth'
+﻿import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { ClipboardList, Warehouse, AlertTriangle, RotateCcw, CheckCircle } from 'lucide-react'
 import Link from 'next/link'
 import { getMultipleStockLevels } from '@/lib/stock'
+
+export const dynamic = 'force-dynamic'
 
 async function getDepositStats() {
   const [

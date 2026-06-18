@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useState, useEffect } from 'react'
 import { useParams } from 'next/navigation'
@@ -9,9 +9,11 @@ import { Separator } from '@/components/ui/separator'
 import { formatCurrency, formatDate, formatDateTime, getStatusColor, getStatusLabel } from '@/lib/utils'
 import Link from 'next/link'
 import { toast } from 'sonner'
-import dynamic from 'next/dynamic'
+import dynamicImport from 'next/dynamic'
 
-const LeafletMap = dynamic(() => import('@/components/ui/leaflet-map').then(m => m.LeafletMap), { ssr: false })
+export const dynamic = 'force-dynamic'
+
+const LeafletMap = dynamicImport(() => import('@/components/ui/leaflet-map').then(m => m.LeafletMap), { ssr: false })
 
 interface Customer {
   id: string

@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useState } from 'react'
 import { Download } from 'lucide-react'
@@ -12,6 +12,8 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
 } from 'recharts'
 import { toast } from 'sonner'
+
+export const dynamic = 'force-dynamic'
 
 const REPORT_TYPES = [
   { value: 'sales', label: 'Shitjet' },

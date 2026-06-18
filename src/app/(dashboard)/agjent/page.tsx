@@ -1,4 +1,4 @@
-import { auth } from '@/lib/auth'
+﻿import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { formatCurrency } from '@/lib/utils'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -6,6 +6,8 @@ import {
   ShoppingCart, DollarSign, MapPin, TrendingUp, Plus, Users, Package
 } from 'lucide-react'
 import Link from 'next/link'
+
+export const dynamic = 'force-dynamic'
 
 async function getAgentStats(userId: string) {
   const today = new Date()
