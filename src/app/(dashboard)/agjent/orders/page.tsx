@@ -59,7 +59,7 @@ export default function AgjentOrdersPage() {
           <h1 className="text-xl font-bold text-gray-900">Porositë e Mia</h1>
           <p className="text-sm text-gray-500">{total} gjithsej</p>
         </div>
-        <Link href="/agjent/catalog">
+        <Link href="/agjent/orders/new">
           <Button className="gap-2">
             <ShoppingCart className="h-4 w-4" />
             Porosi e Re
