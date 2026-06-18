@@ -1,7 +1,7 @@
 ﻿'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { Plus, Search } from 'lucide-react'
+import { Plus, Search, Upload } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -76,12 +76,20 @@ export default function CustomersPage() {
           <h1 className="text-2xl font-bold text-gray-900">Klientët / Tregjet</h1>
           <p className="text-sm text-gray-500">{total} gjithsej</p>
         </div>
-        <Link href="/admin/customers/new">
-          <Button className="gap-2">
-            <Plus className="h-4 w-4" />
-            <span className="hidden sm:inline">Klient i Ri</span>
-          </Button>
-        </Link>
+        <div className="flex gap-2">
+          <Link href="/admin/customers/import">
+            <Button variant="outline" className="gap-2">
+              <Upload className="h-4 w-4" />
+              <span className="hidden sm:inline">Importo Excel</span>
+            </Button>
+          </Link>
+          <Link href="/admin/customers/new">
+            <Button className="gap-2">
+              <Plus className="h-4 w-4" />
+              <span className="hidden sm:inline">Klient i Ri</span>
+            </Button>
+          </Link>
+        </div>
       </div>
 
       {/* Filters */}

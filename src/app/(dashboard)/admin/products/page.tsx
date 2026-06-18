@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { Plus, Search, Package } from 'lucide-react'
+import { Plus, Search, Package, Upload } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 
@@ -80,12 +80,20 @@ export default function ProductsPage() {
           <h1 className="text-2xl font-bold text-gray-900">Produktet</h1>
           <p className="text-sm text-gray-500">{total} gjithsej</p>
         </div>
-        <Link href="/admin/products/new">
-          <Button className="gap-2">
-            <Plus className="h-4 w-4" />
-            <span className="hidden sm:inline">Produkt i Ri</span>
-          </Button>
-        </Link>
+        <div className="flex gap-2">
+          <Link href="/admin/products/import">
+            <Button variant="outline" className="gap-2">
+              <Upload className="h-4 w-4" />
+              <span className="hidden sm:inline">Importo Excel</span>
+            </Button>
+          </Link>
+          <Link href="/admin/products/new">
+            <Button className="gap-2">
+              <Plus className="h-4 w-4" />
+              <span className="hidden sm:inline">Produkt i Ri</span>
+            </Button>
+          </Link>
+        </div>
       </div>
 
       <div className="flex gap-3">
