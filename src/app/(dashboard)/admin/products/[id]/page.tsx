@@ -6,7 +6,7 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { toast } from 'sonner'
-import { ArrowLeft, Package, Save, ToggleLeft, ToggleRight } from 'lucide-react'
+import { ArrowLeft, Package, Save, ToggleLeft, ToggleRight, TrendingUp, TrendingDown, Minus as MinusIcon } from 'lucide-react'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -79,6 +79,9 @@ export default function ProductDetailPage() {
   const [categories, setCategories] = useState<Category[]>([])
   const [brands, setBrands] = useState<Brand[]>([])
   const [photoUrl, setPhotoUrl] = useState('')
+  const [adjustStock, setAdjustStock] = useState('')
+  const [adjustReason, setAdjustReason] = useState('')
+  const [adjusting, setAdjusting] = useState(false)
 
   const { register, handleSubmit, setValue, watch, reset, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(schema),
@@ -169,6 +172,52 @@ export default function ProductDetailPage() {
       router.refresh()
     } finally {
       setSaving(false)
+    }
+  }
+
+  async function reloadProduct() {
+    try {
+      const prod = await fetch(`/api/products/${id}`).then(r => r.json())
+      setProduct(prod)
+    } catch { /* noop */ }
+  }
+
+  async function handleStockAdjust() {
+    const newStockNum = parseInt(adjustStock, 10)
+    if (isNaN(newStockNum) || newStockNum < 0) {
+      toast.error('Stoku i ri duhet të jetë numër i plotë jo negativ')
+      return
+    }
+    if (adjustReason.trim().length < 3) {
+      toast.error('Arsyeja duhet të ketë të paktën 3 karaktere')
+      return
+    }
+
+    setAdjusting(true)
+    try {
+      const res = await fetch(`/api/products/${id}/stock`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ newStock: newStockNum, reason: adjustReason.trim() }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        toast.error(data.error ?? 'Gabim gjatë rregullimit të stokut')
+        return
+      }
+      if (data.diff === 0) {
+        toast.info(data.message)
+        return
+      }
+      const sign = data.diff > 0 ? '+' : ''
+      toast.success(`Stoku u rregullua: ${data.previousStock} → ${data.newStock} (${sign}${data.diff})`)
+      setAdjustStock('')
+      setAdjustReason('')
+      await reloadProduct()
+    } catch {
+      toast.error('Gabim i papritur')
+    } finally {
+      setAdjusting(false)
     }
   }
 
@@ -363,6 +412,87 @@ export default function ProductDetailPage() {
         </div>
       </form>
 
+      {/* ─── Stock Adjustment ─── */}
+      {(() => {
+        const newStockNum = parseInt(adjustStock, 10)
+        const diff = !isNaN(newStockNum) && adjustStock !== '' ? newStockNum - product.stockCopje : null
+        return (
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-base">Rregullo Stokun</CardTitle>
+                <span className="text-sm font-semibold text-gray-600 bg-gray-100 px-3 py-1 rounded-full">
+                  Aktual: {formatNumber(product.stockCopje)} copë
+                </span>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="adj-stock">Stoku i Ri (copë) *</Label>
+                  <div className="relative mt-1">
+                    <Input
+                      id="adj-stock"
+                      type="number"
+                      min={0}
+                      step={1}
+                      placeholder={String(product.stockCopje)}
+                      value={adjustStock}
+                      onChange={e => setAdjustStock(e.target.value)}
+                    />
+                    {diff !== null && diff !== 0 && (
+                      <span className={`absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold ${diff > 0 ? 'text-green-600' : 'text-red-600'}`}>
+                        {diff > 0 ? '+' : ''}{diff}
+                      </span>
+                    )}
+                    {diff === 0 && adjustStock !== '' && (
+                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400">=</span>
+                    )}
+                  </div>
+                  {diff !== null && diff !== 0 && (
+                    <p className={`text-xs mt-1 flex items-center gap-1 ${diff > 0 ? 'text-green-600' : 'text-red-600'}`}>
+                      {diff > 0
+                        ? <TrendingUp className="h-3 w-3" />
+                        : <TrendingDown className="h-3 w-3" />}
+                      {diff > 0 ? `Shton +${diff} copë` : `Zbret ${diff} copë`}
+                    </p>
+                  )}
+                  {diff === 0 && adjustStock !== '' && (
+                    <p className="text-xs mt-1 text-gray-400 flex items-center gap-1">
+                      <MinusIcon className="h-3 w-3" />
+                      Asnjë ndryshim
+                    </p>
+                  )}
+                </div>
+                <div>
+                  <Label htmlFor="adj-reason">Arsyeja e Ndryshimit *</Label>
+                  <Input
+                    id="adj-reason"
+                    className="mt-1"
+                    placeholder="p.sh. Inventarizim fizik, Gabim hyrjeje..."
+                    value={adjustReason}
+                    onChange={e => setAdjustReason(e.target.value)}
+                  />
+                  <p className="text-xs text-gray-400 mt-1">Min. 3 karaktere · obligative</p>
+                </div>
+              </div>
+              <div className="flex justify-end">
+                <Button
+                  type="button"
+                  onClick={handleStockAdjust}
+                  disabled={adjusting || adjustStock === '' || adjustReason.trim().length < 3}
+                  loading={adjusting}
+                  className="gap-1.5"
+                >
+                  <Save className="h-4 w-4" />
+                  Ruaj Stokun
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )
+      })()}
+
       {/* Stock History */}
       {product.stockMovements.length > 0 && (
         <Card className="mb-8">
@@ -385,9 +515,14 @@ export default function ProductDetailPage() {
                   </div>
                   <div className="text-right">
                     <p className={`text-sm font-semibold ${
-                      ['IN', 'RETURN', 'ADJUSTMENT', 'RESERVATION_RELEASE'].includes(m.type) ? 'text-green-600' : 'text-red-600'
+                      m.type === 'ADJUSTMENT'
+                        ? m.quantityCopje >= 0 ? 'text-green-600' : 'text-red-600'
+                        : ['IN', 'RETURN', 'RESERVATION_RELEASE'].includes(m.type) ? 'text-green-600' : 'text-red-600'
                     }`}>
-                      {['IN', 'RETURN', 'ADJUSTMENT', 'RESERVATION_RELEASE'].includes(m.type) ? '+' : '-'}{formatNumber(m.quantityCopje)}
+                      {m.type === 'ADJUSTMENT'
+                        ? `${m.quantityCopje >= 0 ? '+' : ''}${formatNumber(m.quantityCopje)}`
+                        : `${['IN', 'RETURN', 'RESERVATION_RELEASE'].includes(m.type) ? '+' : '-'}${formatNumber(m.quantityCopje)}`
+                      }
                     </p>
                     <p className="text-xs text-gray-400">{formatDate(m.createdAt)}</p>
                   </div>
