@@ -14,34 +14,40 @@ const createSchema = z.object({
 })
 
 export async function GET(req: NextRequest) {
-  const session = await auth()
-  if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  try {
+    const session = await auth()
+    if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const { searchParams } = new URL(req.url)
-  const status = searchParams.get('status') ?? ''
-  const page = parseInt(searchParams.get('page') ?? '1')
-  const limit = parseInt(searchParams.get('limit') ?? '30')
-  const skip = (page - 1) * limit
+    const { searchParams } = new URL(req.url)
+    const status = searchParams.get('status') ?? ''
+    const page = parseInt(searchParams.get('page') ?? '1')
+    const limit = parseInt(searchParams.get('limit') ?? '30')
+    const skip = (page - 1) * limit
 
-  const where: Record<string, unknown> = {}
-  if (status) where.status = status
-  if (!['ADMIN'].includes(session.user.role)) where.createdById = session.user.id
+    const where: Record<string, unknown> = {}
+    if (status) where.status = status
+    if (!['ADMIN'].includes(session.user.role)) where.createdById = session.user.id
 
-  const [expenses, total] = await Promise.all([
-    db.expense.findMany({
-      where,
-      include: { createdBy: { select: { id: true, name: true } } },
-      orderBy: { createdAt: 'desc' },
-      skip,
-      take: limit,
-    }),
-    db.expense.count({ where }),
-  ])
+    const [expenses, total] = await Promise.all([
+      db.expense.findMany({
+        where,
+        include: { createdBy: { select: { id: true, name: true } } },
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: limit,
+      }),
+      db.expense.count({ where }),
+    ])
 
-  return NextResponse.json({
-    expenses: expenses.map(e => ({ ...e, requestedBy: e.createdBy, code: `EXP-${e.id.slice(-6).toUpperCase()}` })),
-    total, page, limit,
-  })
+    return NextResponse.json({
+      expenses: expenses.map(e => ({ ...e, requestedBy: e.createdBy, code: `EXP-${e.id.slice(-6).toUpperCase()}` })),
+      total, page, limit,
+    })
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : 'Internal server error'
+    console.error('[expenses] GET error:', err)
+    return NextResponse.json({ error: msg }, { status: 500 })
+  }
 }
 
 export async function POST(req: NextRequest) {

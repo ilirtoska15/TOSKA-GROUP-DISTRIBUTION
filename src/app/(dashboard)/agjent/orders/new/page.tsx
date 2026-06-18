@@ -80,23 +80,25 @@ export default function NewOrderPage() {
   // Load customers
   useEffect(() => {
     fetch('/api/customers?limit=500')
-      .then(r => r.json())
-      .then(d => {
-        setCustomers(d.customers ?? [])
-        setLoadingCustomers(false)
+      .then(r => {
+        if (!r.ok) throw new Error(`customers ${r.status}`)
+        return r.json()
       })
-      .catch(() => setLoadingCustomers(false))
+      .then(d => setCustomers(d.customers ?? []))
+      .catch(e => console.error('[orders/new] customers fetch:', e))
+      .finally(() => setLoadingCustomers(false))
   }, [])
 
   // Load products
   useEffect(() => {
     fetch('/api/products?status=ACTIVE&limit=500')
-      .then(r => r.json())
-      .then(d => {
-        setProducts(d.products ?? [])
-        setLoadingProducts(false)
+      .then(r => {
+        if (!r.ok) throw new Error(`products ${r.status}`)
+        return r.json()
       })
-      .catch(() => setLoadingProducts(false))
+      .then(d => setProducts(d.products ?? []))
+      .catch(e => console.error('[orders/new] products fetch:', e))
+      .finally(() => setLoadingProducts(false))
   }, [])
 
   // Restore draft once products are loaded

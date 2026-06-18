@@ -77,11 +77,23 @@ export default function AgentCatalogPage() {
 
   const fetchProducts = useCallback(async () => {
     setLoading(true)
-    const params = new URLSearchParams({ limit: '50', search })
-    const res = await fetch(`/api/products?${params}`)
-    const data = await res.json()
-    setProducts(data.products ?? [])
-    setLoading(false)
+    try {
+      const params = new URLSearchParams({ limit: '50', search })
+      const res = await fetch(`/api/products?${params}`)
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: 'Server error' }))
+        console.error('[catalog] products fetch error:', err)
+        setProducts([])
+        return
+      }
+      const data = await res.json()
+      setProducts(data.products ?? [])
+    } catch (e) {
+      console.error('[catalog] products fetch failed:', e)
+      setProducts([])
+    } finally {
+      setLoading(false)
+    }
   }, [search])
 
   useEffect(() => { fetchProducts() }, [fetchProducts])

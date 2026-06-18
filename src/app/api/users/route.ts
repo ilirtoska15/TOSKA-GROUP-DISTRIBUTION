@@ -19,24 +19,30 @@ const createSchema = z.object({
 })
 
 export async function GET(req: NextRequest) {
-  const session = await auth()
-  if (!session?.user || session.user.role !== 'ADMIN') {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  try {
+    const session = await auth()
+    if (!session?.user || session.user.role !== 'ADMIN') {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
+
+    const { searchParams } = new URL(req.url)
+    const role = searchParams.get('role') ?? ''
+
+    const where: Record<string, unknown> = { status: 'ACTIVE' }
+    if (role) where.role = role
+
+    const users = await db.user.findMany({
+      where,
+      include: { permissions: true, region: true, zone: true },
+      orderBy: { name: 'asc' },
+    })
+
+    return NextResponse.json(users.map((u) => ({ ...u, password: undefined })))
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : 'Internal server error'
+    console.error('[users] GET error:', err)
+    return NextResponse.json({ error: msg }, { status: 500 })
   }
-
-  const { searchParams } = new URL(req.url)
-  const role = searchParams.get('role') ?? ''
-
-  const where: Record<string, unknown> = { status: 'ACTIVE' }
-  if (role) where.role = role
-
-  const users = await db.user.findMany({
-    where,
-    include: { permissions: true, region: true, zone: true },
-    orderBy: { name: 'asc' },
-  })
-
-  return NextResponse.json(users.map((u) => ({ ...u, password: undefined })))
 }
 
 export async function POST(req: NextRequest) {

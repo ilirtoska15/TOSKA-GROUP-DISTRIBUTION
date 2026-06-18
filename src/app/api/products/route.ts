@@ -1,4 +1,4 @@
-﻿import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { generateReference } from '@/lib/utils'
@@ -14,9 +14,9 @@ const createSchema = z.object({
   brandId: z.string().optional(),
   categoryId: z.string().optional(),
   description: z.string().optional(),
-  photo: z.string().min(1, 'Foto e produktit kÃ«rkohet').refine(
+  photo: z.string().min(1, 'Foto e produktit kërkohet').refine(
     (v) => v.startsWith('/uploads/'),
-    'Fotoja duhet tÃ« ngarkohet nga sistemi'
+    'Fotoja duhet të ngarkohet nga sistemi'
   ),
   salesPrice: z.number().min(0),
   barcode: z.string().optional(),
@@ -29,63 +29,77 @@ const createSchema = z.object({
 })
 
 export async function GET(req: NextRequest) {
-  const session = await auth()
-  if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  try {
+    const session = await auth()
+    if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const { searchParams } = new URL(req.url)
-  const search = searchParams.get('search') ?? ''
-  const status = searchParams.get('status') ?? ''
-  const categoryId = searchParams.get('categoryId') ?? ''
-  const brandId = searchParams.get('brandId') ?? ''
+    const { searchParams } = new URL(req.url)
+    const search = searchParams.get('search') ?? ''
+    const status = searchParams.get('status') ?? ''
+    const categoryId = searchParams.get('categoryId') ?? ''
+    const brandId = searchParams.get('brandId') ?? ''
 
-  const page = parseInt(searchParams.get('page') ?? '1')
-  const limit = parseInt(searchParams.get('limit') ?? '30')
-  const skip = (page - 1) * limit
+    const page = parseInt(searchParams.get('page') ?? '1')
+    const limit = parseInt(searchParams.get('limit') ?? '30')
+    const skip = (page - 1) * limit
 
-  const where: Record<string, unknown> = {}
-  if (search) {
-    where.OR = [
-      { name: { contains: search } },
-      { code: { contains: search } },
-      { barcode: { contains: search } },
-    ]
+    const where: Record<string, unknown> = {}
+    if (search.trim()) {
+      where.OR = [
+        { name: { contains: search, mode: 'insensitive' } },
+        { code: { contains: search, mode: 'insensitive' } },
+        { barcode: { contains: search, mode: 'insensitive' } },
+      ]
+    }
+    if (status) where.status = status
+    else where.status = 'ACTIVE'
+    if (categoryId) where.categoryId = categoryId
+    if (brandId) where.brandId = brandId
+
+    const [products, total] = await Promise.all([
+      db.product.findMany({
+        where,
+        include: {
+          brand: { select: { id: true, name: true } },
+          category: { select: { id: true, name: true } },
+        },
+        orderBy: { name: 'asc' },
+        skip,
+        take: limit,
+      }),
+      db.product.count({ where }),
+    ])
+
+    // Stock calculation is non-fatal: if it fails, products get stockCopje: 0
+    let stockMap: Record<string, number> = {}
+    if (products.length > 0) {
+      try {
+        stockMap = await getMultipleStockLevels(products.map((p) => p.id))
+      } catch (err) {
+        console.warn('[products] stock calculation failed, returning 0 for all:', err)
+      }
+    }
+
+    const productsWithStock = products.map((p) => ({
+      ...p,
+      stockCopje: stockMap[p.id] ?? 0,
+    }))
+
+    return NextResponse.json({ products: productsWithStock, total, page, limit })
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : 'Internal server error'
+    console.error('[products] GET error:', err)
+    return NextResponse.json({ error: msg }, { status: 500 })
   }
-  if (status) where.status = status
-  else where.status = 'ACTIVE'
-  if (categoryId) where.categoryId = categoryId
-  if (brandId) where.brandId = brandId
-
-  const [products, total] = await Promise.all([
-    db.product.findMany({
-      where,
-      include: {
-        brand: { select: { id: true, name: true } },
-        category: { select: { id: true, name: true } },
-      },
-      orderBy: { name: 'asc' },
-      skip,
-      take: limit,
-    }),
-    db.product.count({ where }),
-  ])
-
-  // Add stock levels
-  const stockMap = await getMultipleStockLevels(products.map((p) => p.id))
-  const productsWithStock = products.map((p) => ({
-    ...p,
-    stockCopje: stockMap[p.id] ?? 0,
-  }))
-
-  return NextResponse.json({ products: productsWithStock, total, page, limit })
 }
 
 export async function POST(req: NextRequest) {
-  const session = await auth()
-  if (!session?.user || !['ADMIN'].includes(session.user.role)) {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-  }
-
   try {
+    const session = await auth()
+    if (!session?.user || !['ADMIN'].includes(session.user.role)) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
+
     const body = await req.json()
     const data = createSchema.parse(body)
 
@@ -110,6 +124,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(product, { status: 201 })
   } catch (err) {
     if (err instanceof z.ZodError) return NextResponse.json({ error: err.errors }, { status: 400 })
-    return NextResponse.json({ error: 'Server error' }, { status: 500 })
+    const msg = err instanceof Error ? err.message : 'Internal server error'
+    console.error('[products] POST error:', err)
+    return NextResponse.json({ error: msg }, { status: 500 })
   }
 }

@@ -16,26 +16,32 @@ const createSchema = z.object({
 })
 
 export async function GET() {
-  const session = await auth()
-  if (!session?.user || session.user.role !== 'ADMIN') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  try {
+    const session = await auth()
+    if (!session?.user || session.user.role !== 'ADMIN') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
-  const vehicles = await db.vehicle.findMany({
-    orderBy: { plate: 'asc' },
-  })
+    const vehicles = await db.vehicle.findMany({
+      orderBy: { plate: 'asc' },
+    })
 
-  // Normalize: Vehicle schema has no make/model/year â€” store in notes as JSON
-  const normalized = vehicles.map(v => {
-    let extra: Record<string, unknown> = {}
-    try { extra = JSON.parse(v.notes ?? '{}') } catch {}
-    return {
-      ...v,
-      make: (extra.make as string) ?? '',
-      model: (extra.model as string) ?? '',
-      year: (extra.year as number) ?? new Date().getFullYear(),
-    }
-  })
+    // Vehicle schema has no make/model/year — stored in notes as JSON
+    const normalized = vehicles.map(v => {
+      let extra: Record<string, unknown> = {}
+      try { extra = JSON.parse(v.notes ?? '{}') } catch { /* ignore malformed notes */ }
+      return {
+        ...v,
+        make: (extra.make as string) ?? '',
+        model: (extra.model as string) ?? '',
+        year: (extra.year as number) ?? new Date().getFullYear(),
+      }
+    })
 
-  return NextResponse.json({ vehicles: normalized })
+    return NextResponse.json({ vehicles: normalized })
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : 'Internal server error'
+    console.error('[fleet] GET error:', err)
+    return NextResponse.json({ error: msg }, { status: 500 })
+  }
 }
 
 export async function POST(req: NextRequest) {

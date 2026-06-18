@@ -22,54 +22,60 @@ const closeVisitSchema = z.object({
 })
 
 export async function GET(req: NextRequest) {
-  const session = await auth()
-  if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  try {
+    const session = await auth()
+    if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const { searchParams } = new URL(req.url)
-  const customerId = searchParams.get('customerId') ?? ''
-  const agentId = searchParams.get('agentId') ?? ''
-  const date = searchParams.get('date') ?? ''
-  const search = searchParams.get('search') ?? ''
-  const status = searchParams.get('status') ?? ''
-  const page = parseInt(searchParams.get('page') ?? '1')
-  const limit = parseInt(searchParams.get('limit') ?? '20')
-  const skip = (page - 1) * limit
+    const { searchParams } = new URL(req.url)
+    const customerId = searchParams.get('customerId') ?? ''
+    const agentId = searchParams.get('agentId') ?? ''
+    const date = searchParams.get('date') ?? ''
+    const search = searchParams.get('search') ?? ''
+    const status = searchParams.get('status') ?? ''
+    const page = parseInt(searchParams.get('page') ?? '1')
+    const limit = parseInt(searchParams.get('limit') ?? '20')
+    const skip = (page - 1) * limit
 
-  const where: Record<string, unknown> = {}
-  if (customerId) where.customerId = customerId
-  if (agentId) where.agentId = agentId
-  else if (session.user.role === 'AGJENT') where.agentId = session.user.id
-  if (status) where.status = status
-  if (search) {
-    where.OR = [
-      { customer: { businessName: { contains: search } } },
-      { agent: { name: { contains: search } } },
-    ]
+    const where: Record<string, unknown> = {}
+    if (customerId) where.customerId = customerId
+    if (agentId) where.agentId = agentId
+    else if (session.user.role === 'AGJENT') where.agentId = session.user.id
+    if (status) where.status = status
+    if (search.trim()) {
+      where.OR = [
+        { customer: { businessName: { contains: search, mode: 'insensitive' } } },
+        { agent: { name: { contains: search, mode: 'insensitive' } } },
+      ]
+    }
+
+    if (date) {
+      const d = new Date(date)
+      d.setHours(0, 0, 0, 0)
+      const end = new Date(date)
+      end.setHours(23, 59, 59, 999)
+      where.createdAt = { gte: d, lte: end }
+    }
+
+    const [visits, total] = await Promise.all([
+      db.visit.findMany({
+        where,
+        include: {
+          customer: { select: { id: true, businessName: true, code: true, businessAddress: true } },
+          agent: { select: { id: true, name: true } },
+        },
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: limit,
+      }),
+      db.visit.count({ where }),
+    ])
+
+    return NextResponse.json({ visits, total, page, limit })
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : 'Internal server error'
+    console.error('[visits] GET error:', err)
+    return NextResponse.json({ error: msg }, { status: 500 })
   }
-
-  if (date) {
-    const d = new Date(date)
-    d.setHours(0, 0, 0, 0)
-    const end = new Date(date)
-    end.setHours(23, 59, 59, 999)
-    where.createdAt = { gte: d, lte: end }
-  }
-
-  const [visits, total] = await Promise.all([
-    db.visit.findMany({
-      where,
-      include: {
-        customer: { select: { id: true, businessName: true, code: true, businessAddress: true } },
-        agent: { select: { id: true, name: true } },
-      },
-      orderBy: { createdAt: 'desc' },
-      skip,
-      take: limit,
-    }),
-    db.visit.count({ where }),
-  ])
-
-  return NextResponse.json({ visits, total, page, limit })
 }
 
 export async function POST(req: NextRequest) {

@@ -19,50 +19,56 @@ const updateSchema = z.object({
 })
 
 export async function GET(req: NextRequest) {
-  const session = await auth()
-  if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  try {
+    const session = await auth()
+    if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const { searchParams } = new URL(req.url)
-  const status = searchParams.get('status') ?? ''
-  const driverId = searchParams.get('driverId') ?? ''
-  const date = searchParams.get('date') ?? ''
-  const page = parseInt(searchParams.get('page') ?? '1')
-  const limit = parseInt(searchParams.get('limit') ?? '20')
-  const skip = (page - 1) * limit
+    const { searchParams } = new URL(req.url)
+    const status = searchParams.get('status') ?? ''
+    const driverId = searchParams.get('driverId') ?? ''
+    const date = searchParams.get('date') ?? ''
+    const page = parseInt(searchParams.get('page') ?? '1')
+    const limit = parseInt(searchParams.get('limit') ?? '20')
+    const skip = (page - 1) * limit
 
-  const where: Record<string, unknown> = {}
-  if (status) where.status = status
-  if (driverId) where.driverId = driverId
-  else if (session.user.role === 'SHOFER') where.driverId = session.user.id
+    const where: Record<string, unknown> = {}
+    if (status) where.status = status
+    if (driverId) where.driverId = driverId
+    else if (session.user.role === 'SHOFER') where.driverId = session.user.id
 
-  if (date) {
-    const d = new Date(date)
-    d.setHours(0, 0, 0, 0)
-    const end = new Date(date)
-    end.setHours(23, 59, 59, 999)
-    where.assignedAt = { gte: d, lte: end }
-  }
+    if (date) {
+      const d = new Date(date)
+      d.setHours(0, 0, 0, 0)
+      const end = new Date(date)
+      end.setHours(23, 59, 59, 999)
+      where.assignedAt = { gte: d, lte: end }
+    }
 
-  const [deliveries, total] = await Promise.all([
-    db.delivery.findMany({
-      where,
-      include: {
-        order: {
-          include: {
-            customer: { select: { id: true, businessName: true, businessAddress: true, phone: true, lat: true, lng: true } },
-            lines: { include: { product: { select: { id: true, name: true } } } },
+    const [deliveries, total] = await Promise.all([
+      db.delivery.findMany({
+        where,
+        include: {
+          order: {
+            include: {
+              customer: { select: { id: true, businessName: true, businessAddress: true, phone: true, lat: true, lng: true } },
+              lines: { include: { product: { select: { id: true, name: true } } } },
+            },
           },
+          driver: { select: { id: true, name: true } },
         },
-        driver: { select: { id: true, name: true } },
-      },
-      orderBy: { assignedAt: 'desc' },
-      skip,
-      take: limit,
-    }),
-    db.delivery.count({ where }),
-  ])
+        orderBy: { assignedAt: 'desc' },
+        skip,
+        take: limit,
+      }),
+      db.delivery.count({ where }),
+    ])
 
-  return NextResponse.json({ deliveries, total, page, limit })
+    return NextResponse.json({ deliveries, total, page, limit })
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : 'Internal server error'
+    console.error('[deliveries] GET error:', err)
+    return NextResponse.json({ error: msg }, { status: 500 })
+  }
 }
 
 export async function POST(req: NextRequest) {

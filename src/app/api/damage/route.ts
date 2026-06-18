@@ -22,28 +22,34 @@ const createSchema = z.object({
 })
 
 export async function GET(req: NextRequest) {
-  const session = await auth()
-  if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  try {
+    const session = await auth()
+    if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const { searchParams } = new URL(req.url)
-  const page = parseInt(searchParams.get('page') ?? '1')
-  const limit = parseInt(searchParams.get('limit') ?? '20')
-  const skip = (page - 1) * limit
+    const { searchParams } = new URL(req.url)
+    const page = parseInt(searchParams.get('page') ?? '1')
+    const limit = parseInt(searchParams.get('limit') ?? '20')
+    const skip = (page - 1) * limit
 
-  const [damages, total] = await Promise.all([
-    db.damage.findMany({
-      include: {
-        reportedBy: { select: { name: true } },
-        lines: { include: { product: { select: { id: true, name: true, code: true } } } },
-      },
-      orderBy: { createdAt: 'desc' },
-      skip,
-      take: limit,
-    }),
-    db.damage.count(),
-  ])
+    const [damages, total] = await Promise.all([
+      db.damage.findMany({
+        include: {
+          reportedBy: { select: { name: true } },
+          lines: { include: { product: { select: { id: true, name: true, code: true } } } },
+        },
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: limit,
+      }),
+      db.damage.count(),
+    ])
 
-  return NextResponse.json({ damages, total })
+    return NextResponse.json({ damages, total })
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : 'Internal server error'
+    console.error('[damage] GET error:', err)
+    return NextResponse.json({ error: msg }, { status: 500 })
+  }
 }
 
 export async function POST(req: NextRequest) {

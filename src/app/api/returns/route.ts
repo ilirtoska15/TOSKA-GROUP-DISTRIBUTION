@@ -31,38 +31,44 @@ const updateSchema = z.object({
 })
 
 export async function GET(req: NextRequest) {
-  const session = await auth()
-  if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  try {
+    const session = await auth()
+    if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const { searchParams } = new URL(req.url)
-  const status = searchParams.get('status') ?? ''
-  const customerId = searchParams.get('customerId') ?? ''
-  const page = parseInt(searchParams.get('page') ?? '1')
-  const limit = parseInt(searchParams.get('limit') ?? '20')
-  const skip = (page - 1) * limit
+    const { searchParams } = new URL(req.url)
+    const status = searchParams.get('status') ?? ''
+    const customerId = searchParams.get('customerId') ?? ''
+    const page = parseInt(searchParams.get('page') ?? '1')
+    const limit = parseInt(searchParams.get('limit') ?? '20')
+    const skip = (page - 1) * limit
 
-  const where: Record<string, unknown> = {}
-  if (status) where.status = status
-  if (customerId) where.customerId = customerId
-  if (session.user.role === 'AGJENT') where.createdById = session.user.id
-  if (session.user.role === 'SHOFER') where.driverId = session.user.id
+    const where: Record<string, unknown> = {}
+    if (status) where.status = status
+    if (customerId) where.customerId = customerId
+    if (session.user.role === 'AGJENT') where.createdById = session.user.id
+    if (session.user.role === 'SHOFER') where.driverId = session.user.id
 
-  const [returns, total] = await Promise.all([
-    db.return.findMany({
-      where,
-      include: {
-        customer: { select: { id: true, businessName: true } },
-        createdBy: { select: { id: true, name: true } },
-        lines: { include: { product: { select: { id: true, name: true } } } },
-      },
-      orderBy: { createdAt: 'desc' },
-      skip,
-      take: limit,
-    }),
-    db.return.count({ where }),
-  ])
+    const [returns, total] = await Promise.all([
+      db.return.findMany({
+        where,
+        include: {
+          customer: { select: { id: true, businessName: true } },
+          createdBy: { select: { id: true, name: true } },
+          lines: { include: { product: { select: { id: true, name: true } } } },
+        },
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: limit,
+      }),
+      db.return.count({ where }),
+    ])
 
-  return NextResponse.json({ returns, total, page, limit })
+    return NextResponse.json({ returns, total, page, limit })
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : 'Internal server error'
+    console.error('[returns] GET error:', err)
+    return NextResponse.json({ error: msg }, { status: 500 })
+  }
 }
 
 export async function POST(req: NextRequest) {
