@@ -7,36 +7,56 @@ import { getMultipleStockLevels } from '@/lib/stock'
 
 export const dynamic = 'force-dynamic'
 
+const SAFE_DEPOSIT_STATS = {
+  ordersToPrep: 0,
+  ordersReady: 0,
+  ordersInPrep: 0,
+  pendingReturns: 0,
+  outOfStock: 0,
+  lowStock: 0,
+  nearExpiry: 0,
+}
+
 async function getDepositStats() {
-  const [
-    ordersToPrep,
-    ordersReady,
-    ordersInPrep,
-    pendingReturns,
-    allProducts,
-  ] = await Promise.all([
-    db.order.count({ where: { status: 'APROVUAR' } }),
-    db.order.count({ where: { status: 'GATI_PER_NGARKIM' } }),
-    db.order.count({ where: { status: 'NE_PERGATITJE' } }),
-    db.return.count({ where: { status: { in: ['MARRE_NGA_SHOFERI', 'APROVUAR'] } } }),
-    db.product.findMany({ where: { status: 'ACTIVE' }, select: { id: true, name: true, code: true, expiryDate: true } }),
-  ])
+  try {
+    const [
+      ordersToPrep,
+      ordersReady,
+      ordersInPrep,
+      pendingReturns,
+      allProducts,
+    ] = await Promise.all([
+      db.order.count({ where: { status: 'APROVUAR' } }),
+      db.order.count({ where: { status: 'GATI_PER_NGARKIM' } }),
+      db.order.count({ where: { status: 'NE_PERGATITJE' } }),
+      db.return.count({ where: { status: { in: ['MARRE_NGA_SHOFERI', 'APROVUAR'] } } }),
+      db.product.findMany({ where: { status: 'ACTIVE' }, select: { id: true, name: true, code: true, expiryDate: true } }),
+    ])
 
-  const stockMap = await getMultipleStockLevels(allProducts.map((p) => p.id))
-  let outOfStock = 0
-  let lowStock = 0
-  let nearExpiry = 0
+    let outOfStock = 0
+    let lowStock = 0
+    let nearExpiry = 0
 
-  const threshold30 = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
+    if (allProducts.length > 0) {
+      try {
+        const stockMap = await getMultipleStockLevels(allProducts.map((p) => p.id))
+        const threshold30 = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
+        for (const p of allProducts) {
+          const stock = stockMap[p.id] ?? 0
+          if (stock === 0) outOfStock++
+          else if (stock < 20) lowStock++
+          if (p.expiryDate && new Date(p.expiryDate) <= threshold30) nearExpiry++
+        }
+      } catch {
+        // stock calculation failure is non-fatal
+      }
+    }
 
-  for (const p of allProducts) {
-    const stock = stockMap[p.id] ?? 0
-    if (stock === 0) outOfStock++
-    else if (stock < 20) lowStock++
-    if (p.expiryDate && new Date(p.expiryDate) <= threshold30) nearExpiry++
+    return { ordersToPrep, ordersReady, ordersInPrep, pendingReturns, outOfStock, lowStock, nearExpiry }
+  } catch (err) {
+    console.error('[depoist] getDepositStats error:', err)
+    return SAFE_DEPOSIT_STATS
   }
-
-  return { ordersToPrep, ordersReady, ordersInPrep, pendingReturns, outOfStock, lowStock, nearExpiry }
 }
 
 export default async function DepositDashboard() {

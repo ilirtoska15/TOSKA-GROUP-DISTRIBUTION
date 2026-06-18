@@ -7,19 +7,32 @@ import Link from 'next/link'
 
 export const dynamic = 'force-dynamic'
 
+const SAFE_DRIVER_STATS = {
+  todayDeliveries: 0,
+  pendingDeliveries: 0,
+  inDelivery: 0,
+  delivered: 0,
+  collectionsToday: 0,
+}
+
 async function getDriverStats(userId: string) {
   const today = new Date()
   today.setHours(0, 0, 0, 0)
 
-  const [todayDeliveries, pendingDeliveries, inDelivery, delivered, collectionsToday] = await Promise.all([
-    db.delivery.count({ where: { driverId: userId, assignedAt: { gte: today } } }),
-    db.delivery.count({ where: { driverId: userId, status: { in: ['ASSIGNED', 'LOADED'] } } }),
-    db.delivery.count({ where: { driverId: userId, status: 'IN_DELIVERY' } }),
-    db.delivery.count({ where: { driverId: userId, status: 'DELIVERED', deliveredAt: { gte: today } } }),
-    db.payment.aggregate({ where: { collectedById: userId, createdAt: { gte: today } }, _sum: { amount: true } }),
-  ])
+  try {
+    const [todayDeliveries, pendingDeliveries, inDelivery, delivered, collectionsToday] = await Promise.all([
+      db.delivery.count({ where: { driverId: userId, assignedAt: { gte: today } } }),
+      db.delivery.count({ where: { driverId: userId, status: { in: ['ASSIGNED', 'LOADED'] } } }),
+      db.delivery.count({ where: { driverId: userId, status: 'IN_DELIVERY' } }),
+      db.delivery.count({ where: { driverId: userId, status: 'DELIVERED', deliveredAt: { gte: today } } }),
+      db.payment.aggregate({ where: { collectedById: userId, createdAt: { gte: today } }, _sum: { amount: true } }),
+    ])
 
-  return { todayDeliveries, pendingDeliveries, inDelivery, delivered, collectionsToday: collectionsToday._sum.amount ?? 0 }
+    return { todayDeliveries, pendingDeliveries, inDelivery, delivered, collectionsToday: collectionsToday._sum.amount ?? 0 }
+  } catch (err) {
+    console.error('[shofer] getDriverStats error:', err)
+    return SAFE_DRIVER_STATS
+  }
 }
 
 export default async function ShoferDashboard() {

@@ -9,59 +9,76 @@ import Link from 'next/link'
 
 export const dynamic = 'force-dynamic'
 
+const SAFE_AGENT_STATS = {
+  visitsToday: 0,
+  ordersToday: 0,
+  salesToday: 0,
+  paymentsToday: 0,
+  openVisit: null as null | { customer: { businessName: string; businessAddress: string } },
+  monthlySalesValue: 0,
+  targetValue: 0,
+  realization: 0,
+  pendingOrders: 0,
+}
+
 async function getAgentStats(userId: string) {
   const today = new Date()
   today.setHours(0, 0, 0, 0)
 
-  const [
-    visitsToday,
-    ordersToday,
-    salesToday,
-    paymentsToday,
-    openVisit,
-    monthSales,
-    target,
-    pendingOrders,
-  ] = await Promise.all([
-    db.visit.count({ where: { agentId: userId, createdAt: { gte: today } } }),
-    db.order.count({ where: { createdById: userId, createdAt: { gte: today }, status: { notIn: ['DRAFT'] } } }),
-    db.order.aggregate({
-      where: { createdById: userId, createdAt: { gte: today }, status: { notIn: ['DRAFT', 'ANULUAR'] } },
-      _sum: { totalAmount: true },
-    }),
-    db.payment.aggregate({
-      where: { collectedById: userId, createdAt: { gte: today } },
-      _sum: { amount: true },
-    }),
-    db.visit.findFirst({ where: { agentId: userId, status: 'OPEN' }, include: { customer: { select: { businessName: true, businessAddress: true } } } }),
-    db.order.aggregate({
-      where: {
-        createdById: userId,
-        createdAt: { gte: new Date(new Date().getFullYear(), new Date().getMonth(), 1) },
-        status: { notIn: ['DRAFT', 'ANULUAR'] },
-      },
-      _sum: { totalAmount: true },
-    }),
-    db.target.findFirst({
-      where: { userId, month: new Date().getMonth() + 1, year: new Date().getFullYear() },
-    }),
-    db.order.count({ where: { createdById: userId, status: { in: ['SUBMITTED', 'PRET_APROVIM'] } } }),
-  ])
+  try {
+    const [
+      visitsToday,
+      ordersToday,
+      salesToday,
+      paymentsToday,
+      openVisit,
+      monthSales,
+      target,
+      pendingOrders,
+    ] = await Promise.all([
+      db.visit.count({ where: { agentId: userId, createdAt: { gte: today } } }),
+      db.order.count({ where: { createdById: userId, createdAt: { gte: today }, status: { notIn: ['DRAFT'] } } }),
+      db.order.aggregate({
+        where: { createdById: userId, createdAt: { gte: today }, status: { notIn: ['DRAFT', 'ANULUAR'] } },
+        _sum: { totalAmount: true },
+      }),
+      db.payment.aggregate({
+        where: { collectedById: userId, createdAt: { gte: today } },
+        _sum: { amount: true },
+      }),
+      db.visit.findFirst({ where: { agentId: userId, status: 'OPEN' }, include: { customer: { select: { businessName: true, businessAddress: true } } } }),
+      db.order.aggregate({
+        where: {
+          createdById: userId,
+          createdAt: { gte: new Date(new Date().getFullYear(), new Date().getMonth(), 1) },
+          status: { notIn: ['DRAFT', 'ANULUAR'] },
+        },
+        _sum: { totalAmount: true },
+      }),
+      db.target.findFirst({
+        where: { userId, month: new Date().getMonth() + 1, year: new Date().getFullYear() },
+      }),
+      db.order.count({ where: { createdById: userId, status: { in: ['SUBMITTED', 'PRET_APROVIM'] } } }),
+    ])
 
-  const monthlySalesValue = monthSales._sum.totalAmount ?? 0
-  const targetValue = target?.salesTarget ?? 0
-  const realization = targetValue > 0 ? (monthlySalesValue / targetValue) * 100 : 0
+    const monthlySalesValue = monthSales._sum.totalAmount ?? 0
+    const targetValue = target?.salesTarget ?? 0
+    const realization = targetValue > 0 ? (monthlySalesValue / targetValue) * 100 : 0
 
-  return {
-    visitsToday,
-    ordersToday,
-    salesToday: salesToday._sum.totalAmount ?? 0,
-    paymentsToday: paymentsToday._sum.amount ?? 0,
-    openVisit,
-    monthlySalesValue,
-    targetValue,
-    realization,
-    pendingOrders,
+    return {
+      visitsToday,
+      ordersToday,
+      salesToday: salesToday._sum.totalAmount ?? 0,
+      paymentsToday: paymentsToday._sum.amount ?? 0,
+      openVisit,
+      monthlySalesValue,
+      targetValue,
+      realization,
+      pendingOrders,
+    }
+  } catch (err) {
+    console.error('[agjent] getAgentStats error:', err)
+    return SAFE_AGENT_STATS
   }
 }
 
