@@ -24,11 +24,25 @@ export default function PaymentsPage() {
 
   const fetchPayments = useCallback(async () => {
     setLoading(true)
-    const res = await fetch(`/api/payments?page=${page}&search=${search}`)
-    const data = await res.json()
-    setPayments(data.payments ?? [])
-    setTotal(data.total ?? 0)
-    setLoading(false)
+    try {
+      const res = await fetch(`/api/payments?page=${page}&search=${encodeURIComponent(search)}`)
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: 'Server error' }))
+        console.error('[payments]', err)
+        setPayments([])
+        setTotal(0)
+        return
+      }
+      const data = await res.json()
+      setPayments(data.payments ?? [])
+      setTotal(data.total ?? 0)
+    } catch (e) {
+      console.error('[payments] fetch failed:', e)
+      setPayments([])
+      setTotal(0)
+    } finally {
+      setLoading(false)
+    }
   }, [page, search])
 
   useEffect(() => { fetchPayments() }, [fetchPayments])
