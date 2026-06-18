@@ -2,7 +2,6 @@
 
 import { useState } from 'react'
 import { signIn } from 'next-auth/react'
-import { useRouter } from 'next/navigation'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -20,7 +19,6 @@ const schema = z.object({
 type FormData = z.infer<typeof schema>
 
 export default function LoginPage() {
-  const router = useRouter()
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
 
@@ -43,8 +41,7 @@ export default function LoginPage() {
         toast.error('Email ose fjalëkalim i gabuar')
       } else {
         toast.success('Hyrja u krye me sukses')
-        router.refresh()
-        router.push('/')
+        window.location.href = '/'
       }
     } catch {
       toast.error('Gabim i papritur')
