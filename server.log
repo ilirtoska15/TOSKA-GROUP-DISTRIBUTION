@@ -1,0 +1,96 @@
+
+> toska-distribution@0.1.0 start
+> next start
+
+  ▲ Next.js 14.2.18
+  - Local:        http://localhost:3000
+
+ ✓ Starting...
+ ✓ Ready in 200ms
+prisma:error 
+Invalid `prisma.user.findUnique()` invocation:
+
+
+error: Error validating datasource `db`: the URL must start with the protocol `postgresql://` or `postgres://`.
+  -->  schema.prisma:7
+   | 
+ 6 |   provider = "postgresql"
+ 7 |   url      = env("DATABASE_URL")
+   | 
+
+Validation Error Count: 1
+[31m[auth][error][0m CallbackRouteError: Read more at https://errors.authjs.dev#callbackrouteerror
+[31m[auth][cause][0m: PrismaClientInitializationError: 
+Invalid `prisma.user.findUnique()` invocation:
+
+
+error: Error validating datasource `db`: the URL must start with the protocol `postgresql://` or `postgres://`.
+  -->  schema.prisma:7
+   | 
+ 6 |   provider = "postgresql"
+ 7 |   url      = env("DATABASE_URL")
+   | 
+
+Validation Error Count: 1
+    at $n.handleRequestError (C:\Users\ITech\Projects\TOSKA-DISTRIBUTION\node_modules\@prisma\client\runtime\library.js:121:7615)
+    at $n.handleAndLogRequestError (C:\Users\ITech\Projects\TOSKA-DISTRIBUTION\node_modules\@prisma\client\runtime\library.js:121:6623)
+    at $n.request (C:\Users\ITech\Projects\TOSKA-DISTRIBUTION\node_modules\@prisma\client\runtime\library.js:121:6307)
+    at async l (C:\Users\ITech\Projects\TOSKA-DISTRIBUTION\node_modules\@prisma\client\runtime\library.js:130:9633)
+    at async Object.authorize (C:\Users\ITech\Projects\TOSKA-DISTRIBUTION\.next\server\app\api\auth\[...nextauth]\route.js:1:1840)
+    at async aQ (C:\Users\ITech\Projects\TOSKA-DISTRIBUTION\.next\server\chunks\7611.js:404:43564)
+    at async a9 (C:\Users\ITech\Projects\TOSKA-DISTRIBUTION\.next\server\chunks\7611.js:404:53262)
+    at async oe (C:\Users\ITech\Projects\TOSKA-DISTRIBUTION\.next\server\chunks\7611.js:404:57526)
+    at async C:\Users\ITech\Projects\TOSKA-DISTRIBUTION\node_modules\next\dist\compiled\next-server\app-route.runtime.prod.js:6:37010
+    at async eC.execute (C:\Users\ITech\Projects\TOSKA-DISTRIBUTION\node_modules\next\dist\compiled\next-server\app-route.runtime.prod.js:6:27552)
+[31m[auth][details][0m: {
+  "provider": "credentials"
+}
+[31m[auth][error][0m MissingCSRF: CSRF token was missing during an action callback. Read more at https://errors.authjs.dev#missingcsrf
+    at rS (C:\Users\ITech\Projects\TOSKA-DISTRIBUTION\.next\server\chunks\7611.js:1:84168)
+    at a9 (C:\Users\ITech\Projects\TOSKA-DISTRIBUTION\.next\server\chunks\7611.js:404:53254)
+    at async oe (C:\Users\ITech\Projects\TOSKA-DISTRIBUTION\.next\server\chunks\7611.js:404:57526)
+    at async C:\Users\ITech\Projects\TOSKA-DISTRIBUTION\node_modules\next\dist\compiled\next-server\app-route.runtime.prod.js:6:37010
+    at async eC.execute (C:\Users\ITech\Projects\TOSKA-DISTRIBUTION\node_modules\next\dist\compiled\next-server\app-route.runtime.prod.js:6:27552)
+    at async eC.handle (C:\Users\ITech\Projects\TOSKA-DISTRIBUTION\node_modules\next\dist\compiled\next-server\app-route.runtime.prod.js:6:38344)
+    at async doRender (C:\Users\ITech\Projects\TOSKA-DISTRIBUTION\node_modules\next\dist\server\base-server.js:1353:42)
+    at async cacheEntry.responseCache.get.routeKind (C:\Users\ITech\Projects\TOSKA-DISTRIBUTION\node_modules\next\dist\server\base-server.js:1575:28)
+    at async NextNodeServer.renderToResponseWithComponentsImpl (C:\Users\ITech\Projects\TOSKA-DISTRIBUTION\node_modules\next\dist\server\base-server.js:1483:28)
+    at async NextNodeServer.renderPageComponent (C:\Users\ITech\Projects\TOSKA-DISTRIBUTION\node_modules\next\dist\server\base-server.js:1911:24)
+prisma:error 
+Invalid `prisma.user.findUnique()` invocation:
+
+
+error: Error validating datasource `db`: the URL must start with the protocol `postgresql://` or `postgres://`.
+  -->  schema.prisma:7
+   | 
+ 6 |   provider = "postgresql"
+ 7 |   url      = env("DATABASE_URL")
+   | 
+
+Validation Error Count: 1
+[31m[auth][error][0m CallbackRouteError: Read more at https://errors.authjs.dev#callbackrouteerror
+[31m[auth][cause][0m: PrismaClientInitializationError: 
+Invalid `prisma.user.findUnique()` invocation:
+
+
+error: Error validating datasource `db`: the URL must start with the protocol `postgresql://` or `postgres://`.
+  -->  schema.prisma:7
+   | 
+ 6 |   provider = "postgresql"
+ 7 |   url      = env("DATABASE_URL")
+   | 
+
+Validation Error Count: 1
+    at $n.handleRequestError (C:\Users\ITech\Projects\TOSKA-DISTRIBUTION\node_modules\@prisma\client\runtime\library.js:121:7615)
+    at $n.handleAndLogRequestError (C:\Users\ITech\Projects\TOSKA-DISTRIBUTION\node_modules\@prisma\client\runtime\library.js:121:6623)
+    at $n.request (C:\Users\ITech\Projects\TOSKA-DISTRIBUTION\node_modules\@prisma\client\runtime\library.js:121:6307)
+    at async l (C:\Users\ITech\Projects\TOSKA-DISTRIBUTION\node_modules\@prisma\client\runtime\library.js:130:9633)
+    at async Object.authorize (C:\Users\ITech\Projects\TOSKA-DISTRIBUTION\.next\server\app\api\auth\[...nextauth]\route.js:1:1840)
+    at async aQ (C:\Users\ITech\Projects\TOSKA-DISTRIBUTION\.next\server\chunks\7611.js:404:43564)
+    at async a9 (C:\Users\ITech\Projects\TOSKA-DISTRIBUTION\.next\server\chunks\7611.js:404:53262)
+    at async oe (C:\Users\ITech\Projects\TOSKA-DISTRIBUTION\.next\server\chunks\7611.js:404:57526)
+    at async C:\Users\ITech\Projects\TOSKA-DISTRIBUTION\node_modules\next\dist\compiled\next-server\app-route.runtime.prod.js:6:37010
+    at async eC.execute (C:\Users\ITech\Projects\TOSKA-DISTRIBUTION\node_modules\next\dist\compiled\next-server\app-route.runtime.prod.js:6:27552)
+[31m[auth][details][0m: {
+  "provider": "credentials"
+}
