@@ -15,6 +15,7 @@ const updateSchema = z.object({
   description: z.string().optional().nullable(),
   photo: z.string().optional(),
   salesPrice: z.number().min(0).optional(),
+  discountPercent: z.number().min(0).max(100).optional(),
   barcode: z.string().optional().nullable(),
   pakoCopje: z.number().int().positive().optional().nullable(),
   promotionActive: z.boolean().optional(),

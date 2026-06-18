@@ -202,6 +202,7 @@ model Product {
   description     String?
   photo           String   // required
   salesPrice      Float
+  discountPercent Float    @default(0) // rabat %: 0-100
   pakoCopje       Int?     // how many copje per pako (null = pako not available)
   promotionActive Boolean  @default(false)
   promotionText   String?
@@ -317,6 +318,8 @@ model OrderLine {
   quantity        Int
   quantityCopje   Int
   salesPrice      Float
+  discountPercent Float  @default(0)
+  finalUnitPrice  Float  @default(0)
   lineTotal       Float
   productSnapshot String // JSON snapshot
 

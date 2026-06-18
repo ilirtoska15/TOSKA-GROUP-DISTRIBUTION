@@ -1,4 +1,4 @@
-﻿'use client'
+'use client'
 
 import { useState, useEffect, useCallback } from 'react'
 import { Search, ShoppingCart, Plus, Minus, X, Check } from 'lucide-react'
@@ -13,12 +13,15 @@ import { useRouter } from 'next/navigation'
 
 export const dynamic = 'force-dynamic'
 
+interface Category { id: string; name: string }
+
 interface Product {
   id: string
   code: string
   name: string
   photo: string
   salesPrice: number
+  discountPercent?: number
   stockCopje: number
   pakoCopje?: number
   promotionActive: boolean
@@ -32,6 +35,7 @@ interface CartItem {
   name: string
   photo: string
   salesPrice: number
+  discountPercent: number
   unit: 'COPE' | 'PAKO'
   quantity: number
   pakoCopje?: number
@@ -57,9 +61,15 @@ function loadCart(): CartStore | null {
   } catch { return null }
 }
 
+function finalPrice(salesPrice: number, discountPercent: number): number {
+  return salesPrice * (1 - discountPercent / 100)
+}
+
 export default function AgentCatalogPage() {
   const router = useRouter()
   const [products, setProducts] = useState<Product[]>([])
+  const [categories, setCategories] = useState<Category[]>([])
+  const [categoryId, setCategoryId] = useState('')
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [cart, setCart] = useState<CartStore>({ customerId: '', items: [] })
@@ -75,10 +85,18 @@ export default function AgentCatalogPage() {
     if (saved) setCart(saved)
   }, [])
 
+  useEffect(() => {
+    fetch('/api/categories')
+      .then(r => r.ok ? r.json() : [])
+      .then(setCategories)
+      .catch(() => setCategories([]))
+  }, [])
+
   const fetchProducts = useCallback(async () => {
     setLoading(true)
     try {
       const params = new URLSearchParams({ limit: '50', search })
+      if (categoryId) params.set('categoryId', categoryId)
       const res = await fetch(`/api/products?${params}`)
       if (!res.ok) {
         const err = await res.json().catch(() => ({ error: 'Server error' }))
@@ -94,7 +112,7 @@ export default function AgentCatalogPage() {
     } finally {
       setLoading(false)
     }
-  }, [search])
+  }, [search, categoryId])
 
   useEffect(() => { fetchProducts() }, [fetchProducts])
 
@@ -117,6 +135,7 @@ export default function AgentCatalogPage() {
       return
     }
 
+    const discount = product.discountPercent ?? 0
     const updatedCart = { ...cart }
     const existing = updatedCart.items.findIndex((i) => i.productId === product.id && i.unit === unit)
 
@@ -128,6 +147,7 @@ export default function AgentCatalogPage() {
         name: product.name,
         photo: product.photo,
         salesPrice: product.salesPrice,
+        discountPercent: discount,
         unit,
         quantity: qty,
         pakoCopje: product.pakoCopje,
@@ -148,7 +168,7 @@ export default function AgentCatalogPage() {
 
   const cartTotal = cart.items.reduce((sum, item) => {
     const copje = item.unit === 'PAKO' ? item.quantity * (item.pakoCopje ?? 1) : item.quantity
-    return sum + copje * item.salesPrice
+    return sum + copje * finalPrice(item.salesPrice, item.discountPercent)
   }, 0)
 
   const saveOfflineOrder = async (payload: object) => {
@@ -195,7 +215,6 @@ export default function AgentCatalogPage() {
         productId: item.productId,
         unit: item.unit,
         quantity: item.quantity,
-        salesPrice: item.salesPrice,
       })),
     }
 
@@ -252,7 +271,6 @@ export default function AgentCatalogPage() {
             productId: item.productId,
             unit: item.unit,
             quantity: item.quantity,
-            salesPrice: item.salesPrice,
           })),
         }),
       })
@@ -284,13 +302,25 @@ export default function AgentCatalogPage() {
         </button>
       </div>
 
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-        <Input
-          placeholder="Kërko produktin..."
-          className="pl-9 h-12 text-base"
-          onChange={(e) => debouncedSearch(e.target.value)}
-        />
+      <div className="flex gap-2">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+          <Input
+            placeholder="Kërko produktin..."
+            className="pl-9 h-12 text-base"
+            onChange={(e) => debouncedSearch(e.target.value)}
+          />
+        </div>
+        {categories.length > 0 && (
+          <select
+            className="h-12 px-3 rounded-lg border border-gray-200 text-sm bg-white min-w-[130px]"
+            value={categoryId}
+            onChange={(e) => setCategoryId(e.target.value)}
+          >
+            <option value="">Të gjitha</option>
+            {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+          </select>
+        )}
       </div>
 
       {loading ? (
@@ -304,6 +334,8 @@ export default function AgentCatalogPage() {
             const qty = getQty(p.id)
             const hasStock = p.stockCopje > 0
             const hasPako = !!p.pakoCopje
+            const discount = p.discountPercent ?? 0
+            const fp = finalPrice(p.salesPrice, discount)
 
             return (
               <div key={p.id} className={`bg-white rounded-xl border shadow-sm overflow-hidden ${!hasStock ? 'opacity-60' : ''}`}>
@@ -318,6 +350,9 @@ export default function AgentCatalogPage() {
                   {p.promotionActive && (
                     <span className="absolute top-1 left-1 bg-red-500 text-white text-[9px] px-1.5 py-0.5 rounded-full font-bold">PROMO</span>
                   )}
+                  {discount > 0 && (
+                    <span className="absolute top-1 right-1 bg-orange-500 text-white text-[9px] px-1.5 py-0.5 rounded-full font-bold">-{discount}%</span>
+                  )}
                   {!hasStock && (
                     <div className="absolute inset-0 bg-black/20 flex items-center justify-center">
                       <span className="bg-black/70 text-white text-xs px-2 py-1 rounded-full">Pa Stok</span>
@@ -327,10 +362,16 @@ export default function AgentCatalogPage() {
                 <div className="p-2.5 space-y-2">
                   <div>
                     <p className="text-sm font-semibold text-gray-900 line-clamp-2 leading-tight">{p.name}</p>
+                    {p.category && <p className="text-[10px] text-blue-500">{p.category.name}</p>}
                     {p.brand && <p className="text-xs text-gray-400">{p.brand.name}</p>}
                   </div>
                   <div className="flex items-center justify-between">
-                    <span className="text-sm font-bold text-primary">{formatCurrency(p.salesPrice)}</span>
+                    <div>
+                      <span className="text-sm font-bold text-primary">{formatCurrency(fp)}</span>
+                      {discount > 0 && (
+                        <span className="text-[10px] text-gray-400 line-through ml-1">{formatCurrency(p.salesPrice)}</span>
+                      )}
+                    </div>
                     <span className="text-[10px] text-gray-400">{p.stockCopje} copë</span>
                   </div>
 
@@ -409,25 +450,30 @@ export default function AgentCatalogPage() {
               {cart.items.length === 0 ? (
                 <p className="text-center text-gray-400 py-8">Nuk ka produkte</p>
               ) : (
-                cart.items.map((item, i) => (
-                  <div key={i} className="flex items-center gap-3 p-3 rounded-lg border border-gray-100">
-                    <div className="relative w-12 h-12 bg-gray-50 rounded-lg shrink-0">
-                      <Image src={item.photo} alt={item.name} fill className="object-contain" />
+                cart.items.map((item, i) => {
+                  const fp = finalPrice(item.salesPrice, item.discountPercent)
+                  const copje = item.unit === 'PAKO' ? item.quantity * (item.pakoCopje ?? 1) : item.quantity
+                  return (
+                    <div key={i} className="flex items-center gap-3 p-3 rounded-lg border border-gray-100">
+                      <div className="relative w-12 h-12 bg-gray-50 rounded-lg shrink-0">
+                        <Image src={item.photo} alt={item.name} fill className="object-contain" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-gray-900 truncate">{item.name}</p>
+                        <p className="text-xs text-gray-500">
+                          {item.quantity} {item.unit} × {formatCurrency(fp)}
+                          {item.discountPercent > 0 && ` (-${item.discountPercent}%)`}
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-sm font-semibold">{formatCurrency(fp * copje)}</p>
+                        <button onClick={() => removeFromCart(i)} className="text-red-400 hover:text-red-600">
+                          <X className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-gray-900 truncate">{item.name}</p>
-                      <p className="text-xs text-gray-500">{item.quantity} {item.unit} × {formatCurrency(item.salesPrice)}</p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-sm font-semibold">
-                        {formatCurrency(item.salesPrice * (item.unit === 'PAKO' ? item.quantity * (item.pakoCopje ?? 1) : item.quantity))}
-                      </p>
-                      <button onClick={() => removeFromCart(i)} className="text-red-400 hover:text-red-600">
-                        <X className="h-3.5 w-3.5" />
-                      </button>
-                    </div>
-                  </div>
-                ))
+                  )
+                })
               )}
             </div>
 

@@ -19,6 +19,7 @@ const createSchema = z.object({
     'Fotoja duhet të ngarkohet nga sistemi'
   ),
   salesPrice: z.number().min(0),
+  discountPercent: z.number().min(0).max(100).default(0),
   barcode: z.string().optional(),
   pakoCopje: z.number().int().positive().optional(),
   promotionActive: z.boolean().default(false),

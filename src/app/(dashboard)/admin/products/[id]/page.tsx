@@ -24,6 +24,7 @@ const schema = z.object({
   name: z.string().min(2, 'Emri duhet të jetë të paktën 2 karaktere'),
   photo: z.string().min(1, 'Foto e produktit është e detyrueshme'),
   salesPrice: z.coerce.number().min(0.01, 'Çmimi duhet të jetë pozitiv'),
+  discountPercent: z.coerce.number().min(0).max(100).default(0),
   pakoCopje: z.coerce.number().int().min(1).optional().or(z.literal('')),
   barcode: z.string().optional(),
   description: z.string().optional(),
@@ -49,6 +50,7 @@ interface Product {
   name: string
   photo: string
   salesPrice: number
+  discountPercent: number
   status: string
   pakoCopje?: number | null
   barcode?: string | null
@@ -102,6 +104,7 @@ export default function ProductDetailPage() {
           name: prod.name,
           photo: prod.photo,
           salesPrice: prod.salesPrice,
+          discountPercent: prod.discountPercent ?? 0,
           pakoCopje: prod.pakoCopje ?? '',
           barcode: prod.barcode ?? '',
           description: prod.description ?? '',
@@ -137,6 +140,7 @@ export default function ProductDetailPage() {
         name: data.name,
         photo: photoUrl,
         salesPrice: Number(data.salesPrice),
+        discountPercent: Number(data.discountPercent ?? 0),
         pakoCopje: data.pakoCopje ? Number(data.pakoCopje) : null,
         barcode: data.barcode || null,
         description: data.description || null,
@@ -268,6 +272,13 @@ export default function ProductDetailPage() {
                 <Input id="salesPrice" type="number" step="0.01" min="0" {...register('salesPrice')} />
                 {errors.salesPrice && <p className="text-xs text-red-500 mt-1">{errors.salesPrice.message}</p>}
               </div>
+              <div>
+                <Label htmlFor="discountPercent">Rabat % (Zbritje)</Label>
+                <Input id="discountPercent" type="number" step="0.1" min="0" max="100" {...register('discountPercent')} placeholder="0" />
+                {errors.discountPercent && <p className="text-xs text-red-500 mt-1">{errors.discountPercent.message}</p>}
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
               <div>
                 <Label htmlFor="pakoCopje">Copë për Pako</Label>
                 <Input id="pakoCopje" type="number" min="1" {...register('pakoCopje')} placeholder="Lër bosh nëse vetëm copë" />

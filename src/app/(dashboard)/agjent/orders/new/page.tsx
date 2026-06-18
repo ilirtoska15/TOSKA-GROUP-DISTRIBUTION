@@ -17,17 +17,20 @@ export const dynamic = 'force-dynamic'
 
 type Unit = 'COPE' | 'PAKO'
 
+interface Category { id: string; name: string }
+
 interface Product {
   id: string
   code: string
   name: string
   photo: string
   salesPrice: number
+  discountPercent?: number | null
   pakoCopje: number | null
   stockCopje: number
   status: string
   brand?: { name: string } | null
-  category?: { name: string } | null
+  category?: { id: string; name: string } | null
 }
 
 interface Customer {
@@ -51,9 +54,15 @@ function stockInUnit(p: Product, unit: Unit): number {
   return Math.floor(p.stockCopje / p.pakoCopje)
 }
 
+function finalUnitPrice(p: Product): number {
+  const discount = p.discountPercent ?? 0
+  return p.salesPrice * (1 - discount / 100)
+}
+
 function priceInUnit(p: Product, unit: Unit): number {
-  if (unit === 'COPE') return p.salesPrice
-  return p.salesPrice * (p.pakoCopje ?? 1)
+  const fp = finalUnitPrice(p)
+  if (unit === 'COPE') return fp
+  return fp * (p.pakoCopje ?? 1)
 }
 
 
@@ -62,8 +71,10 @@ export default function NewOrderPage() {
 
   const [customers, setCustomers] = useState<Customer[]>([])
   const [products, setProducts] = useState<Product[]>([])
+  const [categories, setCategories] = useState<Category[]>([])
   const [customerId, setCustomerId] = useState('')
   const [search, setSearch] = useState('')
+  const [categoryId, setCategoryId] = useState('')
   const [cart, setCart] = useState<CartLine[]>([])
   const [units, setUnits] = useState<Record<string, Unit>>({})
   const [notes, setNotes] = useState('')
@@ -95,6 +106,14 @@ export default function NewOrderPage() {
       .then(d => setProducts(d.products ?? []))
       .catch(e => console.error('[orders/new] products fetch:', e))
       .finally(() => setLoadingProducts(false))
+  }, [])
+
+  // Load categories
+  useEffect(() => {
+    fetch('/api/categories')
+      .then(r => r.ok ? r.json() : [])
+      .then(setCategories)
+      .catch(() => setCategories([]))
   }, [])
 
   // Restore draft once products are loaded
@@ -162,6 +181,7 @@ export default function NewOrderPage() {
   }, 0)
 
   const filteredProducts = products.filter(p => {
+    if (categoryId && p.category?.id !== categoryId) return false
     if (!search) return true
     const q = search.toLowerCase()
     return (
@@ -369,15 +389,27 @@ export default function NewOrderPage() {
           )}
         </div>
 
-        {/* Search */}
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-          <Input
-            placeholder="Kërko produkte..."
-            className="pl-9 bg-white"
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-          />
+        {/* Search + Category filter */}
+        <div className="flex gap-2">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+            <Input
+              placeholder="Kërko produkte..."
+              className="pl-9 bg-white"
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+            />
+          </div>
+          {categories.length > 0 && (
+            <select
+              className="h-10 px-3 rounded-lg border border-gray-200 text-sm bg-white min-w-[130px]"
+              value={categoryId}
+              onChange={e => { setCategoryId(e.target.value) }}
+            >
+              <option value="">Të gjitha</option>
+              {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+            </select>
+          )}
         </div>
 
         {/* Product grid */}
@@ -401,6 +433,7 @@ export default function NewOrderPage() {
               const price = priceInUnit(product, unit)
               const hasPako = !!product.pakoCopje && product.pakoCopje > 1
               const inCart = qty > 0
+              const discount = product.discountPercent ?? 0
 
               return (
                 <div
@@ -422,6 +455,11 @@ export default function NewOrderPage() {
                         <Package className="h-10 w-10 text-gray-300" />
                       </div>
                     )}
+                    {discount > 0 && (
+                      <span className="absolute top-1 left-1 bg-orange-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full">
+                        -{discount}%
+                      </span>
+                    )}
                     {maxStock === 0 && (
                       <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
                         <span className="text-white text-xs font-bold bg-red-500 px-2 py-0.5 rounded">Pa Stok</span>
@@ -433,8 +471,11 @@ export default function NewOrderPage() {
                   <div className="p-2.5 flex flex-col gap-2 flex-1">
                     <div>
                       <p className="text-xs font-semibold text-gray-900 leading-tight line-clamp-2">{product.name}</p>
+                      {product.category && (
+                        <p className="text-[10px] text-blue-500 mt-0.5">{product.category.name}</p>
+                      )}
                       {product.brand && (
-                        <p className="text-[10px] text-gray-400 mt-0.5">{product.brand.name}</p>
+                        <p className="text-[10px] text-gray-400">{product.brand.name}</p>
                       )}
                     </div>
 
@@ -459,7 +500,14 @@ export default function NewOrderPage() {
 
                     {/* Price + stock */}
                     <div className="flex items-center justify-between">
-                      <span className="text-sm font-bold text-primary">{formatCurrency(price)}</span>
+                      <div>
+                        <span className="text-sm font-bold text-primary">{formatCurrency(price)}</span>
+                        {discount > 0 && (
+                          <span className="text-[10px] text-gray-400 line-through ml-1">
+                            {formatCurrency(unit === 'COPE' ? product.salesPrice : product.salesPrice * (product.pakoCopje ?? 1))}
+                          </span>
+                        )}
+                      </div>
                       <span className={`text-[10px] ${maxStock === 0 ? 'text-red-500' : maxStock < 5 ? 'text-amber-500' : 'text-gray-400'}`}>
                         {maxStock > 0 ? `${maxStock} ${unit === 'COPE' ? 'cp' : 'pk'}` : 'Pa stok'}
                       </span>

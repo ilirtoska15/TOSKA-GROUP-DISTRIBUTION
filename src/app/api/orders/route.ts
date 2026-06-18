@@ -129,8 +129,10 @@ export async function POST(req: NextRequest) {
         }
       }
 
-      // Use server-side price — never trust client
-      const lineTotal = product.salesPrice * quantityCopje
+      // Use server-side price with discount — never trust client
+      const discountPercent = product.discountPercent ?? 0
+      const finalUnitPrice = product.salesPrice * (1 - discountPercent / 100)
+      const lineTotal = finalUnitPrice * quantityCopje
       totalAmount += lineTotal
 
       orderLines.push({
@@ -139,12 +141,16 @@ export async function POST(req: NextRequest) {
         quantity: line.quantity,      // display quantity
         quantityCopje,                // converted
         salesPrice: product.salesPrice,
+        discountPercent,
+        finalUnitPrice,
         lineTotal,
         productSnapshot: JSON.stringify({
           name: product.name,
           code: product.code,
           photo: product.photo,
           salesPrice: product.salesPrice,
+          discountPercent,
+          finalUnitPrice,
         }),
       })
     }

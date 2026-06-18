@@ -1,4 +1,4 @@
-﻿'use client'
+'use client'
 
 import { useState, useEffect, useCallback } from 'react'
 import { Plus, Search, Package } from 'lucide-react'
@@ -11,12 +11,15 @@ import Image from 'next/image'
 
 export const dynamic = 'force-dynamic'
 
+interface Category { id: string; name: string }
+
 interface Product {
   id: string
   code: string
   name: string
   photo: string
   salesPrice: number
+  discountPercent?: number
   status: string
   stockCopje: number
   pakoCopje?: number
@@ -30,13 +33,23 @@ export default function ProductsPage() {
   const [total, setTotal] = useState(0)
   const [page, setPage] = useState(1)
   const [search, setSearch] = useState('')
+  const [categoryId, setCategoryId] = useState('')
+  const [categories, setCategories] = useState<Category[]>([])
   const [loading, setLoading] = useState(true)
   const [_viewMode, _setViewMode] = useState<'grid' | 'table'>('grid')
+
+  useEffect(() => {
+    fetch('/api/categories')
+      .then(r => r.ok ? r.json() : [])
+      .then(setCategories)
+      .catch(() => setCategories([]))
+  }, [])
 
   const fetchProducts = useCallback(async () => {
     setLoading(true)
     try {
       const params = new URLSearchParams({ page: String(page), limit: '24', search })
+      if (categoryId) params.set('categoryId', categoryId)
       const res = await fetch(`/api/products?${params}`)
       if (!res.ok) {
         console.error('[products] fetch error:', res.status)
@@ -54,7 +67,7 @@ export default function ProductsPage() {
     } finally {
       setLoading(false)
     }
-  }, [page, search])
+  }, [page, search, categoryId])
 
   useEffect(() => { fetchProducts() }, [fetchProducts])
 
@@ -84,6 +97,16 @@ export default function ProductsPage() {
             onChange={(e) => debouncedSearch(e.target.value)}
           />
         </div>
+        {categories.length > 0 && (
+          <select
+            className="h-10 px-3 rounded-lg border border-gray-200 text-sm bg-white min-w-[160px]"
+            value={categoryId}
+            onChange={(e) => { setCategoryId(e.target.value); setPage(1) }}
+          >
+            <option value="">Të gjitha kategorit</option>
+            {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+          </select>
+        )}
       </div>
 
       {loading ? (
@@ -99,42 +122,61 @@ export default function ProductsPage() {
         </div>
       ) : (
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4">
-          {products.map((p) => (
-            <Link key={p.id} href={`/admin/products/${p.id}`}>
-              <div className="bg-white rounded-xl border border-gray-100 shadow-sm hover:shadow-md transition-shadow overflow-hidden group">
-                <div className="relative h-32 bg-gray-50">
-                  <Image
-                    src={p.photo}
-                    alt={p.name}
-                    fill
-                    className="object-contain p-2"
-                    onError={(e) => { (e.target as HTMLImageElement).src = '/placeholder-product.png' }}
-                  />
-                  {p.promotionActive && (
-                    <span className="absolute top-2 left-2 bg-red-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full">
-                      PROMO
-                    </span>
-                  )}
-                  {p.stockCopje === 0 && (
-                    <span className="absolute top-2 right-2 bg-gray-800 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full">
-                      PA STOK
-                    </span>
-                  )}
-                </div>
-                <div className="p-2.5">
-                  <p className="text-xs text-gray-400 font-mono">{p.code}</p>
-                  <p className="text-sm font-semibold text-gray-900 line-clamp-2 leading-tight mt-0.5">{p.name}</p>
-                  {p.brand && <p className="text-xs text-gray-400 mt-0.5">{p.brand.name}</p>}
-                  <div className="flex items-center justify-between mt-2">
-                    <span className="text-sm font-bold text-primary">{formatCurrency(p.salesPrice)}</span>
-                    <span className={`text-xs font-medium ${p.stockCopje < 20 ? 'text-red-500' : 'text-green-600'}`}>
-                      {p.stockCopje} copë
-                    </span>
+          {products.map((p) => {
+            const discount = p.discountPercent ?? 0
+            const finalPrice = p.salesPrice * (1 - discount / 100)
+            return (
+              <Link key={p.id} href={`/admin/products/${p.id}`}>
+                <div className="bg-white rounded-xl border border-gray-100 shadow-sm hover:shadow-md transition-shadow overflow-hidden group">
+                  <div className="relative h-32 bg-gray-50">
+                    <Image
+                      src={p.photo}
+                      alt={p.name}
+                      fill
+                      className="object-contain p-2"
+                      onError={(e) => { (e.target as HTMLImageElement).src = '/placeholder-product.png' }}
+                    />
+                    {p.promotionActive && (
+                      <span className="absolute top-2 left-2 bg-red-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full">
+                        PROMO
+                      </span>
+                    )}
+                    {discount > 0 && (
+                      <span className="absolute top-2 right-2 bg-orange-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full">
+                        -{discount}%
+                      </span>
+                    )}
+                    {p.stockCopje === 0 && (
+                      <span className="absolute bottom-1 right-1 bg-gray-800 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full">
+                        PA STOK
+                      </span>
+                    )}
+                  </div>
+                  <div className="p-2.5">
+                    <p className="text-xs text-gray-400 font-mono">{p.code}</p>
+                    <p className="text-sm font-semibold text-gray-900 line-clamp-2 leading-tight mt-0.5">{p.name}</p>
+                    {p.category && <p className="text-xs text-blue-500 mt-0.5">{p.category.name}</p>}
+                    {p.brand && <p className="text-xs text-gray-400">{p.brand.name}</p>}
+                    <div className="flex items-center justify-between mt-2">
+                      <div>
+                        {discount > 0 ? (
+                          <>
+                            <span className="text-sm font-bold text-primary">{formatCurrency(finalPrice)}</span>
+                            <span className="text-[10px] text-gray-400 line-through ml-1">{formatCurrency(p.salesPrice)}</span>
+                          </>
+                        ) : (
+                          <span className="text-sm font-bold text-primary">{formatCurrency(p.salesPrice)}</span>
+                        )}
+                      </div>
+                      <span className={`text-xs font-medium ${p.stockCopje < 20 ? 'text-red-500' : 'text-green-600'}`}>
+                        {p.stockCopje} copë
+                      </span>
+                    </div>
                   </div>
                 </div>
-              </div>
-            </Link>
-          ))}
+              </Link>
+            )
+          })}
         </div>
       )}
 
