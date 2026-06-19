@@ -106,7 +106,22 @@ export async function POST(req: NextRequest) {
 
   try {
     const body = await req.json()
-    const data = createSchema.parse(body)
+    const parsed = createSchema.parse(body)
+
+    // Normalize empty optional strings → undefined to avoid FK violations on relation IDs
+    const data = {
+      ...parsed,
+      paymentTermDays: Math.round(parsed.paymentTermDays),
+      phone2: parsed.phone2?.trim() || undefined,
+      contactPerson: parsed.contactPerson?.trim() || undefined,
+      businessNumber: parsed.businessNumber?.trim() || undefined,
+      vatNumber: parsed.vatNumber?.trim() || undefined,
+      notes: parsed.notes?.trim() || undefined,
+      agentId: parsed.agentId?.trim() || undefined,
+      regionId: parsed.regionId?.trim() || undefined,
+      zoneId: parsed.zoneId?.trim() || undefined,
+      parentCustomerId: parsed.parentCustomerId?.trim() || null,
+    }
 
     const code = await generateReference(db, 'customer')
 
@@ -124,10 +139,19 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json(customer, { status: 201 })
   } catch (err) {
-    console.error('[POST /api/customers] error:', err)
+    const e = err as { message?: string; code?: string; meta?: unknown; stack?: string }
+    console.error('[POST /api/customers]', {
+      message: e?.message,
+      code: e?.code,
+      meta: e?.meta,
+      stack: e?.stack,
+    })
     if (err instanceof z.ZodError) {
       return NextResponse.json({ success: false, error: err.errors }, { status: 400 })
     }
-    return NextResponse.json({ success: false, error: 'Server error' }, { status: 500 })
+    if ((err as { code?: string })?.code === 'P2002') {
+      return NextResponse.json({ success: false, error: 'Kodi i klientit ekziston' }, { status: 400 })
+    }
+    return NextResponse.json({ success: false, error: 'Internal server error' }, { status: 500 })
   }
 }
