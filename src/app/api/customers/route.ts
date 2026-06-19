@@ -75,9 +75,8 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json({ customers, total, page, limit })
   } catch (err) {
-    const msg = err instanceof Error ? err.message : 'Internal server error'
-    console.error('[customers] GET error:', err)
-    return NextResponse.json({ error: msg }, { status: 500 })
+    console.error('[GET /api/customers] error:', err)
+    return NextResponse.json({ success: false, error: 'Internal server error' }, { status: 500 })
   }
 }
 
@@ -107,9 +106,10 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json(customer, { status: 201 })
   } catch (err) {
+    console.error('[POST /api/customers] error:', err)
     if (err instanceof z.ZodError) {
-      return NextResponse.json({ error: err.errors }, { status: 400 })
+      return NextResponse.json({ success: false, error: err.errors }, { status: 400 })
     }
-    return NextResponse.json({ error: 'Server error' }, { status: 500 })
+    return NextResponse.json({ success: false, error: 'Server error' }, { status: 500 })
   }
 }

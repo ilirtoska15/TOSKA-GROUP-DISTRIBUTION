@@ -1,4 +1,4 @@
-﻿import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { createAuditLog } from '@/lib/audit'
@@ -28,41 +28,54 @@ const updateSchema = z.object({
 })
 
 export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
-  const session = await auth()
-  if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  try {
+    const session = await auth()
+    if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const customer = await db.customer.findUnique({
-    where: { id: params.id },
-    include: {
-      agent: { select: { id: true, name: true } },
-      region: { select: { id: true, name: true } },
-      zone: { select: { id: true, name: true } },
-      orders: {
-        orderBy: { createdAt: 'desc' },
-        take: 10,
-        include: { lines: { include: { product: { select: { name: true } } } } },
+    const customer = await db.customer.findUnique({
+      where: { id: params.id },
+      include: {
+        agent: { select: { id: true, name: true } },
+        region: { select: { id: true, name: true } },
+        zone: { select: { id: true, name: true } },
+        orders: {
+          orderBy: { createdAt: 'desc' },
+          take: 10,
+          include: { lines: { include: { product: { select: { name: true } } } } },
+        },
+        visits: { orderBy: { createdAt: 'desc' }, take: 10, include: { agent: { select: { name: true } } } },
+        payments: { orderBy: { createdAt: 'desc' }, take: 10 },
+        returns: { orderBy: { createdAt: 'desc' }, take: 5 },
+        documents: true,
       },
-      visits: { orderBy: { createdAt: 'desc' }, take: 10, include: { agent: { select: { name: true } } } },
-      payments: { orderBy: { createdAt: 'desc' }, take: 10 },
-      returns: { orderBy: { createdAt: 'desc' }, take: 5 },
-      documents: true,
-    },
-  })
+    })
 
-  if (!customer) return NextResponse.json({ error: 'Not found' }, { status: 404 })
+    if (!customer) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
-  // Calculate current debt
-  const deliveredAmount = await db.order.aggregate({
-    where: { customerId: params.id, status: 'DORËZUAR' },
-    _sum: { totalAmount: true },
-  })
-  const paidAmount = await db.payment.aggregate({
-    where: { customerId: params.id },
-    _sum: { amount: true },
-  })
-  const currentDebt = Math.max(0, (deliveredAmount._sum.totalAmount ?? 0) - (paidAmount._sum.amount ?? 0))
+    const [deliveredAmount, paidAmount] = await Promise.all([
+      db.order.aggregate({
+        where: { customerId: params.id, status: 'DORËZUAR' },
+        _sum: { totalAmount: true },
+      }),
+      db.payment.aggregate({
+        where: { customerId: params.id },
+        _sum: { amount: true },
+      }),
+    ])
 
-  return NextResponse.json({ ...customer, currentDebt })
+    const currentDebt = Math.max(
+      0,
+      (deliveredAmount._sum.totalAmount ?? 0) - (paidAmount._sum.amount ?? 0),
+    )
+
+    return NextResponse.json({ ...customer, currentDebt })
+  } catch (err) {
+    console.error(`[GET /api/customers/${params.id}] error:`, err)
+    return NextResponse.json(
+      { success: false, error: 'Internal server error' },
+      { status: 500 },
+    )
+  }
 }
 
 export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
@@ -89,7 +102,8 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
 
     return NextResponse.json(customer)
   } catch (err) {
+    console.error(`[PATCH /api/customers/${params.id}] error:`, err)
     if (err instanceof z.ZodError) return NextResponse.json({ error: err.errors }, { status: 400 })
-    return NextResponse.json({ error: 'Server error' }, { status: 500 })
+    return NextResponse.json({ success: false, error: 'Server error' }, { status: 500 })
   }
 }
