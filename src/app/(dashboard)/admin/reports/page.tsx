@@ -4,10 +4,11 @@ import { useState } from 'react'
 import { Download, TrendingDown, Trophy, MapPin, Globe, Target, Activity, AlertOctagon, Shuffle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { formatCurrency, formatDate, formatDateTime } from '@/lib/utils'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { formatCurrency, formatDate, formatDateTime, cn } from '@/lib/utils'
+import { PageHeader } from '@/components/ui/page-header'
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
 } from 'recharts'
@@ -15,21 +16,41 @@ import { toast } from 'sonner'
 
 export const dynamic = 'force-dynamic'
 
-const REPORT_TYPES = [
-  { value: 'sales', label: 'Shitjet' },
-  { value: 'payments', label: 'Pagesat' },
-  { value: 'visits', label: 'Vizitat' },
-  { value: 'debt', label: 'Borxhet' },
-  { value: 'brands', label: 'Shitjet sipas Brendit' },
-  { value: 'inactive_customers', label: 'Klientë pa Porosi' },
-  { value: 'product_leaderboard', label: 'Top Produktet' },
-  { value: 'declining_products', label: 'Produktet në Rënie' },
-  { value: 'visits_gps', label: 'Vizitat me GPS' },
-  { value: 'territory', label: 'Performanca e Territorit' },
-  { value: 'product_penetration', label: 'Penetrimi i Produkteve' },
-  { value: 'visit_effectiveness', label: 'Efektiviteti i Vizitave' },
-  { value: 'recovery_opportunities', label: 'Mundësi Rikuperimi' },
-  { value: 'product_pairs', label: 'Çift Produktesh' },
+const REPORT_GROUPS = [
+  {
+    label: 'SHITJE & FINANCA',
+    reports: [
+      { value: 'sales',    label: 'Shitjet' },
+      { value: 'payments', label: 'Pagesat' },
+      { value: 'debt',     label: 'Borxhet' },
+    ],
+  },
+  {
+    label: 'PRODUKTE',
+    reports: [
+      { value: 'product_leaderboard', label: 'Top Produktet' },
+      { value: 'declining_products',  label: 'Në Rënie' },
+      { value: 'brands',              label: 'Brendet' },
+      { value: 'product_pairs',       label: 'Çiftet' },
+      { value: 'product_penetration', label: 'Penetrimi' },
+    ],
+  },
+  {
+    label: 'KLIENTË',
+    reports: [
+      { value: 'inactive_customers',    label: 'Joaktiv' },
+      { value: 'recovery_opportunities', label: 'Rikuperimi' },
+    ],
+  },
+  {
+    label: 'VIZITA & TERRITOR',
+    reports: [
+      { value: 'visits',            label: 'Vizitat' },
+      { value: 'visits_gps',        label: 'Vizitat GPS' },
+      { value: 'territory',         label: 'Territori' },
+      { value: 'visit_effectiveness', label: 'Efektiviteti' },
+    ],
+  },
 ]
 
 const SEVERITY_STYLE: Record<string, string> = {
@@ -96,31 +117,50 @@ export default function ReportsPage() {
 
   return (
     <div className="p-4 sm:p-6 space-y-4">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Raporte</h1>
-        </div>
-        <Button variant="outline" onClick={exportExcel} className="gap-2">
-          <Download className="h-4 w-4" />
-          Eksporto Excel
-        </Button>
-      </div>
+      <PageHeader
+        title="Raporte"
+        description="Analizo shitjet, klientët, produktet dhe vizitat"
+        action={
+          <Button variant="outline" onClick={exportExcel} className="gap-2">
+            <Download className="h-4 w-4" />
+            <span className="hidden sm:inline">Eksporto Excel</span>
+          </Button>
+        }
+      />
 
       {/* Filters */}
       <Card>
-        <CardContent className="p-4">
-          <div className="flex flex-wrap gap-4">
-            <div className="flex-1 min-w-48">
-              <Label>Lloji i Raportit</Label>
-              <Select value={reportType} onValueChange={setReportType}>
-                <SelectTrigger className="mt-1">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {REPORT_TYPES.map((r) => <SelectItem key={r.value} value={r.value}>{r.label}</SelectItem>)}
-                </SelectContent>
-              </Select>
+        <CardContent className="p-4 space-y-4">
+          {/* Report type — grouped chips */}
+          <div>
+            <Label className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Lloji i Raportit</Label>
+            <div className="mt-3 space-y-3">
+              {REPORT_GROUPS.map(group => (
+                <div key={group.label}>
+                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5">{group.label}</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {group.reports.map(r => (
+                      <button
+                        key={r.value}
+                        onClick={() => setReportType(r.value)}
+                        className={cn(
+                          'px-3 py-1.5 rounded-xl text-sm font-medium transition-all border',
+                          reportType === r.value
+                            ? 'bg-primary text-white border-primary shadow-sm'
+                            : 'text-gray-600 bg-white border-gray-200 hover:border-gray-300 hover:text-gray-900'
+                        )}
+                      >
+                        {r.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ))}
             </div>
+          </div>
+
+          {/* Date / period filters */}
+          <div className="flex flex-wrap gap-4">
             {reportType === 'inactive_customers' ? (
               <div>
                 <Label>Ditët</Label>
@@ -166,6 +206,7 @@ export default function ReportsPage() {
           </div>
         </CardContent>
       </Card>
+
 
       {/* Results */}
       {data && (
