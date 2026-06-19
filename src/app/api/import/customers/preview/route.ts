@@ -5,7 +5,7 @@ import * as XLSX from 'xlsx'
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
 
-const MAX_SIZE = 10 * 1024 * 1024
+const MAX_SIZE = 100 * 1024 * 1024
 
 const FIELD_ALIASES: Record<string, string[]> = {
   businessName: ['emribiznesit', 'businessname', 'emri', 'name', 'biznesi'],
@@ -135,7 +135,7 @@ export async function POST(req: NextRequest) {
     const formData = await req.formData()
     const file = formData.get('file') as File | null
     if (!file) return NextResponse.json({ error: 'Nuk u gjet asnjë file' }, { status: 400 })
-    if (file.size > MAX_SIZE) return NextResponse.json({ error: 'File shumë i madh. Maksimumi 10MB.' }, { status: 400 })
+    if (file.size > MAX_SIZE) return NextResponse.json({ error: 'File është shumë i madh. Maksimumi 100MB.' }, { status: 400 })
 
     const ext = file.name.split('.').pop()?.toLowerCase() ?? ''
     if (!['xlsx', 'xls', 'csv'].includes(ext)) {

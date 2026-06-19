@@ -53,8 +53,8 @@ export default function ProductsImportPage() {
       toast.error('Lloji i file-it nuk lejohet. Përdor .xlsx ose .csv')
       return
     }
-    if (file.size > 10 * 1024 * 1024) {
-      toast.error('File shumë i madh. Maksimumi 10MB.')
+    if (file.size > 100 * 1024 * 1024) {
+      toast.error('File është shumë i madh. Maksimumi 100MB.')
       return
     }
 
@@ -155,7 +155,7 @@ export default function ProductsImportPage() {
                   ) : (
                     <p className="text-sm text-gray-500">Tërhiq file-in këtu ose <span className="text-primary font-medium">kliko për të zgjedhur</span></p>
                   )}
-                  <p className="text-xs text-gray-400">.xlsx · .csv · max 10MB</p>
+                  <p className="text-xs text-gray-400">.xlsx · .csv · max 100MB</p>
                 </div>
               )}
             </div>
