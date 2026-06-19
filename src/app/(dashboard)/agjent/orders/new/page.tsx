@@ -269,6 +269,7 @@ export default function NewOrderPage() {
   const [loadingCustomers, setLoadingCustomers] = useState(true)
   const [loadingProducts, setLoadingProducts] = useState(true)
   const [selectedImageProduct, setSelectedImageProduct] = useState<Product | null>(null)
+  const [inputDraft, setInputDraft] = useState<Record<string, string>>({})
   const draftRestored = useRef(false)
 
   // Close image modal on ESC
@@ -760,7 +761,7 @@ export default function NewOrderPage() {
                               <span className="text-[11px] text-gray-400 font-medium shrink-0">Pa Stok</span>
                             ) : isBlocked ? (
                               <span className="text-[11px] text-red-400 font-medium shrink-0">Bllokuar</span>
-                            ) : qty === 0 ? (
+                            ) : qty === 0 && !(product.id in inputDraft) ? (
                               <button
                                 className="h-10 px-3 bg-primary text-white rounded-lg text-[13px] font-semibold flex items-center gap-1 shrink-0 hover:bg-primary/90 active:bg-primary/80 transition-colors"
                                 onClick={() => setQty(product, 1)}
@@ -778,11 +779,30 @@ export default function NewOrderPage() {
                                 </button>
                                 <input
                                   type="number"
+                                  inputMode="numeric"
+                                  pattern="[0-9]*"
                                   min={1}
                                   max={maxStock}
-                                  value={qty}
-                                  onChange={e => setQty(product, parseInt(e.target.value) || 0)}
-                                  className="w-9 h-10 text-center text-xs font-bold border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/30 mx-0.5"
+                                  value={inputDraft[product.id] ?? String(qty)}
+                                  onChange={e => {
+                                    const raw = e.target.value.replace(/[^0-9]/g, '')
+                                    setInputDraft(prev => ({ ...prev, [product.id]: raw }))
+                                    const n = parseInt(raw, 10)
+                                    if (!isNaN(n) && n > 0) setQty(product, n)
+                                  }}
+                                  onBlur={() => {
+                                    const raw = inputDraft[product.id]
+                                    if (raw !== undefined) {
+                                      const n = parseInt(raw, 10)
+                                      setQty(product, (!raw || isNaN(n) || n < 1) ? 1 : n)
+                                      setInputDraft(prev => {
+                                        const next = { ...prev }
+                                        delete next[product.id]
+                                        return next
+                                      })
+                                    }
+                                  }}
+                                  className="w-9 min-h-[44px] text-center text-xs font-bold border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/30 mx-0.5"
                                 />
                                 <button
                                   className="w-9 h-10 rounded-lg border border-gray-200 flex items-center justify-center hover:bg-gray-50 active:bg-gray-100 transition-colors disabled:opacity-40"
