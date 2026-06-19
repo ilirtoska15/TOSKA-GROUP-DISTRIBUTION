@@ -54,28 +54,43 @@ async function fetchProductLeaderboard() {
 
 async function fetchTerritoryTop() {
   try {
-    const startOfMonth = new Date()
-    startOfMonth.setDate(1)
-    startOfMonth.setHours(0, 0, 0, 0)
+    const now = new Date()
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
+    const startOfPrevMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1)
     const zones = await db.zone.findMany({
       include: { customers: { where: { status: 'ACTIVE' }, select: { id: true } } },
       orderBy: { name: 'asc' },
     })
     const allCustomerIds = zones.flatMap(z => z.customers.map(c => c.id))
     if (allCustomerIds.length === 0) return []
-    const orders = await db.order.groupBy({
-      by: ['customerId'],
-      where: { customerId: { in: allCustomerIds }, createdAt: { gte: startOfMonth }, status: { notIn: ['DRAFT', 'ANULUAR'] } },
-      _sum: { totalAmount: true },
-    })
+    const statusFilter = { notIn: ['DRAFT', 'ANULUAR'] as string[] }
+    const [currOrders, prevOrders] = await Promise.all([
+      db.order.groupBy({
+        by: ['customerId'],
+        where: { customerId: { in: allCustomerIds }, createdAt: { gte: startOfMonth }, status: statusFilter },
+        _sum: { totalAmount: true },
+        _count: { id: true },
+      }),
+      db.order.groupBy({
+        by: ['customerId'],
+        where: { customerId: { in: allCustomerIds }, createdAt: { gte: startOfPrevMonth, lt: startOfMonth }, status: statusFilter },
+        _sum: { totalAmount: true },
+      }),
+    ])
     const salesMap: Record<string, number> = {}
-    for (const r of orders) salesMap[r.customerId] = r._sum.totalAmount ?? 0
+    const ordersMap: Record<string, number> = {}
+    for (const r of currOrders) { salesMap[r.customerId] = r._sum.totalAmount ?? 0; ordersMap[r.customerId] = r._count.id }
+    const prevSalesMap: Record<string, number> = {}
+    for (const r of prevOrders) prevSalesMap[r.customerId] = r._sum.totalAmount ?? 0
     return zones
       .filter(z => z.customers.length > 0)
-      .map(z => ({
-        name: z.name,
-        total: z.customers.reduce((s, c) => s + (salesMap[c.id] ?? 0), 0),
-      }))
+      .map(z => {
+        const currTotal = z.customers.reduce((s, c) => s + (salesMap[c.id] ?? 0), 0)
+        const prevTotal = z.customers.reduce((s, c) => s + (prevSalesMap[c.id] ?? 0), 0)
+        const orderCount = z.customers.reduce((s, c) => s + (ordersMap[c.id] ?? 0), 0)
+        const growthPct = prevTotal > 0 ? Math.round(((currTotal - prevTotal) / prevTotal) * 100) : null
+        return { name: z.name, total: currTotal, orderCount, growthPct }
+      })
       .sort((a, b) => b.total - a.total)
       .slice(0, 5)
   } catch { return [] }
@@ -504,8 +519,18 @@ export default async function AdminDashboard() {
                 {territoryTop.map((z, i) => (
                   <div key={z.name} className="flex items-center gap-3">
                     <span className="w-6 text-center text-xs font-bold text-gray-400 shrink-0">#{i + 1}</span>
-                    <p className="text-sm font-medium flex-1 min-w-0 truncate">{z.name}</p>
-                    <p className="text-sm font-bold shrink-0">{formatCurrency(z.total)}</p>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium truncate">{z.name}</p>
+                      <p className="text-xs text-gray-400">{z.orderCount} porosi</p>
+                    </div>
+                    <div className="text-right shrink-0">
+                      <p className="text-sm font-bold">{formatCurrency(z.total)}</p>
+                      {z.growthPct !== null && (
+                        <p className={`text-xs font-semibold ${z.growthPct >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                          {z.growthPct >= 0 ? '+' : ''}{z.growthPct}%
+                        </p>
+                      )}
+                    </div>
                   </div>
                 ))}
               </CardContent>

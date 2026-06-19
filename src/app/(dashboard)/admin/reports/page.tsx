@@ -454,50 +454,151 @@ export default function ReportsPage() {
           {reportType === 'territory' && data.territory && (
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center gap-2"><Globe className="h-5 w-5 text-blue-500" />Performanca e Territorit — {data.territory.length} zona</CardTitle>
+                <CardTitle className="flex items-center gap-2">
+                  <Globe className="h-5 w-5 text-blue-500" />
+                  Performanca e Territorit — {data.territory.length} territore
+                </CardTitle>
               </CardHeader>
               <CardContent>
                 {data.territory.length === 0 ? (
                   <p className="text-sm text-gray-500 text-center py-8">Nuk ka të dhëna</p>
-                ) : (
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-sm">
-                      <thead className="bg-gray-50 border-b">
-                        <tr>
-                          <th className="px-3 py-2 text-left font-medium text-gray-600">Zona / Rajoni</th>
-                          <th className="px-3 py-2 text-right font-medium text-gray-600">Klientë</th>
-                          <th className="px-3 py-2 text-right font-medium text-gray-600">Shitje</th>
-                          <th className="px-3 py-2 text-right font-medium text-gray-600">Porosi</th>
-                          <th className="px-3 py-2 text-right font-medium text-gray-600">Inkaso</th>
-                          <th className="px-3 py-2 text-right font-medium text-gray-600">Rritja</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y">
+                ) : (() => {
+                  const totalSalesAll: number = data.territory.reduce((s: number, t: any) => s + t.totalSales, 0)
+                  const totalOrdersAll: number = data.territory.reduce((s: number, t: any) => s + t.orderCount, 0)
+                  const topByGrowth = [...data.territory].filter((t: any) => t.growthPct !== null).sort((a: any, b: any) => b.growthPct - a.growthPct)[0]
+                  const weakTerritories: any[] = data.territory.filter((t: any) => t.growthPct !== null && t.growthPct < 0).sort((a: any, b: any) => a.growthPct - b.growthPct)
+                  return (
+                    <div className="space-y-5">
+                      {/* Summary KPIs */}
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                        <div className="bg-blue-50 rounded-xl p-3">
+                          <p className="text-xs text-blue-600 font-medium">Shitje Totale</p>
+                          <p className="text-base font-bold text-blue-900 mt-1">{formatCurrency(totalSalesAll)}</p>
+                        </div>
+                        <div className="bg-indigo-50 rounded-xl p-3">
+                          <p className="text-xs text-indigo-600 font-medium">Porosi Totale</p>
+                          <p className="text-base font-bold text-indigo-900 mt-1">{totalOrdersAll}</p>
+                        </div>
+                        <div className="bg-green-50 rounded-xl p-3">
+                          <p className="text-xs text-green-600 font-medium">Top Territor</p>
+                          <p className="text-sm font-bold text-green-900 mt-1 truncate">{data.territory[0]?.zoneName ?? '—'}</p>
+                        </div>
+                        {topByGrowth ? (
+                          <div className="bg-emerald-50 rounded-xl p-3">
+                            <p className="text-xs text-emerald-600 font-medium">Rritja Më e Lartë</p>
+                            <p className="text-sm font-bold text-emerald-900 mt-1 truncate">{topByGrowth.zoneName} <span className="text-xs font-semibold">+{topByGrowth.growthPct}%</span></p>
+                          </div>
+                        ) : (
+                          <div className="bg-red-50 rounded-xl p-3">
+                            <p className="text-xs text-red-600 font-medium">Territore Dobët</p>
+                            <p className="text-base font-bold text-red-800 mt-1">{weakTerritories.length}</p>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Mobile cards */}
+                      <div className="md:hidden space-y-2">
                         {data.territory.map((z: any) => (
-                          <tr key={z.zoneId} className="hover:bg-gray-50">
-                            <td className="px-3 py-2.5">
-                              <p className="font-medium">{z.zoneName}</p>
-                              <p className="text-xs text-gray-400">{z.regionName}</p>
-                            </td>
-                            <td className="px-3 py-2.5 text-right">{z.activeCustomers}</td>
-                            <td className="px-3 py-2.5 text-right font-semibold">{formatCurrency(z.totalSales)}</td>
-                            <td className="px-3 py-2.5 text-right text-gray-600">{z.orderCount}</td>
-                            <td className="px-3 py-2.5 text-right text-gray-600">{formatCurrency(z.totalPayments)}</td>
-                            <td className="px-3 py-2.5 text-right">
-                              {z.growthPct === null ? (
-                                <span className="text-xs text-gray-400">—</span>
-                              ) : (
-                                <span className={`text-xs font-bold ${z.growthPct >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                          <div key={z.zoneId} className="border rounded-xl p-3">
+                            <div className="flex items-start justify-between gap-2">
+                              <div className="min-w-0">
+                                <p className="font-semibold text-sm">{z.zoneName}</p>
+                                <p className="text-xs text-gray-400">{z.regionName}</p>
+                              </div>
+                              {z.growthPct !== null && (
+                                <span className={`text-xs font-bold px-2 py-0.5 rounded-full shrink-0 ${z.growthPct >= 0 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
                                   {z.growthPct >= 0 ? '+' : ''}{z.growthPct}%
                                 </span>
                               )}
-                            </td>
-                          </tr>
+                            </div>
+                            <div className="grid grid-cols-3 gap-2 mt-2.5">
+                              <div>
+                                <p className="text-[10px] text-gray-400">Shitje</p>
+                                <p className="text-xs font-bold">{formatCurrency(z.totalSales)}</p>
+                              </div>
+                              <div>
+                                <p className="text-[10px] text-gray-400">Porosi</p>
+                                <p className="text-xs font-semibold">{z.orderCount}</p>
+                              </div>
+                              <div>
+                                <p className="text-[10px] text-gray-400">Inkaso</p>
+                                <p className="text-xs font-semibold">{formatCurrency(z.totalPayments)}</p>
+                              </div>
+                            </div>
+                            <p className="text-[10px] text-gray-400 mt-1.5">
+                              {z.activeCustomers}{z.totalCustomers && z.totalCustomers !== z.activeCustomers ? `/${z.totalCustomers}` : ''} klientë aktiv
+                            </p>
+                          </div>
                         ))}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
+                      </div>
+
+                      {/* Desktop table */}
+                      <div className="hidden md:block overflow-x-auto">
+                        <table className="w-full text-sm">
+                          <thead className="bg-gray-50 border-b">
+                            <tr>
+                              <th className="px-3 py-2 text-left font-medium text-gray-600">Zona / Rajoni</th>
+                              <th className="px-3 py-2 text-right font-medium text-gray-600">Klientë</th>
+                              <th className="px-3 py-2 text-right font-medium text-gray-600">Shitje</th>
+                              <th className="px-3 py-2 text-right font-medium text-gray-600">Mes. Porosi</th>
+                              <th className="px-3 py-2 text-right font-medium text-gray-600">Inkaso</th>
+                              <th className="px-3 py-2 text-right font-medium text-gray-600">Rritja</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y">
+                            {data.territory.map((z: any) => (
+                              <tr key={z.zoneId} className="hover:bg-gray-50">
+                                <td className="px-3 py-2.5">
+                                  <p className="font-medium">{z.zoneName}</p>
+                                  <p className="text-xs text-gray-400">{z.regionName}</p>
+                                </td>
+                                <td className="px-3 py-2.5 text-right">
+                                  {z.activeCustomers}
+                                  {z.totalCustomers && z.totalCustomers !== z.activeCustomers && (
+                                    <span className="text-xs text-gray-400">/{z.totalCustomers}</span>
+                                  )}
+                                </td>
+                                <td className="px-3 py-2.5 text-right font-semibold">{formatCurrency(z.totalSales)}</td>
+                                <td className="px-3 py-2.5 text-right text-gray-600">{z.averageOrderValue ? formatCurrency(z.averageOrderValue) : '—'}</td>
+                                <td className="px-3 py-2.5 text-right text-gray-600">{formatCurrency(z.totalPayments)}</td>
+                                <td className="px-3 py-2.5 text-right">
+                                  {z.growthPct === null ? (
+                                    <span className="text-xs text-gray-400">—</span>
+                                  ) : (
+                                    <span className={`text-xs font-bold ${z.growthPct >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                      {z.growthPct >= 0 ? '+' : ''}{z.growthPct}%
+                                    </span>
+                                  )}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+
+                      {/* Weak territories */}
+                      {weakTerritories.length > 0 && (
+                        <div className="border border-red-100 bg-red-50/30 rounded-xl p-4">
+                          <h4 className="text-sm font-semibold text-red-700 mb-3 flex items-center gap-1.5">
+                            <TrendingDown className="h-4 w-4" />
+                            Territore në Rënie ({weakTerritories.length})
+                          </h4>
+                          <div className="space-y-2">
+                            {weakTerritories.map((z: any) => (
+                              <div key={z.zoneId} className="flex items-center justify-between gap-3">
+                                <div className="min-w-0">
+                                  <p className="text-sm font-medium truncate">{z.zoneName}</p>
+                                  <p className="text-xs text-gray-500">{z.activeCustomers} klientë aktiv · {formatCurrency(z.totalSales)}</p>
+                                </div>
+                                <span className="text-sm font-bold text-red-600 shrink-0">{z.growthPct}%</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )
+                })()}
               </CardContent>
             </Card>
           )}

@@ -241,16 +241,32 @@ export async function GET(req: NextRequest) {
   if (type === 'territory') {
     const prevFrom = new Date(from.getTime() - (to.getTime() - from.getTime()))
 
-    // All zones with their customers
-    const zones = await db.zone.findMany({
-      include: {
-        region: { select: { name: true } },
-        customers: { where: { status: 'ACTIVE' }, select: { id: true } },
-      },
-      orderBy: { name: 'asc' },
-    })
+    // Zones with all customers (not just active) + unzoned customers for city fallback
+    const [zones, unzonedCustomers] = await Promise.all([
+      db.zone.findMany({
+        include: {
+          region: { select: { name: true } },
+          customers: { select: { id: true, status: true } },
+        },
+        orderBy: { name: 'asc' },
+      }),
+      db.customer.findMany({
+        where: { zoneId: null },
+        select: { id: true, city: true, status: true },
+      }),
+    ])
 
-    const allCustomerIds = zones.flatMap(z => z.customers.map(c => c.id))
+    // Group unzoned customers by city (fallback: 'Pa zonë')
+    const cityGroups: Record<string, Array<{ id: string; status: string }>> = {}
+    for (const c of unzonedCustomers) {
+      const key = c.city?.trim() || 'Pa zonë'
+      if (!cityGroups[key]) cityGroups[key] = []
+      cityGroups[key].push({ id: c.id, status: c.status })
+    }
+
+    const zonedIds = zones.flatMap(z => z.customers.map(c => c.id))
+    const unzonedIds = unzonedCustomers.map(c => c.id)
+    const allCustomerIds = [...zonedIds, ...unzonedIds]
 
     if (allCustomerIds.length === 0) return NextResponse.json({ territory: [] })
 
@@ -281,28 +297,41 @@ export async function GET(req: NextRequest) {
     const payMap: Record<string, number> = {}
     for (const r of payments) payMap[r.customerId] = r._sum.amount ?? 0
 
-    const territory = zones
+    const buildTerritoryRow = (
+      customers: Array<{ id: string; status: string }>,
+      zoneName: string, regionName: string, zoneId: string
+    ) => {
+      const totalCustomers = customers.length
+      const activeCustomers = customers.filter(c => c.status === 'ACTIVE').length
+      const customerIds = customers.map(c => c.id)
+      const currTotal = customerIds.reduce((s, cid) => s + (currMap[cid]?.total ?? 0), 0)
+      const prevTotal = customerIds.reduce((s, cid) => s + (prevMap[cid] ?? 0), 0)
+      const orderCount = customerIds.reduce((s, cid) => s + (currMap[cid]?.orders ?? 0), 0)
+      const totalPayments = customerIds.reduce((s, cid) => s + (payMap[cid] ?? 0), 0)
+      const growthPct = prevTotal > 0 ? Math.round(((currTotal - prevTotal) / prevTotal) * 100) : null
+      return {
+        zoneId,
+        zoneName,
+        regionName,
+        totalCustomers,
+        activeCustomers,
+        totalSales: currTotal,
+        orderCount,
+        averageOrderValue: orderCount > 0 ? Math.round(currTotal / orderCount) : 0,
+        avgPerCustomer: activeCustomers > 0 ? Math.round(currTotal / activeCustomers) : 0,
+        totalPayments,
+        growthPct,
+      }
+    }
+
+    const zoneRows = zones
       .filter(z => z.customers.length > 0)
-      .map(z => {
-        const customerIds = z.customers.map(c => c.id)
-        const currTotal = customerIds.reduce((s, id) => s + (currMap[id]?.total ?? 0), 0)
-        const prevTotal = customerIds.reduce((s, id) => s + (prevMap[id] ?? 0), 0)
-        const orderCount = customerIds.reduce((s, id) => s + (currMap[id]?.orders ?? 0), 0)
-        const totalPayments = customerIds.reduce((s, id) => s + (payMap[id] ?? 0), 0)
-        const growthPct = prevTotal > 0 ? Math.round(((currTotal - prevTotal) / prevTotal) * 100) : null
-        return {
-          zoneId: z.id,
-          zoneName: z.name,
-          regionName: z.region?.name ?? '—',
-          activeCustomers: z.customers.length,
-          totalSales: currTotal,
-          orderCount,
-          avgPerCustomer: z.customers.length > 0 ? Math.round(currTotal / z.customers.length) : 0,
-          totalPayments,
-          growthPct,
-        }
-      })
-      .sort((a, b) => b.totalSales - a.totalSales)
+      .map(z => buildTerritoryRow(z.customers, z.name, z.region?.name ?? '—', z.id))
+
+    const cityRows = Object.entries(cityGroups)
+      .map(([city, customers]) => buildTerritoryRow(customers, city, 'Pa zonë', `city:${city}`))
+
+    const territory = [...zoneRows, ...cityRows].sort((a, b) => b.totalSales - a.totalSales)
 
     return NextResponse.json({ territory, from: from.toISOString(), to: to.toISOString() })
   }
