@@ -1,7 +1,7 @@
 ﻿import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { ClipboardList, Warehouse, AlertTriangle, RotateCcw, CheckCircle } from 'lucide-react'
+import { ClipboardList, Warehouse, AlertTriangle, RotateCcw, CheckCircle, Boxes } from 'lucide-react'
 import { StatCard } from '@/components/ui/stat-card'
 import Link from 'next/link'
 import { getMultipleStockLevels } from '@/lib/stock'
@@ -139,24 +139,22 @@ export default async function DepositDashboard() {
       <div>
         <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2.5">Veprime të Shpejta</p>
         <div className="grid grid-cols-2 gap-3">
-          <Link href="/depoist/inventory">
-            <div className="bg-primary hover:bg-primary/90 rounded-2xl p-4 text-white cursor-pointer active:scale-[0.97] transition-all shadow-sm">
-              <div className="w-9 h-9 bg-white/20 rounded-xl flex items-center justify-center mb-2.5">
-                <Warehouse className="h-5 w-5 text-white" />
+          {[
+            { href: '/depoist/inventory', Icon: Warehouse,    bg: 'bg-primary hover:bg-primary/90',         label: 'Inventari',  sub: 'Numërim i shpejtë' },
+            { href: '/depoist/returns',   Icon: RotateCcw,    bg: 'bg-orange-500 hover:bg-orange-600',      label: 'Kthimet',    sub: 'Preno kthimet' },
+            { href: '/depoist/damage',    Icon: AlertTriangle, bg: 'bg-red-600 hover:bg-red-700',           label: 'Dëmtimet',   sub: 'Regjistro dëmtim' },
+            { href: '/depoist/stock',     Icon: Boxes,        bg: 'bg-indigo-600 hover:bg-indigo-700',      label: 'Stoku',      sub: 'Kontrollo nivelet' },
+          ].map(({ href, Icon, bg, label, sub }) => (
+            <Link key={href} href={href}>
+              <div className={`${bg} rounded-2xl p-4 text-white cursor-pointer active:scale-[0.97] transition-all shadow-sm`}>
+                <div className="w-9 h-9 bg-white/20 rounded-xl flex items-center justify-center mb-2.5">
+                  <Icon className="h-5 w-5 text-white" />
+                </div>
+                <p className="text-sm font-bold">{label}</p>
+                <p className="text-[11px] text-white/70 mt-0.5">{sub}</p>
               </div>
-              <p className="text-sm font-bold">Inventar</p>
-              <p className="text-[11px] text-white/70 mt-0.5">Numërim i shpejtë</p>
-            </div>
-          </Link>
-          <Link href="/depoist/orders">
-            <div className="bg-green-600 hover:bg-green-700 rounded-2xl p-4 text-white cursor-pointer active:scale-[0.97] transition-all shadow-sm">
-              <div className="w-9 h-9 bg-white/20 rounded-xl flex items-center justify-center mb-2.5">
-                <ClipboardList className="h-5 w-5 text-white" />
-              </div>
-              <p className="text-sm font-bold">Porosi Sot</p>
-              <p className="text-[11px] text-white/70 mt-0.5">Shiko kërkesat</p>
-            </div>
-          </Link>
+            </Link>
+          ))}
         </div>
       </div>
     </div>

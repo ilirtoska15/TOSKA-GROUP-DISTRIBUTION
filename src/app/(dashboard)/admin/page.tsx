@@ -1,11 +1,12 @@
 import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
-import { formatCurrency, formatNumber } from '@/lib/utils'
+import { formatCurrency, formatNumber, formatDateTime } from '@/lib/utils'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import {
   ShoppingCart, DollarSign, Users, Truck, AlertTriangle,
-  TrendingUp, TrendingDown, RotateCcw, Clock, CheckCircle, MapPin, Trophy, Globe, AlertOctagon
+  TrendingUp, TrendingDown, RotateCcw, Clock, CheckCircle, MapPin, Trophy, Globe, AlertOctagon,
+  Activity
 } from 'lucide-react'
 import { StatCard } from '@/components/ui/stat-card'
 import Link from 'next/link'
@@ -162,6 +163,76 @@ async function fetchRecentOrders() {
   })
 }
 
+interface ActivityItem {
+  id: string
+  type: 'ORDER' | 'PAYMENT' | 'VISIT' | 'RETURN'
+  title: string
+  subtitle: string
+  amount?: number
+  status: string
+  href: string
+  createdAt: Date
+}
+
+async function fetchActivityFeed(): Promise<ActivityItem[]> {
+  try {
+    const [orders, payments, visits, returns] = await Promise.all([
+      db.order.findMany({
+        take: 5, orderBy: { createdAt: 'desc' },
+        include: { customer: { select: { businessName: true } }, createdBy: { select: { name: true } } },
+      }),
+      db.payment.findMany({
+        take: 4, orderBy: { createdAt: 'desc' },
+        include: { customer: { select: { businessName: true } }, collectedBy: { select: { name: true } } },
+      }),
+      db.visit.findMany({
+        take: 3, orderBy: { createdAt: 'desc' },
+        include: { customer: { select: { businessName: true } }, agent: { select: { name: true } } },
+      }),
+      db.return.findMany({
+        take: 3, orderBy: { createdAt: 'desc' },
+        include: { customer: { select: { businessName: true } } },
+      }),
+    ])
+
+    const items: ActivityItem[] = [
+      ...orders.map(o => ({
+        id: o.id, type: 'ORDER' as const,
+        title: o.reference,
+        subtitle: `${o.customer.businessName} · ${o.createdBy.name}`,
+        amount: o.totalAmount, status: o.status,
+        href: `/admin/orders/${o.id}`, createdAt: o.createdAt,
+      })),
+      ...payments.map(p => ({
+        id: p.id, type: 'PAYMENT' as const,
+        title: p.reference,
+        subtitle: `${p.customer.businessName} · ${p.collectedBy.name}`,
+        amount: p.amount, status: p.method,
+        href: `/admin/payments`, createdAt: p.createdAt,
+      })),
+      ...visits.map(v => ({
+        id: v.id, type: 'VISIT' as const,
+        title: v.reference ?? v.id.slice(0, 8),
+        subtitle: `${v.customer.businessName} · ${v.agent?.name ?? ''}`.replace(/ · $/, ''),
+        status: v.status,
+        href: `/admin/visits`, createdAt: v.createdAt,
+      })),
+      ...returns.map(r => ({
+        id: r.id, type: 'RETURN' as const,
+        title: r.reference,
+        subtitle: r.customer.businessName,
+        amount: (r as { totalAmount?: number }).totalAmount,
+        status: r.status,
+        href: `/admin/returns`, createdAt: r.createdAt,
+      })),
+    ]
+
+    return items.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime()).slice(0, 10)
+  } catch {
+    return []
+  }
+}
+
 async function getAdminStats() {
   const today = new Date()
   today.setHours(0, 0, 0, 0)
@@ -268,12 +339,13 @@ async function getAdminStats() {
 
 export default async function AdminDashboard() {
   const session = await auth()
-  const [stats, topProducts, decliningProducts, territoryTop, recoveryOpps] = await Promise.all([
+  const [stats, topProducts, decliningProducts, territoryTop, recoveryOpps, activityFeed] = await Promise.all([
     getAdminStats(),
     fetchProductLeaderboard(),
     fetchDecliningProducts(),
     fetchTerritoryTop(),
     fetchRecoveryOpportunities(),
+    fetchActivityFeed(),
   ])
 
   return (
@@ -291,6 +363,22 @@ export default async function AdminDashboard() {
             {new Date().toLocaleDateString('sq-AL', { weekday: 'long', day: 'numeric', month: 'long' })}
           </p>
         </div>
+      </div>
+
+      {/* Quick Actions */}
+      <div className="flex flex-wrap gap-2">
+        {[
+          { label: '+ Klient i Ri',  href: '/admin/customers/new', cls: 'text-blue-700 bg-blue-50 border-blue-200 hover:bg-blue-100' },
+          { label: '+ Produkt i Ri', href: '/admin/products/new',  cls: 'text-purple-700 bg-purple-50 border-purple-200 hover:bg-purple-100' },
+          { label: '+ Porosi e Re',  href: '/agjent/orders/new',   cls: 'text-green-700 bg-green-50 border-green-200 hover:bg-green-100' },
+          { label: '+ Pagesë e Re',  href: '/admin/payments/new',  cls: 'text-emerald-700 bg-emerald-50 border-emerald-200 hover:bg-emerald-100' },
+        ].map(({ label, href, cls }) => (
+          <Link key={href} href={href}>
+            <div className={`px-3.5 py-2 rounded-xl border text-sm font-semibold transition-colors ${cls}`}>
+              {label}
+            </div>
+          </Link>
+        ))}
       </div>
 
       {/* Alerts Banner */}
@@ -452,6 +540,58 @@ export default async function AdminDashboard() {
             </Card>
           )}
         </div>
+      )}
+
+      {/* Activity Feed */}
+      {activityFeed.length > 0 && (
+        <Card className="rounded-2xl shadow-sm">
+          <CardHeader className="pb-3 px-5 pt-5">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-base font-semibold flex items-center gap-2">
+                <Activity className="h-4 w-4 text-primary" />Aktiviteti i Fundit
+              </CardTitle>
+            </div>
+          </CardHeader>
+          <CardContent className="px-5 pb-5">
+            <div className="space-y-1">
+              {activityFeed.map(item => {
+                const typeConfig = {
+                  ORDER:   { label: 'Porosi',  cls: 'bg-blue-100 text-blue-700',    Icon: ShoppingCart },
+                  PAYMENT: { label: 'Pagesë',  cls: 'bg-green-100 text-green-700',  Icon: DollarSign },
+                  VISIT:   { label: 'Vizitë',  cls: 'bg-purple-100 text-purple-700', Icon: MapPin },
+                  RETURN:  { label: 'Kthim',   cls: 'bg-orange-100 text-orange-700', Icon: RotateCcw },
+                }[item.type]
+                const TypeIcon = typeConfig.Icon
+                return (
+                  <Link
+                    key={`${item.type}-${item.id}`}
+                    href={item.href}
+                    className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-gray-50 transition-colors group"
+                  >
+                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${typeConfig.cls}`}>
+                      <TypeIcon className="h-3.5 w-3.5" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full shrink-0 ${typeConfig.cls}`}>
+                          {typeConfig.label}
+                        </span>
+                        <p className="text-sm font-medium text-gray-900 font-mono truncate">{item.title}</p>
+                      </div>
+                      <p className="text-xs text-gray-400 truncate">{item.subtitle}</p>
+                    </div>
+                    <div className="text-right shrink-0 ml-2">
+                      {item.amount != null && (
+                        <p className="text-sm font-bold text-gray-700">{formatCurrency(item.amount)}</p>
+                      )}
+                      <p className="text-[10px] text-gray-400">{formatDateTime(item.createdAt.toISOString())}</p>
+                    </div>
+                  </Link>
+                )
+              })}
+            </div>
+          </CardContent>
+        </Card>
       )}
 
       {/* Bottom grid */}

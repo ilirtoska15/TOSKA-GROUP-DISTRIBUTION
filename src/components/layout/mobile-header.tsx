@@ -6,7 +6,7 @@ import { usePathname } from 'next/navigation'
 import { signOut } from 'next-auth/react'
 import { Menu, X, LogOut, Bell } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { NAV_ITEMS } from './sidebar'
+import { NAV_ITEMS, groupNavItems } from './sidebar'
 
 const NOTIF_HREF: Record<string, string> = {
   ADMIN: '/admin/notifications',
@@ -25,6 +25,7 @@ export function MobileHeader({ userRole, userName }: MobileHeaderProps) {
   const [unreadCount, setUnreadCount] = useState(0)
   const pathname = usePathname()
   const items = NAV_ITEMS.filter(item => item.roles.includes(userRole))
+  const hasGroups = items.some(item => item.group)
 
   useEffect(() => {
     const fetchCount = () => {
@@ -38,7 +39,55 @@ export function MobileHeader({ userRole, userName }: MobileHeaderProps) {
     return () => clearInterval(id)
   }, [])
 
+  // Listen for "Më shumë" button from MobileNav
+  useEffect(() => {
+    const handler = () => setOpen(true)
+    window.addEventListener('toggle-mobile-menu', handler)
+    return () => window.removeEventListener('toggle-mobile-menu', handler)
+  }, [])
+
   const close = () => setOpen(false)
+
+  function renderDrawerLink(item: typeof items[0]) {
+    const isActive = pathname === item.href || (item.href !== '/' && pathname.startsWith(item.href + '/'))
+    const Icon = item.icon
+    return (
+      <Link
+        key={item.href}
+        href={item.href}
+        onClick={close}
+        className={cn(
+          'flex items-center gap-3 px-3 rounded-xl text-sm font-medium transition-colors min-h-[44px]',
+          isActive
+            ? 'bg-primary/10 text-primary'
+            : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+        )}
+      >
+        <Icon className="h-5 w-5 shrink-0" />
+        <span>{item.label}</span>
+      </Link>
+    )
+  }
+
+  function renderNav() {
+    if (!hasGroups) {
+      return items.map(item => renderDrawerLink(item))
+    }
+    const groups = groupNavItems(items)
+    return groups.map(({ label, items: groupItems }, groupIndex) => (
+      <div key={label || 'default'}>
+        {label && (
+          <p className={cn(
+            'text-[10px] font-bold text-gray-400 uppercase tracking-widest px-3 pb-1',
+            groupIndex === 0 ? 'pt-1' : 'pt-4'
+          )}>
+            {label}
+          </p>
+        )}
+        {groupItems.map(item => renderDrawerLink(item))}
+      </div>
+    ))
+  }
 
   return (
     <>
@@ -110,28 +159,7 @@ export function MobileHeader({ userRole, userName }: MobileHeaderProps) {
 
         {/* Navigation links */}
         <nav className="flex-1 overflow-y-auto p-2 space-y-0.5">
-          {items.map(item => {
-            const isActive =
-              pathname === item.href ||
-              (item.href !== '/' && pathname.startsWith(item.href + '/'))
-            const Icon = item.icon
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                onClick={close}
-                className={cn(
-                  'flex items-center gap-3 px-3 rounded-xl text-sm font-medium transition-colors min-h-[44px]',
-                  isActive
-                    ? 'bg-primary/10 text-primary'
-                    : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
-                )}
-              >
-                <Icon className="h-5 w-5 shrink-0" />
-                <span>{item.label}</span>
-              </Link>
-            )
-          })}
+          {renderNav()}
         </nav>
 
         {/* User info + logout */}

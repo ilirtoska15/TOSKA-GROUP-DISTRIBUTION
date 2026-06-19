@@ -84,24 +84,22 @@ export default async function ShoferDashboard() {
       <div>
         <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2.5">Veprime të Shpejta</p>
         <div className="grid grid-cols-2 gap-3">
-          <Link href="/shofer/rruga">
-            <div className="bg-primary hover:bg-primary/90 rounded-2xl p-4 text-white cursor-pointer active:scale-[0.97] transition-all shadow-sm">
-              <div className="w-9 h-9 bg-white/20 rounded-xl flex items-center justify-center mb-2.5">
-                <MapPin className="h-5 w-5 text-white" />
+          {[
+            { href: '/shofer/rruga',       Icon: MapPin,     bg: 'bg-primary hover:bg-primary/90',       label: 'Rruga Ime',  sub: 'Shiko itinerarin' },
+            { href: '/shofer/deliveries',  Icon: Truck,      bg: 'bg-blue-600 hover:bg-blue-700',        label: 'Dërgesat',   sub: 'Ngarko / dorëzo' },
+            { href: '/shofer/payments',    Icon: DollarSign, bg: 'bg-emerald-600 hover:bg-emerald-700',  label: 'Pagesat',    sub: 'Regjistroi inkaso' },
+            { href: '/shofer/returns',     Icon: RotateCcw,  bg: 'bg-orange-500 hover:bg-orange-600',    label: 'Kthimet',    sub: 'Regjistro kthim' },
+          ].map(({ href, Icon, bg, label, sub }) => (
+            <Link key={href} href={href}>
+              <div className={`${bg} rounded-2xl p-4 text-white cursor-pointer active:scale-[0.97] transition-all shadow-sm`}>
+                <div className="w-9 h-9 bg-white/20 rounded-xl flex items-center justify-center mb-2.5">
+                  <Icon className="h-5 w-5 text-white" />
+                </div>
+                <p className="text-sm font-bold">{label}</p>
+                <p className="text-[11px] text-white/70 mt-0.5">{sub}</p>
               </div>
-              <p className="text-sm font-bold">Rruga Sot</p>
-              <p className="text-[11px] text-white/70 mt-0.5">Shiko itinerarin</p>
-            </div>
-          </Link>
-          <Link href="/shofer/returns">
-            <div className="bg-orange-500 hover:bg-orange-600 rounded-2xl p-4 text-white cursor-pointer active:scale-[0.97] transition-all shadow-sm">
-              <div className="w-9 h-9 bg-white/20 rounded-xl flex items-center justify-center mb-2.5">
-                <RotateCcw className="h-5 w-5 text-white" />
-              </div>
-              <p className="text-sm font-bold">Kthimet</p>
-              <p className="text-[11px] text-white/70 mt-0.5">Regjistro kthim</p>
-            </div>
-          </Link>
+            </Link>
+          ))}
         </div>
       </div>
     </div>
