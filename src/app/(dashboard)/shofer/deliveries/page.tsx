@@ -104,13 +104,13 @@ export default function ShoferDeliveriesPage() {
           <div className="space-y-3">
             {active.map(d => (
               <div key={d.id} className="bg-white rounded-xl border p-4 space-y-3">
-                <div className="flex items-start justify-between">
-                  <div>
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1">
-                      <span className="font-mono text-xs text-primary">{d.order.reference}</span>
+                      <span className="font-mono text-xs text-primary shrink-0">{d.order.reference}</span>
                       <Badge variant={d.status === 'IN_DELIVERY' ? 'info' : 'warning'}>{STATUS_LABEL[d.status]}</Badge>
                     </div>
-                    <p className="font-semibold text-gray-900">{d.order.customer.businessName}</p>
+                    <p className="font-semibold text-gray-900 truncate">{d.order.customer.businessName}</p>
                     {d.order.customer.businessAddress && (
                       <p className="text-sm text-gray-500 flex items-center gap-1 mt-0.5">
                         <MapPin className="h-3.5 w-3.5" />{d.order.customer.businessAddress}
@@ -122,7 +122,7 @@ export default function ShoferDeliveriesPage() {
                       </a>
                     )}
                   </div>
-                  <p className="font-bold text-gray-900">{formatCurrency(d.order.totalAmount)}</p>
+                  <p className="font-bold text-gray-900 shrink-0">{formatCurrency(d.order.totalAmount)}</p>
                 </div>
                 <div className="flex gap-2 pt-1 border-t">
                   {STATUS_NEXT[d.status] && (
@@ -154,12 +154,12 @@ export default function ShoferDeliveriesPage() {
           <div className="space-y-2">
             {done.map(d => (
               <div key={d.id} className="bg-gray-50 rounded-xl border border-gray-100 p-3">
-                <div className="flex items-center justify-between">
-                  <div>
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex-1 min-w-0">
                     <span className="font-mono text-xs text-gray-400">{d.order.reference}</span>
-                    <p className="font-medium text-gray-700">{d.order.customer.businessName}</p>
+                    <p className="font-medium text-gray-700 truncate">{d.order.customer.businessName}</p>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 shrink-0">
                     <span className="text-sm font-medium text-gray-600">{formatCurrency(d.order.totalAmount)}</span>
                     <Badge variant={d.status === 'DELIVERED' ? 'success' : 'destructive'}>
                       {d.status === 'DELIVERED' ? 'Dorëzuar' : 'Dështoi'}

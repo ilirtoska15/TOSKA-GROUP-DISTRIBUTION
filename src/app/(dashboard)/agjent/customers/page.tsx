@@ -66,11 +66,11 @@ export default function AgjentCustomersPage() {
         ) : customers.map(c => (
           <Link key={c.id} href={`/agjent/customers/${c.id}`}>
             <div className="bg-white rounded-xl border p-4 hover:shadow-sm transition-shadow">
-              <div className="flex items-start justify-between">
-                <div className="flex-1">
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-1">
-                    <span className="font-semibold text-gray-900">{c.businessName}</span>
-                    <span className="font-mono text-xs text-gray-400">{c.code}</span>
+                    <span className="font-semibold text-gray-900 truncate">{c.businessName}</span>
+                    <span className="font-mono text-xs text-gray-400 shrink-0">{c.code}</span>
                     {c.debtBalance > 0 && c.debtLimit > 0 && c.debtBalance / c.debtLimit > 0.8 && (
                       <AlertCircle className="h-4 w-4 text-red-500" />
                     )}

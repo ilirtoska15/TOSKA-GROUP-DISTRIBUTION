@@ -321,11 +321,11 @@ export default function AgjentVisitsPage() {
           if (v.status === 'PLANNED') return null // shown above in planned section
           return (
             <div key={v.id} className="bg-white rounded-xl border p-3">
-              <div className="flex items-start justify-between">
-                <div>
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-0.5">
-                    <span className="font-medium text-gray-900">{v.customer.businessName}</span>
-                    <span className="font-mono text-xs text-gray-400">{v.reference}</span>
+                    <span className="font-medium text-gray-900 truncate">{v.customer.businessName}</span>
+                    <span className="font-mono text-xs text-gray-400 shrink-0">{v.reference}</span>
                   </div>
                   <div className="flex items-center gap-1 text-xs text-gray-500">
                     <Clock className="h-3 w-3" />
@@ -358,7 +358,7 @@ export default function AgjentVisitsPage() {
                     </div>
                   )}
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 shrink-0">
                   <Badge variant={
                     v.status === 'OPEN' ? 'warning' :
                     v.status === 'CLOSED' ? 'success' :
