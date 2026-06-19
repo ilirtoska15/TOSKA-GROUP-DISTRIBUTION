@@ -36,7 +36,21 @@ const schema = z.object({
 
 type FormData = z.infer<typeof schema>
 
-interface ParentCustomer { id: string; code: string; businessName: string; city?: string }
+interface ParentCustomer {
+  id: string
+  code: string
+  businessName: string
+  city?: string | null
+  businessNumber?: string | null
+  vatNumber?: string | null
+  phone?: string | null
+  phone2?: string | null
+  contactPerson?: string | null
+  agentId?: string | null
+  debtLimit?: number | null
+  paymentTermDays?: number | null
+  notes?: string | null
+}
 
 export default function NewCustomerPage() {
   const router = useRouter()
@@ -54,11 +68,29 @@ export default function NewCustomerPage() {
   const parentRef = useRef<HTMLDivElement>(null)
   const [unitName, setUnitName] = useState('')
   const [unitType, setUnitType] = useState('')
+  const [parentData, setParentData] = useState<ParentCustomer | null>(null)
+  const [selectedAgentId, setSelectedAgentId] = useState('')
 
   const { register, handleSubmit, setValue, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(schema),
     defaultValues: { debtLimit: 0, paymentTermDays: 30 },
   })
+
+  const autofillFromParent = (parent: ParentCustomer) => {
+    setValue('businessName', parent.businessName)
+    if (parent.businessNumber) setValue('businessNumber', parent.businessNumber)
+    if (parent.vatNumber) setValue('vatNumber', parent.vatNumber)
+    if (parent.phone) setValue('phone', parent.phone)
+    if (parent.phone2) setValue('phone2', parent.phone2)
+    if (parent.contactPerson) setValue('contactPerson', parent.contactPerson)
+    setValue('debtLimit', parent.debtLimit ?? 0)
+    setValue('paymentTermDays', parent.paymentTermDays ?? 30)
+    if (parent.notes) setValue('notes', parent.notes)
+    if (parent.agentId) {
+      setValue('agentId', parent.agentId)
+      setSelectedAgentId(parent.agentId)
+    }
+  }
 
   useEffect(() => {
     fetch('/api/users?role=AGJENT')
@@ -203,7 +235,17 @@ export default function NewCustomerPage() {
                 {parentId ? (
                   <div className="flex items-center justify-between h-11 px-3 rounded-xl border border-primary bg-primary/5">
                     <span className="text-sm font-medium text-gray-900">{parentName}</span>
-                    <button onClick={() => { setParentId(''); setParentName('') }}>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setParentId('')
+                        setParentName('')
+                        setParentData(null)
+                        setSelectedAgentId('')
+                        setValue('debtLimit', 0)
+                        setValue('paymentTermDays', 30)
+                      }}
+                    >
                       <X className="h-4 w-4 text-gray-400" />
                     </button>
                   </div>
@@ -233,7 +275,7 @@ export default function NewCustomerPage() {
                             <button
                               key={c.id}
                               className="w-full text-left px-4 py-3 hover:bg-gray-50 active:bg-gray-100 border-b last:border-0 border-gray-100"
-                              onClick={() => { setParentId(c.id); setParentName(c.businessName); setParentOpen(false); setParentSearch('') }}
+                              onClick={() => { setParentId(c.id); setParentName(c.businessName); setParentData(c); setParentOpen(false); setParentSearch(''); autofillFromParent(c) }}
                             >
                               <p className="font-semibold text-gray-900 text-sm">{c.businessName}</p>
                               <p className="text-xs text-gray-400 font-mono">{c.code}{c.city ? ` · ${c.city}` : ''}</p>
@@ -279,6 +321,20 @@ export default function NewCustomerPage() {
       )}
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+        {customerType === 'UNIT' && parentData && (
+          <div className="flex items-start justify-between gap-3 p-3 bg-blue-50 border border-blue-200 rounded-xl">
+            <p className="text-xs text-blue-700 leading-relaxed">
+              Të dhënat kryesore u morën nga biznesi kryesor. Ndrysho vetëm adresën dhe të dhënat specifike të njësisë.
+            </p>
+            <button
+              type="button"
+              onClick={() => autofillFromParent(parentData)}
+              className="text-xs text-blue-600 font-semibold whitespace-nowrap hover:underline shrink-0"
+            >
+              Rikthe të dhënat
+            </button>
+          </div>
+        )}
         <Card>
           <CardHeader><CardTitle>Informacioni i Biznesit</CardTitle></CardHeader>
           <CardContent className="space-y-4">
@@ -334,7 +390,7 @@ export default function NewCustomerPage() {
           <CardContent className="space-y-4">
             <div>
               <Label htmlFor="agentId">Agjenti</Label>
-              <Select onValueChange={(v) => setValue('agentId', v)}>
+              <Select value={selectedAgentId} onValueChange={(v) => { setSelectedAgentId(v); setValue('agentId', v) }}>
                 <SelectTrigger className="mt-1">
                   <SelectValue placeholder="Zgjedh agjentin..." />
                 </SelectTrigger>
