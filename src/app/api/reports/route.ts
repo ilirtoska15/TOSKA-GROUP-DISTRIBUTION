@@ -237,6 +237,267 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ visits: result })
   }
 
+  // ── Territory Performance ─────────────────────────────────────────────────
+  if (type === 'territory') {
+    const prevFrom = new Date(from.getTime() - (to.getTime() - from.getTime()))
+
+    // All zones with their customers
+    const zones = await db.zone.findMany({
+      include: {
+        region: { select: { name: true } },
+        customers: { where: { status: 'ACTIVE' }, select: { id: true } },
+      },
+      orderBy: { name: 'asc' },
+    })
+
+    const allCustomerIds = zones.flatMap(z => z.customers.map(c => c.id))
+
+    if (allCustomerIds.length === 0) return NextResponse.json({ territory: [] })
+
+    const orderStatusFilter = { notIn: ['DRAFT', 'ANULUAR'] as string[] }
+    const [currOrders, prevOrders, payments] = await Promise.all([
+      db.order.groupBy({
+        by: ['customerId'],
+        where: { customerId: { in: allCustomerIds }, createdAt: { gte: from, lte: to }, status: orderStatusFilter },
+        _sum: { totalAmount: true },
+        _count: { id: true },
+      }),
+      db.order.groupBy({
+        by: ['customerId'],
+        where: { customerId: { in: allCustomerIds }, createdAt: { gte: prevFrom, lt: from }, status: orderStatusFilter },
+        _sum: { totalAmount: true },
+      }),
+      db.payment.groupBy({
+        by: ['customerId'],
+        where: { customerId: { in: allCustomerIds }, createdAt: { gte: from, lte: to } },
+        _sum: { amount: true },
+      }),
+    ])
+
+    const currMap: Record<string, { total: number; orders: number }> = {}
+    for (const r of currOrders) currMap[r.customerId] = { total: r._sum.totalAmount ?? 0, orders: r._count.id }
+    const prevMap: Record<string, number> = {}
+    for (const r of prevOrders) prevMap[r.customerId] = r._sum.totalAmount ?? 0
+    const payMap: Record<string, number> = {}
+    for (const r of payments) payMap[r.customerId] = r._sum.amount ?? 0
+
+    const territory = zones
+      .filter(z => z.customers.length > 0)
+      .map(z => {
+        const customerIds = z.customers.map(c => c.id)
+        const currTotal = customerIds.reduce((s, id) => s + (currMap[id]?.total ?? 0), 0)
+        const prevTotal = customerIds.reduce((s, id) => s + (prevMap[id] ?? 0), 0)
+        const orderCount = customerIds.reduce((s, id) => s + (currMap[id]?.orders ?? 0), 0)
+        const totalPayments = customerIds.reduce((s, id) => s + (payMap[id] ?? 0), 0)
+        const growthPct = prevTotal > 0 ? Math.round(((currTotal - prevTotal) / prevTotal) * 100) : null
+        return {
+          zoneId: z.id,
+          zoneName: z.name,
+          regionName: z.region?.name ?? '—',
+          activeCustomers: z.customers.length,
+          totalSales: currTotal,
+          orderCount,
+          avgPerCustomer: z.customers.length > 0 ? Math.round(currTotal / z.customers.length) : 0,
+          totalPayments,
+          growthPct,
+        }
+      })
+      .sort((a, b) => b.totalSales - a.totalSales)
+
+    return NextResponse.json({ territory, from: from.toISOString(), to: to.toISOString() })
+  }
+
+  // ── Product Penetration ───────────────────────────────────────────────────
+  if (type === 'product_penetration') {
+    const [totalActive, orderLines] = await Promise.all([
+      db.customer.count({ where: { status: 'ACTIVE' } }),
+      db.orderLine.findMany({
+        where: { order: { createdAt: { gte: from, lte: to }, status: { notIn: ['DRAFT', 'ANULUAR'] } } },
+        select: { productId: true, lineTotal: true, order: { select: { customerId: true } } },
+        take: 50000,
+      }),
+    ])
+
+    // Aggregate per product
+    const productData: Record<string, { customers: Set<string>; orderCount: number; totalValue: number }> = {}
+    for (const line of orderLines) {
+      if (!productData[line.productId]) productData[line.productId] = { customers: new Set(), orderCount: 0, totalValue: 0 }
+      productData[line.productId].customers.add(line.order.customerId)
+      productData[line.productId].orderCount++
+      productData[line.productId].totalValue += line.lineTotal
+    }
+
+    const productIds = Object.keys(productData)
+    const products = productIds.length > 0
+      ? await db.product.findMany({
+          where: { id: { in: productIds } },
+          select: { id: true, name: true, code: true, category: { select: { name: true } }, brand: { select: { name: true } } },
+        })
+      : []
+    const infoMap = Object.fromEntries(products.map(p => [p.id, p]))
+
+    const penetration = productIds
+      .map(pid => ({
+        productId: pid,
+        name: infoMap[pid]?.name ?? pid,
+        code: infoMap[pid]?.code ?? '',
+        category: infoMap[pid]?.category?.name ?? '—',
+        brand: infoMap[pid]?.brand?.name ?? '—',
+        uniqueCustomers: productData[pid].customers.size,
+        penetrationPct: totalActive > 0 ? Math.round((productData[pid].customers.size / totalActive) * 100) : 0,
+        orderCount: productData[pid].orderCount,
+        totalValue: productData[pid].totalValue,
+      }))
+      .sort((a, b) => b.penetrationPct - a.penetrationPct)
+      .slice(0, 30)
+
+    return NextResponse.json({ penetration, totalActiveCustomers: totalActive })
+  }
+
+  // ── Visit Effectiveness ───────────────────────────────────────────────────
+  if (type === 'visit_effectiveness') {
+    const [allVisits, visitsWithOrder] = await Promise.all([
+      db.visit.groupBy({
+        by: ['agentId'],
+        where: { createdAt: { gte: from, lte: to }, status: { in: ['CLOSED', 'MISSED'] } },
+        _count: { id: true },
+      }),
+      db.visit.groupBy({
+        by: ['agentId'],
+        where: { createdAt: { gte: from, lte: to }, status: 'CLOSED', hasOrder: true },
+        _count: { id: true },
+      }),
+    ])
+
+    const withOrderMap: Record<string, number> = {}
+    for (const r of visitsWithOrder) withOrderMap[r.agentId] = r._count.id
+
+    const agentIds = allVisits.map(r => r.agentId)
+    const agents = agentIds.length > 0
+      ? await db.user.findMany({ where: { id: { in: agentIds } }, select: { id: true, name: true } })
+      : []
+    const agentMap = Object.fromEntries(agents.map(a => [a.id, a.name]))
+
+    const effectiveness = allVisits
+      .map(r => {
+        const total = r._count.id
+        const withOrder = withOrderMap[r.agentId] ?? 0
+        return {
+          agentId: r.agentId,
+          agentName: agentMap[r.agentId] ?? r.agentId,
+          totalVisits: total,
+          visitsWithOrder: withOrder,
+          conversionRate: total > 0 ? Math.round((withOrder / total) * 100) : 0,
+        }
+      })
+      .sort((a, b) => b.conversionRate - a.conversionRate)
+
+    return NextResponse.json({ effectiveness })
+  }
+
+  // ── Recovery Opportunities ────────────────────────────────────────────────
+  if (type === 'recovery_opportunities') {
+    const now = new Date()
+    const last30 = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)
+    const prev60 = new Date(now.getTime() - 60 * 24 * 60 * 60 * 1000)
+    const orderStatusFilter = { notIn: ['DRAFT', 'ANULUAR'] as string[] }
+
+    const [currOrders, prevOrders] = await Promise.all([
+      db.order.groupBy({
+        by: ['customerId'],
+        where: { createdAt: { gte: last30 }, status: orderStatusFilter },
+        _sum: { totalAmount: true },
+      }),
+      db.order.groupBy({
+        by: ['customerId'],
+        where: { createdAt: { gte: prev60, lt: last30 }, status: orderStatusFilter },
+        _sum: { totalAmount: true },
+      }),
+    ])
+
+    const currMap: Record<string, number> = {}
+    for (const r of currOrders) currMap[r.customerId] = r._sum.totalAmount ?? 0
+    const prevMap: Record<string, number> = {}
+    for (const r of prevOrders) prevMap[r.customerId] = r._sum.totalAmount ?? 0
+
+    // Customers that had sales in prev period but declined
+    const recovering = Object.keys(prevMap)
+      .map(cid => {
+        const prev = prevMap[cid] ?? 0
+        const curr = currMap[cid] ?? 0
+        if (prev === 0) return null
+        const growthPct = Math.round(((curr - prev) / prev) * 100)
+        if (growthPct >= -20) return null
+        const status = growthPct <= -40 ? 'CRITICAL' : 'WARNING'
+        const lostValue = prev - curr
+        return { customerId: cid, growthPct, lostValue, status, prevValue: prev, currValue: curr }
+      })
+      .filter(Boolean)
+      .sort((a, b) => a!.growthPct - b!.growthPct)
+      .slice(0, 30) as Array<{ customerId: string; growthPct: number; lostValue: number; status: string; prevValue: number; currValue: number }>
+
+    if (recovering.length === 0) return NextResponse.json({ recovery: [] })
+
+    const customers = await db.customer.findMany({
+      where: { id: { in: recovering.map(r => r.customerId) } },
+      select: { id: true, businessName: true, code: true, agent: { select: { name: true } } },
+    })
+    const custMap = Object.fromEntries(customers.map(c => [c.id, c]))
+
+    const recovery = recovering.map(r => ({
+      ...r,
+      businessName: custMap[r.customerId]?.businessName ?? r.customerId,
+      code: custMap[r.customerId]?.code ?? '',
+      agentName: custMap[r.customerId]?.agent?.name ?? '—',
+    }))
+
+    return NextResponse.json({ recovery })
+  }
+
+  // ── Product Pair Analysis ────────────────────────────────────────────────
+  if (type === 'product_pairs') {
+    // Find most frequently co-purchased product pairs
+    const cutoff = new Date(to.getTime() - 90 * 24 * 60 * 60 * 1000)
+    const effectiveFrom = cutoff > from ? cutoff : from
+
+    const orders = await db.order.findMany({
+      where: { createdAt: { gte: effectiveFrom, lte: to }, status: { notIn: ['DRAFT', 'ANULUAR'] } },
+      select: { id: true, lines: { select: { productId: true } } },
+      take: 5000,
+    })
+
+    const pairCounts: Record<string, number> = {}
+    for (const order of orders) {
+      const pids = order.lines.map(l => l.productId)
+      if (pids.length < 2) continue
+      for (let i = 0; i < pids.length; i++) {
+        for (let j = i + 1; j < pids.length; j++) {
+          const key = [pids[i], pids[j]].sort().join('||')
+          pairCounts[key] = (pairCounts[key] ?? 0) + 1
+        }
+      }
+    }
+
+    const topPairs = Object.entries(pairCounts)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 30)
+      .map(([key, count]) => ({ pair: key.split('||'), count }))
+
+    const allPairProductIds = Array.from(new Set(topPairs.flatMap(p => p.pair)))
+    const pairProducts = allPairProductIds.length > 0
+      ? await db.product.findMany({ where: { id: { in: allPairProductIds } }, select: { id: true, name: true, code: true } })
+      : []
+    const pMap = Object.fromEntries(pairProducts.map(p => [p.id, p]))
+
+    const pairs = topPairs.map(p => ({
+      productA: { id: p.pair[0], name: pMap[p.pair[0]]?.name ?? p.pair[0], code: pMap[p.pair[0]]?.code ?? '' },
+      productB: { id: p.pair[1], name: pMap[p.pair[1]]?.name ?? p.pair[1], code: pMap[p.pair[1]]?.code ?? '' },
+      count: p.count,
+    }))
+
+    return NextResponse.json({ pairs, orderCount: orders.length })
+  }
+
     return NextResponse.json({ error: 'Invalid report type' }, { status: 400 })
   } catch (err) {
     const msg = err instanceof Error ? err.message : 'Internal server error'

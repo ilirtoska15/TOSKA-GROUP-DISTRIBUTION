@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useParams } from 'next/navigation'
-import { ArrowLeft, MapPin, Phone, Building2, User, Edit, AlertTriangle, CheckCircle, Ban, Package, Layers, RotateCcw } from 'lucide-react'
+import { ArrowLeft, MapPin, Phone, Building2, User, Edit, AlertTriangle, CheckCircle, Ban, Package, Layers, RotateCcw, Calendar, TrendingUp, TrendingDown } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Separator } from '@/components/ui/separator'
@@ -47,6 +47,8 @@ interface Customer {
   payments: Array<{ id: string; reference: string; amount: number; method: string; createdAt: string }>
   returns: Array<{ id: string; reference: string; status: string; totalAmount: number; createdAt: string }>
   topProducts: Array<{ productId: string; name: string; code: string; totalQty: number; totalValue: number }>
+  purchaseCalendar?: { totalOrders: number; avgDaysBetween: number | null; daysSinceLast: number | null; lastOrderAt: string | null; status: 'NORMAL' | 'AFËR' | 'VONUAR' }
+  growthTracker?: { currPeriodSales: number; prevPeriodSales: number; growthPct: number | null; trend: string }
 }
 
 export default function CustomerDetailPage() {
@@ -384,6 +386,84 @@ export default function CustomerDetailPage() {
                       </div>
                     </div>
                   ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Purchase Calendar */}
+          {customer.purchaseCalendar && customer.purchaseCalendar.totalOrders > 0 && (
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Calendar className="h-4 w-4 text-blue-500" />Kalendari i Blerjeve
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="flex items-center gap-3 mb-3">
+                  <span className={`text-xs font-bold px-2 py-1 rounded-full ${
+                    customer.purchaseCalendar.status === 'VONUAR' ? 'bg-red-100 text-red-700' :
+                    customer.purchaseCalendar.status === 'AFËR' ? 'bg-yellow-100 text-yellow-700' :
+                    'bg-green-100 text-green-700'
+                  }`}>
+                    {customer.purchaseCalendar.status === 'VONUAR' ? 'VONUAR' : customer.purchaseCalendar.status === 'AFËR' ? 'AFËR AFATIT' : 'NORMAL'}
+                  </span>
+                </div>
+                <div className="grid grid-cols-3 gap-3 text-center">
+                  <div className="p-2 rounded-lg bg-gray-50">
+                    <p className="text-lg font-bold text-gray-900">{customer.purchaseCalendar.totalOrders}</p>
+                    <p className="text-xs text-gray-500">Porosi gjithsej</p>
+                  </div>
+                  <div className="p-2 rounded-lg bg-gray-50">
+                    <p className="text-lg font-bold text-gray-900">{customer.purchaseCalendar.avgDaysBetween ?? '—'}</p>
+                    <p className="text-xs text-gray-500">Ditë mes porosive</p>
+                  </div>
+                  <div className="p-2 rounded-lg bg-gray-50">
+                    <p className={`text-lg font-bold ${
+                      customer.purchaseCalendar.daysSinceLast !== null && customer.purchaseCalendar.avgDaysBetween !== null && customer.purchaseCalendar.daysSinceLast > customer.purchaseCalendar.avgDaysBetween * 1.5
+                        ? 'text-red-600' : 'text-gray-900'
+                    }`}>{customer.purchaseCalendar.daysSinceLast ?? '—'}</p>
+                    <p className="text-xs text-gray-500">Ditë nga e fundit</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Growth Tracker */}
+          {customer.growthTracker && (
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base flex items-center gap-2">
+                  {customer.growthTracker.trend === 'UP'
+                    ? <TrendingUp className="h-4 w-4 text-green-500" />
+                    : customer.growthTracker.trend === 'DOWN'
+                    ? <TrendingDown className="h-4 w-4 text-red-500" />
+                    : <TrendingUp className="h-4 w-4 text-gray-400" />
+                  }
+                  Rritja (30 ditë)
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-3 gap-3 text-center">
+                  <div className="p-2 rounded-lg bg-gray-50">
+                    <p className="text-sm font-bold text-gray-900">{formatCurrency(customer.growthTracker.currPeriodSales)}</p>
+                    <p className="text-xs text-gray-500">30 ditët e fundit</p>
+                  </div>
+                  <div className="p-2 rounded-lg bg-gray-50">
+                    <p className="text-sm font-bold text-gray-900">{formatCurrency(customer.growthTracker.prevPeriodSales)}</p>
+                    <p className="text-xs text-gray-500">30 ditët para</p>
+                  </div>
+                  <div className="p-2 rounded-lg bg-gray-50">
+                    {customer.growthTracker.growthPct === null ? (
+                      <p className="text-sm font-bold text-gray-400">—</p>
+                    ) : (
+                      <p className={`text-sm font-bold ${customer.growthTracker.growthPct >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                        {customer.growthTracker.growthPct >= 0 ? '+' : ''}{customer.growthTracker.growthPct}%
+                      </p>
+                    )}
+                    <p className="text-xs text-gray-500">Ndryshimi</p>
+                  </div>
                 </div>
               </CardContent>
             </Card>

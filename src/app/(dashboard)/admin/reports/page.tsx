@@ -1,7 +1,7 @@
 ﻿'use client'
 
 import { useState } from 'react'
-import { Download, TrendingDown, Trophy, MapPin } from 'lucide-react'
+import { Download, TrendingDown, Trophy, MapPin, Globe, Target, Activity, AlertOctagon, Shuffle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -25,6 +25,11 @@ const REPORT_TYPES = [
   { value: 'product_leaderboard', label: 'Top Produktet' },
   { value: 'declining_products', label: 'Produktet në Rënie' },
   { value: 'visits_gps', label: 'Vizitat me GPS' },
+  { value: 'territory', label: 'Performanca e Territorit' },
+  { value: 'product_penetration', label: 'Penetrimi i Produkteve' },
+  { value: 'visit_effectiveness', label: 'Efektiviteti i Vizitave' },
+  { value: 'recovery_opportunities', label: 'Mundësi Rikuperimi' },
+  { value: 'product_pairs', label: 'Çift Produktesh' },
 ]
 
 const SEVERITY_STYLE: Record<string, string> = {
@@ -402,6 +407,192 @@ export default function ReportsPage() {
                     </tbody>
                   </table>
                 </div>
+              </CardContent>
+            </Card>
+          )}
+          {reportType === 'territory' && data.territory && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2"><Globe className="h-5 w-5 text-blue-500" />Performanca e Territorit — {data.territory.length} zona</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {data.territory.length === 0 ? (
+                  <p className="text-sm text-gray-500 text-center py-8">Nuk ka të dhëna</p>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead className="bg-gray-50 border-b">
+                        <tr>
+                          <th className="px-3 py-2 text-left font-medium text-gray-600">Zona / Rajoni</th>
+                          <th className="px-3 py-2 text-right font-medium text-gray-600">Klientë</th>
+                          <th className="px-3 py-2 text-right font-medium text-gray-600">Shitje</th>
+                          <th className="px-3 py-2 text-right font-medium text-gray-600">Porosi</th>
+                          <th className="px-3 py-2 text-right font-medium text-gray-600">Inkaso</th>
+                          <th className="px-3 py-2 text-right font-medium text-gray-600">Rritja</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y">
+                        {data.territory.map((z: any) => (
+                          <tr key={z.zoneId} className="hover:bg-gray-50">
+                            <td className="px-3 py-2.5">
+                              <p className="font-medium">{z.zoneName}</p>
+                              <p className="text-xs text-gray-400">{z.regionName}</p>
+                            </td>
+                            <td className="px-3 py-2.5 text-right">{z.activeCustomers}</td>
+                            <td className="px-3 py-2.5 text-right font-semibold">{formatCurrency(z.totalSales)}</td>
+                            <td className="px-3 py-2.5 text-right text-gray-600">{z.orderCount}</td>
+                            <td className="px-3 py-2.5 text-right text-gray-600">{formatCurrency(z.totalPayments)}</td>
+                            <td className="px-3 py-2.5 text-right">
+                              {z.growthPct === null ? (
+                                <span className="text-xs text-gray-400">—</span>
+                              ) : (
+                                <span className={`text-xs font-bold ${z.growthPct >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                  {z.growthPct >= 0 ? '+' : ''}{z.growthPct}%
+                                </span>
+                              )}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
+          {reportType === 'product_penetration' && data.penetration && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2"><Target className="h-5 w-5 text-purple-500" />Penetrimi i Produkteve — {data.totalActiveCustomers} klientë aktiv</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {data.penetration.length === 0 ? (
+                  <p className="text-sm text-gray-500 text-center py-8">Nuk ka të dhëna</p>
+                ) : (
+                  <div className="space-y-2">
+                    {data.penetration.map((p: any, i: number) => (
+                      <div key={p.productId} className="flex items-center gap-3 p-2.5 rounded-lg border border-gray-100">
+                        <span className="w-6 text-center text-xs font-bold text-gray-400 shrink-0">#{i + 1}</span>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium truncate">{p.name}</p>
+                          <p className="text-xs text-gray-400">{p.code} · {p.category} · {p.brand}</p>
+                        </div>
+                        <div className="text-right shrink-0">
+                          <p className="text-sm font-bold text-purple-600">{p.penetrationPct}%</p>
+                          <p className="text-xs text-gray-400">{p.uniqueCustomers} klientë · {formatCurrency(p.totalValue)}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
+          {reportType === 'visit_effectiveness' && data.effectiveness && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2"><Activity className="h-5 w-5 text-indigo-500" />Efektiviteti i Vizitave sipas Agjentit</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {data.effectiveness.length === 0 ? (
+                  <p className="text-sm text-gray-500 text-center py-8">Nuk ka vizita në këtë periudhë</p>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead className="bg-gray-50 border-b">
+                        <tr>
+                          <th className="px-3 py-2 text-left font-medium text-gray-600">Agjenti</th>
+                          <th className="px-3 py-2 text-right font-medium text-gray-600">Vizita Gjithsej</th>
+                          <th className="px-3 py-2 text-right font-medium text-gray-600">Me Porosi</th>
+                          <th className="px-3 py-2 text-right font-medium text-gray-600">Norma Konv.</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y">
+                        {data.effectiveness.map((a: any) => (
+                          <tr key={a.agentId} className="hover:bg-gray-50">
+                            <td className="px-3 py-2.5 font-medium">{a.agentName}</td>
+                            <td className="px-3 py-2.5 text-right text-gray-600">{a.totalVisits}</td>
+                            <td className="px-3 py-2.5 text-right text-gray-600">{a.visitsWithOrder}</td>
+                            <td className="px-3 py-2.5 text-right">
+                              <span className={`text-sm font-bold ${a.conversionRate >= 50 ? 'text-green-600' : a.conversionRate >= 25 ? 'text-yellow-600' : 'text-red-600'}`}>
+                                {a.conversionRate}%
+                              </span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
+          {reportType === 'recovery_opportunities' && data.recovery && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2"><AlertOctagon className="h-5 w-5 text-orange-500" />Mundësi Rikuperimi — {data.recovery.length} klientë</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {data.recovery.length === 0 ? (
+                  <p className="text-sm text-gray-500 text-center py-8">Asnjë klient nuk ka rënie të madhe</p>
+                ) : (
+                  <div className="space-y-2">
+                    {data.recovery.map((c: any) => (
+                      <div key={c.customerId} className="flex items-center gap-3 p-3 rounded-lg border border-gray-100">
+                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 ${c.status === 'CRITICAL' ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700'}`}>
+                          {c.status === 'CRITICAL' ? 'KRITIK' : 'KUJDES'}
+                        </span>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium truncate">{c.businessName}</p>
+                          <p className="text-xs text-gray-400">{c.code} · {c.agentName}</p>
+                        </div>
+                        <div className="text-right shrink-0">
+                          <p className="text-sm font-bold text-red-600">{c.growthPct}%</p>
+                          <p className="text-xs text-gray-400">Humbur: {formatCurrency(c.lostValue)}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
+          {reportType === 'product_pairs' && data.pairs && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2"><Shuffle className="h-5 w-5 text-teal-500" />Çift Produktesh — nga {data.orderCount} porosi</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {data.pairs.length === 0 ? (
+                  <p className="text-sm text-gray-500 text-center py-8">Nuk ka të dhëna të mjaftueshme</p>
+                ) : (
+                  <div className="space-y-2">
+                    {data.pairs.map((p: any, i: number) => (
+                      <div key={i} className="flex items-center gap-3 p-2.5 rounded-lg border border-gray-100">
+                        <span className="w-6 text-center text-xs font-bold text-gray-400 shrink-0">#{i + 1}</span>
+                        <div className="flex-1 min-w-0 flex items-center gap-2">
+                          <div className="min-w-0">
+                            <p className="text-xs font-medium truncate">{p.productA.name}</p>
+                            <p className="text-[10px] font-mono text-gray-400">{p.productA.code}</p>
+                          </div>
+                          <span className="text-gray-300 shrink-0">+</span>
+                          <div className="min-w-0">
+                            <p className="text-xs font-medium truncate">{p.productB.name}</p>
+                            <p className="text-[10px] font-mono text-gray-400">{p.productB.code}</p>
+                          </div>
+                        </div>
+                        <div className="text-right shrink-0">
+                          <p className="text-sm font-bold text-teal-600">{p.count}</p>
+                          <p className="text-xs text-gray-400">herë bashkë</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </CardContent>
             </Card>
           )}

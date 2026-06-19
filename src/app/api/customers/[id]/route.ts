@@ -58,7 +58,19 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
 
     if (!customer) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
-    const [deliveredAmount, paidAmount, topProductsRaw] = await Promise.all([
+    const now = new Date()
+    const last30 = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)
+    const prev60 = new Date(now.getTime() - 60 * 24 * 60 * 60 * 1000)
+    const orderStatusFilter = { in: ['SUBMITTED', 'APROVUAR', 'DORËZUAR'] as string[] }
+
+    const [
+      deliveredAmount,
+      paidAmount,
+      topProductsRaw,
+      allOrderDates,
+      last30Sales,
+      prev30Sales,
+    ] = await Promise.all([
       db.order.aggregate({
         where: { customerId: params.id, status: 'DORËZUAR' },
         _sum: { totalAmount: true },
@@ -69,10 +81,23 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
       }),
       db.orderLine.groupBy({
         by: ['productId'],
-        where: { order: { customerId: params.id, status: { in: ['SUBMITTED', 'APROVUAR', 'DORËZUAR'] } } },
+        where: { order: { customerId: params.id, status: orderStatusFilter } },
         _sum: { quantityCopje: true, lineTotal: true },
         orderBy: { _sum: { lineTotal: 'desc' } },
         take: 10,
+      }),
+      db.order.findMany({
+        where: { customerId: params.id, status: orderStatusFilter },
+        select: { createdAt: true },
+        orderBy: { createdAt: 'asc' },
+      }),
+      db.order.aggregate({
+        where: { customerId: params.id, status: orderStatusFilter, createdAt: { gte: last30 } },
+        _sum: { totalAmount: true },
+      }),
+      db.order.aggregate({
+        where: { customerId: params.id, status: orderStatusFilter, createdAt: { gte: prev60, lt: last30 } },
+        _sum: { totalAmount: true },
       }),
     ])
 
@@ -94,7 +119,41 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
       (deliveredAmount._sum.totalAmount ?? 0) - (paidAmount._sum.amount ?? 0),
     )
 
-    return NextResponse.json({ ...customer, currentDebt, topProducts })
+    // Purchase Calendar — avg days between orders + days since last
+    const dates = allOrderDates.map(o => o.createdAt.getTime())
+    let avgDaysBetween: number | null = null
+    if (dates.length >= 2) {
+      let totalGap = 0
+      for (let i = 1; i < dates.length; i++) totalGap += dates[i] - dates[i - 1]
+      avgDaysBetween = Math.round(totalGap / (dates.length - 1) / (24 * 60 * 60 * 1000))
+    }
+    const lastOrderAt = dates.length > 0 ? new Date(dates[dates.length - 1]) : null
+    const daysSinceLast = lastOrderAt ? Math.round((now.getTime() - lastOrderAt.getTime()) / (24 * 60 * 60 * 1000)) : null
+    let calendarStatus: 'NORMAL' | 'AFËR' | 'VONUAR' = 'NORMAL'
+    if (daysSinceLast !== null && avgDaysBetween !== null) {
+      if (daysSinceLast > avgDaysBetween * 1.5) calendarStatus = 'VONUAR'
+      else if (daysSinceLast > avgDaysBetween * 1.1) calendarStatus = 'AFËR'
+    }
+    const purchaseCalendar = {
+      totalOrders: dates.length,
+      avgDaysBetween,
+      daysSinceLast,
+      lastOrderAt: lastOrderAt?.toISOString() ?? null,
+      status: calendarStatus,
+    }
+
+    // Growth Tracker — last 30d vs previous 30d
+    const currSales = last30Sales._sum.totalAmount ?? 0
+    const prevSales = prev30Sales._sum.totalAmount ?? 0
+    const growthPct = prevSales > 0 ? Math.round(((currSales - prevSales) / prevSales) * 100) : null
+    const growthTracker = {
+      currPeriodSales: currSales,
+      prevPeriodSales: prevSales,
+      growthPct,
+      trend: growthPct === null ? 'NO_DATA' : growthPct >= 10 ? 'UP' : growthPct <= -10 ? 'DOWN' : 'STABLE',
+    }
+
+    return NextResponse.json({ ...customer, currentDebt, topProducts, purchaseCalendar, growthTracker })
   } catch (err) {
     console.error(`[GET /api/customers/${params.id}] error:`, err)
     return NextResponse.json(
