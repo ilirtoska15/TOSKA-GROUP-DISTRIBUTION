@@ -36,8 +36,8 @@ export async function GET(req: NextRequest) {
     const search = searchParams.get('search') ?? ''
     const status = searchParams.get('status') ?? ''
     const agentId = searchParams.get('agentId') ?? ''
-    const page = parseInt(searchParams.get('page') ?? '1')
-    const limit = parseInt(searchParams.get('limit') ?? '20')
+    const page = Math.max(1, parseInt(searchParams.get('page') || '1', 10) || 1)
+    const limit = Math.min(200, Math.max(1, parseInt(searchParams.get('limit') || '20', 10) || 20))
     const skip = (page - 1) * limit
 
     const where: Record<string, unknown> = {}
@@ -75,7 +75,13 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json({ customers, total, page, limit })
   } catch (err) {
-    console.error('[GET /api/customers] error:', err)
+    const e = err as { message?: string; code?: string; meta?: unknown; stack?: string }
+    console.error('[GET /api/customers]', {
+      message: e?.message,
+      code: e?.code,
+      meta: e?.meta,
+      stack: e?.stack,
+    })
     return NextResponse.json({ customers: [], total: 0, error: 'Internal server error' }, { status: 500 })
   }
 }
