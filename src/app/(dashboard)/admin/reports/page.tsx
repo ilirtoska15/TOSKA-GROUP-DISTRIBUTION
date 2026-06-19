@@ -1,13 +1,13 @@
 ﻿'use client'
 
 import { useState } from 'react'
-import { Download } from 'lucide-react'
+import { Download, TrendingDown, Trophy, MapPin } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { formatCurrency, formatDate } from '@/lib/utils'
+import { formatCurrency, formatDate, formatDateTime } from '@/lib/utils'
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
 } from 'recharts'
@@ -22,20 +22,45 @@ const REPORT_TYPES = [
   { value: 'debt', label: 'Borxhet' },
   { value: 'brands', label: 'Shitjet sipas Brendit' },
   { value: 'inactive_customers', label: 'Klientë pa Porosi' },
+  { value: 'product_leaderboard', label: 'Top Produktet' },
+  { value: 'declining_products', label: 'Produktet në Rënie' },
+  { value: 'visits_gps', label: 'Vizitat me GPS' },
 ]
+
+const SEVERITY_STYLE: Record<string, string> = {
+  SEVERE: 'bg-red-100 text-red-700',
+  WARNING: 'bg-yellow-100 text-yellow-700',
+  NORMAL: 'bg-gray-100 text-gray-600',
+}
+
+const GPS_STYLE: Record<string, string> = {
+  GPS_VERIFIED: 'bg-green-100 text-green-700',
+  NEAR_LOCATION: 'bg-yellow-100 text-yellow-700',
+  OUTSIDE_LOCATION: 'bg-red-100 text-red-700',
+  HAS_GPS: 'bg-blue-100 text-blue-700',
+  NO_GPS: 'bg-gray-100 text-gray-400',
+}
+const GPS_LABEL: Record<string, string> = {
+  GPS_VERIFIED: 'GPS Verifikuar',
+  NEAR_LOCATION: 'Afër Klientit',
+  OUTSIDE_LOCATION: 'Jashtë Lokacionit',
+  HAS_GPS: 'Ka GPS',
+  NO_GPS: 'Pa GPS',
+}
 
 export default function ReportsPage() {
   const [reportType, setReportType] = useState('sales')
   const [from, setFrom] = useState(new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0])
   const [to, setTo] = useState(new Date().toISOString().split('T')[0])
   const [days, setDays] = useState('30')
+  const [period, setPeriod] = useState('7')
   const [data, setData] = useState<any>(null)
   const [loading, setLoading] = useState(false)
 
   const runReport = async () => {
     setLoading(true)
     try {
-      const params = new URLSearchParams({ type: reportType, from, to, days })
+      const params = new URLSearchParams({ type: reportType, from, to, days, period })
       const res = await fetch(`/api/reports?${params}`)
       const result = await res.json()
       setData(result)
@@ -91,18 +116,7 @@ export default function ReportsPage() {
                 </SelectContent>
               </Select>
             </div>
-            {reportType !== 'inactive_customers' ? (
-              <>
-                <div>
-                  <Label>Nga</Label>
-                  <Input type="date" className="mt-1" value={from} onChange={(e) => setFrom(e.target.value)} />
-                </div>
-                <div>
-                  <Label>Deri</Label>
-                  <Input type="date" className="mt-1" value={to} onChange={(e) => setTo(e.target.value)} />
-                </div>
-              </>
-            ) : (
+            {reportType === 'inactive_customers' ? (
               <div>
                 <Label>Ditët</Label>
                 <Select value={days} onValueChange={setDays}>
@@ -116,6 +130,30 @@ export default function ReportsPage() {
                   </SelectContent>
                 </Select>
               </div>
+            ) : reportType === 'declining_products' ? (
+              <div>
+                <Label>Periudha</Label>
+                <Select value={period} onValueChange={setPeriod}>
+                  <SelectTrigger className="mt-1 w-32">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="7">7 ditë</SelectItem>
+                    <SelectItem value="30">30 ditë</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            ) : (
+              <>
+                <div>
+                  <Label>Nga</Label>
+                  <Input type="date" className="mt-1" value={from} onChange={(e) => setFrom(e.target.value)} />
+                </div>
+                <div>
+                  <Label>Deri</Label>
+                  <Input type="date" className="mt-1" value={to} onChange={(e) => setTo(e.target.value)} />
+                </div>
+              </>
             )}
             <div className="flex items-end">
               <Button onClick={runReport} loading={loading}>Gjenero</Button>
@@ -236,6 +274,133 @@ export default function ReportsPage() {
                       </div>
                     </div>
                   ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {reportType === 'product_leaderboard' && data.leaderboard && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2"><Trophy className="h-5 w-5 text-yellow-500" />Top 20 Produktet — {data.leaderboard.length} rezultate</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {data.leaderboard.length === 0 ? (
+                  <p className="text-sm text-gray-500 text-center py-8">Nuk ka shitje në këtë periudhë</p>
+                ) : (
+                  <>
+                    <ResponsiveContainer width="100%" height={280}>
+                      <BarChart data={data.leaderboard.slice(0, 10).map((p: any) => ({ name: p.name.slice(0, 16) + (p.name.length > 16 ? '…' : ''), total: p.totalValue }))}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis dataKey="name" tick={{ fontSize: 10 }} />
+                        <YAxis tickFormatter={(v: number) => `${v.toLocaleString()}L`} tick={{ fontSize: 10 }} />
+                        <Tooltip formatter={(v: number) => formatCurrency(v)} />
+                        <Bar dataKey="total" fill="#2563eb" radius={[4, 4, 0, 0]} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                    <div className="mt-4 space-y-1.5">
+                      {data.leaderboard.map((p: any) => (
+                        <div key={p.productId} className="flex items-center gap-3 py-2 border-b last:border-0">
+                          <span className="w-7 text-center text-sm font-bold text-gray-400">#{p.rank}</span>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium truncate">{p.name}</p>
+                            <p className="text-xs text-gray-400">{p.code} · {p.category}</p>
+                          </div>
+                          <div className="text-right shrink-0">
+                            <p className="text-sm font-bold">{formatCurrency(p.totalValue)}</p>
+                            <p className="text-xs text-gray-400">{p.totalQty.toLocaleString()} copë · {p.orderCount} porosi</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
+          {reportType === 'declining_products' && data.declining && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <TrendingDown className="h-5 w-5 text-red-500" />
+                  Produktet në Rënie — {period} ditë vs {period} ditët paraprake
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {data.declining.length === 0 ? (
+                  <p className="text-sm text-gray-500 text-center py-8">Nuk ka produkte në rënie</p>
+                ) : (
+                  <div className="space-y-2">
+                    {data.declining.map((p: any) => (
+                      <div key={p.productId} className="flex items-center gap-3 p-3 rounded-lg border border-gray-100">
+                        <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${SEVERITY_STYLE[p.severity]}`}>
+                          {p.severity === 'SEVERE' ? 'KRITIK' : p.severity === 'WARNING' ? 'KUJDES' : 'NORMAL'}
+                        </span>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium truncate">{p.name}</p>
+                          <p className="text-xs text-gray-400">{p.code} · {p.category}</p>
+                        </div>
+                        <div className="text-right shrink-0">
+                          <p className="text-sm font-bold text-red-600">{p.growthPct}%</p>
+                          <p className="text-xs text-gray-400">{p.currentQty} copë (ishte {p.prevQty})</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
+          {reportType === 'visits_gps' && data.visits && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2"><MapPin className="h-5 w-5 text-blue-500" />Vizitat me GPS — {data.visits.length} rezultate</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="flex flex-wrap gap-2 mb-4 text-xs">
+                  {['GPS_VERIFIED', 'NEAR_LOCATION', 'OUTSIDE_LOCATION', 'HAS_GPS', 'NO_GPS'].map(s => {
+                    const count = data.visits.filter((v: any) => v.gpsStatus === s).length
+                    return count > 0 ? (
+                      <span key={s} className={`px-2 py-1 rounded-full font-medium ${GPS_STYLE[s]}`}>
+                        {GPS_LABEL[s]}: {count}
+                      </span>
+                    ) : null
+                  })}
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead className="bg-gray-50 border-b">
+                      <tr>
+                        <th className="px-3 py-2 text-left font-medium text-gray-600">Agjenti</th>
+                        <th className="px-3 py-2 text-left font-medium text-gray-600">Klienti</th>
+                        <th className="px-3 py-2 text-left font-medium text-gray-600">Data</th>
+                        <th className="px-3 py-2 text-left font-medium text-gray-600">GPS</th>
+                        <th className="px-3 py-2 text-left font-medium text-gray-600">Distanca</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y">
+                      {data.visits.map((v: any) => (
+                        <tr key={v.id} className="hover:bg-gray-50">
+                          <td className="px-3 py-2.5">{v.agent?.name ?? '—'}</td>
+                          <td className="px-3 py-2.5">
+                            <p className="font-medium">{v.customer?.businessName}</p>
+                            <p className="text-xs text-gray-400">{v.customer?.code}</p>
+                          </td>
+                          <td className="px-3 py-2.5 text-xs text-gray-500">{v.openedAt ? formatDateTime(v.openedAt) : '—'}</td>
+                          <td className="px-3 py-2.5">
+                            <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${GPS_STYLE[v.gpsStatus] ?? ''}`}>
+                              {GPS_LABEL[v.gpsStatus] ?? v.gpsStatus}
+                            </span>
+                          </td>
+                          <td className="px-3 py-2.5 text-xs text-gray-500">
+                            {v.gpsDistanceM != null ? `${v.gpsDistanceM} m` : '—'}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
               </CardContent>
             </Card>

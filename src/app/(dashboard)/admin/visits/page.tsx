@@ -22,6 +22,8 @@ interface Visit {
   noOrderReason?: string
   openedLat?: number
   openedLng?: number
+  gpsStatus?: string
+  gpsDistanceM?: number | null
   customer: { businessName: string; code: string }
   agent: { name: string }
 }
@@ -45,6 +47,7 @@ export default function AdminVisitsPage() {
   const [search, setSearch] = useState('')
   const [status, setStatus] = useState('')
   const [date, setDate] = useState('')
+  const [gpsFilter, setGpsFilter] = useState('')
   const [page, setPage] = useState(1)
   const [loading, setLoading] = useState(true)
 
@@ -72,10 +75,13 @@ export default function AdminVisitsPage() {
     const params = new URLSearchParams({ page: String(page), limit: '30', search, status, date })
     const res = await fetch(`/api/visits?${params}`)
     const data = await res.json()
-    setVisits(data.visits ?? [])
+    let visits = data.visits ?? []
+    // Client-side GPS filter (API doesn't support gpsStatus filtering)
+    if (gpsFilter) visits = visits.filter((v: Visit) => v.gpsStatus === gpsFilter)
+    setVisits(visits)
     setMeta(data)
     setLoading(false)
-  }, [page, search, status, date])
+  }, [page, search, status, date, gpsFilter])
 
   useEffect(() => { fetchVisits() }, [fetchVisits])
 
@@ -324,6 +330,17 @@ export default function AdminVisitsPage() {
             <XCircle className="h-4 w-4" />
           </Button>
         )}
+        <select
+          className="h-10 px-3 rounded-lg border border-gray-200 text-sm bg-white focus:outline-none"
+          value={gpsFilter}
+          onChange={(e) => { setGpsFilter(e.target.value); setPage(1) }}
+        >
+          <option value="">GPS — Të gjitha</option>
+          <option value="GPS_VERIFIED">✓ GPS Verifikuar</option>
+          <option value="NEAR_LOCATION">~ Afër Klientit</option>
+          <option value="OUTSIDE_LOCATION">✗ Jashtë Lokacionit</option>
+          <option value="NO_GPS">Pa GPS</option>
+        </select>
       </div>
 
       {/* Table */}
@@ -401,17 +418,41 @@ export default function AdminVisitsPage() {
                         {STATUS_LABELS[v.status] ?? v.status}
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-xs text-gray-400">
-                      {v.openedLat ? (
+                    <td className="px-4 py-3">
+                      {v.gpsStatus === 'GPS_VERIFIED' && (
+                        <span className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full bg-green-100 text-green-700 font-medium">
+                          <MapPin className="h-2.5 w-2.5" />GPS Verifikuar
+                          {v.gpsDistanceM != null && <span className="text-green-500">({v.gpsDistanceM}m)</span>}
+                        </span>
+                      )}
+                      {v.gpsStatus === 'NEAR_LOCATION' && (
+                        <span className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full bg-yellow-100 text-yellow-700 font-medium">
+                          <MapPin className="h-2.5 w-2.5" />Afër
+                          {v.gpsDistanceM != null && <span>({v.gpsDistanceM}m)</span>}
+                        </span>
+                      )}
+                      {v.gpsStatus === 'OUTSIDE_LOCATION' && (
                         <a
                           href={`https://www.google.com/maps?q=${v.openedLat},${v.openedLng}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-primary hover:underline flex items-center gap-1"
+                          target="_blank" rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full bg-red-100 text-red-700 font-medium hover:bg-red-200"
                         >
-                          <MapPin className="h-3 w-3" />Harta
+                          <MapPin className="h-2.5 w-2.5" />Jashtë
+                          {v.gpsDistanceM != null && <span>({v.gpsDistanceM}m)</span>}
                         </a>
-                      ) : '—'}
+                      )}
+                      {v.gpsStatus === 'HAS_GPS' && v.openedLat && (
+                        <a
+                          href={`https://www.google.com/maps?q=${v.openedLat},${v.openedLng}`}
+                          target="_blank" rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full bg-blue-100 text-blue-600 font-medium hover:bg-blue-200"
+                        >
+                          <MapPin className="h-2.5 w-2.5" />Harta
+                        </a>
+                      )}
+                      {(v.gpsStatus === 'NO_GPS' || !v.gpsStatus) && (
+                        <span className="text-xs text-gray-300">—</span>
+                      )}
                     </td>
                     <td className="px-4 py-3">
                       {v.status === 'PLANNED' && (

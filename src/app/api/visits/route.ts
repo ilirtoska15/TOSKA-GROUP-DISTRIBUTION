@@ -5,6 +5,22 @@ import { generateReference } from '@/lib/utils'
 import { createNotificationSafe } from '@/lib/notifications'
 import { z } from 'zod'
 
+function haversineM(lat1: number, lng1: number, lat2: number, lng2: number): number {
+  const R = 6371000
+  const dLat = (lat2 - lat1) * Math.PI / 180
+  const dLng = (lng2 - lng1) * Math.PI / 180
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLng / 2) ** 2
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+}
+
+function computeGpsStatus(openedLat: number | null, openedLng: number | null, customerLat: number | null, customerLng: number | null) {
+  if (openedLat == null || openedLng == null) return { gpsStatus: 'NO_GPS' as const, gpsDistanceM: null }
+  if (customerLat == null || customerLng == null) return { gpsStatus: 'HAS_GPS' as const, gpsDistanceM: null }
+  const dm = Math.round(haversineM(openedLat, openedLng, customerLat, customerLng))
+  const gpsStatus = dm <= 100 ? 'GPS_VERIFIED' as const : dm <= 300 ? 'NEAR_LOCATION' as const : 'OUTSIDE_LOCATION' as const
+  return { gpsStatus, gpsDistanceM: dm }
+}
+
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
 
@@ -76,11 +92,11 @@ export async function GET(req: NextRequest) {
       where.scheduledDate = { gte: today }
     }
 
-    const [visits, total] = await Promise.all([
+    const [rawVisits, total] = await Promise.all([
       db.visit.findMany({
         where,
         include: {
-          customer: { select: { id: true, businessName: true, code: true, businessAddress: true } },
+          customer: { select: { id: true, businessName: true, code: true, businessAddress: true, lat: true, lng: true } },
           agent: { select: { id: true, name: true } },
         },
         orderBy: upcoming
@@ -91,6 +107,11 @@ export async function GET(req: NextRequest) {
       }),
       db.visit.count({ where }),
     ])
+
+    const visits = rawVisits.map(v => ({
+      ...v,
+      ...computeGpsStatus(v.openedLat, v.openedLng, v.customer.lat, v.customer.lng),
+    }))
 
     return NextResponse.json({ visits, total, page, limit })
   } catch (err) {

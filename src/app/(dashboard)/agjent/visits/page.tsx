@@ -19,6 +19,10 @@ interface Visit {
   scheduledTime?: string
   priority?: string
   noOrderReason?: string
+  gpsStatus?: string
+  gpsDistanceM?: number | null
+  openedLat?: number
+  openedLng?: number
   customer: { id: string; businessName: string; code: string }
 }
 
@@ -328,6 +332,31 @@ export default function AgjentVisitsPage() {
                     {formatDateTime(v.openedAt)}
                     {v.closedAt && ` — ${formatDateTime(v.closedAt)}`}
                   </div>
+                  {/* GPS status badge */}
+                  {v.gpsStatus && v.gpsStatus !== 'NO_GPS' && (
+                    <div className="mt-0.5">
+                      {v.gpsStatus === 'GPS_VERIFIED' && (
+                        <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full bg-green-100 text-green-700 font-medium">
+                          <MapPin className="h-2.5 w-2.5" />GPS Verifikuar{v.gpsDistanceM != null ? ` (${v.gpsDistanceM}m)` : ''}
+                        </span>
+                      )}
+                      {v.gpsStatus === 'NEAR_LOCATION' && (
+                        <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full bg-yellow-100 text-yellow-700 font-medium">
+                          <MapPin className="h-2.5 w-2.5" />Afër Klientit{v.gpsDistanceM != null ? ` (${v.gpsDistanceM}m)` : ''}
+                        </span>
+                      )}
+                      {v.gpsStatus === 'OUTSIDE_LOCATION' && (
+                        <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full bg-red-100 text-red-700 font-medium">
+                          <MapPin className="h-2.5 w-2.5" />Jashtë Lokacionit{v.gpsDistanceM != null ? ` (${v.gpsDistanceM}m)` : ''}
+                        </span>
+                      )}
+                      {v.gpsStatus === 'HAS_GPS' && (
+                        <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full bg-blue-100 text-blue-600 font-medium">
+                          <MapPin className="h-2.5 w-2.5" />GPS OK
+                        </span>
+                      )}
+                    </div>
+                  )}
                 </div>
                 <div className="flex items-center gap-2">
                   <Badge variant={

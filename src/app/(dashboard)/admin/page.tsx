@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import {
   ShoppingCart, DollarSign, Users, Truck, AlertTriangle,
-  TrendingUp, RotateCcw, Clock, CheckCircle, MapPin
+  TrendingUp, TrendingDown, RotateCcw, Clock, CheckCircle, MapPin, Trophy
 } from 'lucide-react'
 import Link from 'next/link'
 import { getMultipleStockLevels } from '@/lib/stock'
@@ -29,6 +29,59 @@ const SAFE_STATS = {
   recentOrders: [] as Awaited<ReturnType<typeof fetchRecentOrders>>,
   blockedCustomers: 0,
   failedDeliveries: 0,
+}
+
+async function fetchProductLeaderboard() {
+  try {
+    const startOfMonth = new Date()
+    startOfMonth.setDate(1)
+    startOfMonth.setHours(0, 0, 0, 0)
+    const raw = await db.orderLine.groupBy({
+      by: ['productId'],
+      where: { order: { createdAt: { gte: startOfMonth }, status: { notIn: ['DRAFT', 'ANULUAR'] } } },
+      _sum: { lineTotal: true, quantityCopje: true },
+      orderBy: { _sum: { lineTotal: 'desc' } },
+      take: 5,
+    })
+    if (raw.length === 0) return []
+    const products = await db.product.findMany({ where: { id: { in: raw.map(r => r.productId) } }, select: { id: true, name: true } })
+    const nm = Object.fromEntries(products.map(p => [p.id, p.name]))
+    return raw.map((r, i) => ({ rank: i + 1, name: nm[r.productId] ?? r.productId, totalValue: r._sum.lineTotal ?? 0, totalQty: r._sum.quantityCopje ?? 0 }))
+  } catch { return [] }
+}
+
+async function fetchDecliningProducts() {
+  try {
+    const now = new Date()
+    const last7 = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
+    const prev14 = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000)
+    const filter = { status: { notIn: ['DRAFT', 'ANULUAR'] as string[] } }
+    const [curr, prev] = await Promise.all([
+      db.orderLine.groupBy({ by: ['productId'], where: { order: { ...filter, createdAt: { gte: last7 } } }, _sum: { quantityCopje: true } }),
+      db.orderLine.groupBy({ by: ['productId'], where: { order: { ...filter, createdAt: { gte: prev14, lt: last7 } } }, _sum: { quantityCopje: true } }),
+    ])
+    const prevMap: Record<string, number> = {}
+    for (const r of prev) prevMap[r.productId] = r._sum.quantityCopje ?? 0
+    const currMap: Record<string, number> = {}
+    for (const r of curr) currMap[r.productId] = r._sum.quantityCopje ?? 0
+
+    const declining = Object.keys(prevMap)
+      .map(pid => {
+        const p = prevMap[pid], c = currMap[pid] ?? 0
+        if (p === 0) return null
+        const g = ((c - p) / p) * 100
+        if (g >= 0) return null
+        return { productId: pid, growthPct: Math.round(g), severity: g < -25 ? 'SEVERE' : g < -10 ? 'WARNING' : 'NORMAL' }
+      })
+      .filter(Boolean)
+      .sort((a, b) => a!.growthPct - b!.growthPct)
+      .slice(0, 4) as Array<{ productId: string; growthPct: number; severity: string }>
+
+    if (declining.length === 0) return []
+    const products = await db.product.findMany({ where: { id: { in: declining.map(d => d.productId) } }, select: { id: true, name: true } })
+    const nm = Object.fromEntries(products.map(p => [p.id, p.name]))
+    return declining.map(d => ({ ...d, name: nm[d.productId] ?? d.productId }))
+  } catch { return [] }
 }
 
 async function fetchRecentOrders() {
@@ -148,7 +201,11 @@ async function getAdminStats() {
 
 export default async function AdminDashboard() {
   const session = await auth()
-  const stats = await getAdminStats()
+  const [stats, topProducts, decliningProducts] = await Promise.all([
+    getAdminStats(),
+    fetchProductLeaderboard(),
+    fetchDecliningProducts(),
+  ])
 
   return (
     <div className="p-4 sm:p-6 space-y-5 animate-fade-in">
@@ -206,6 +263,70 @@ export default async function AdminDashboard() {
         <StatCard title="Dërgesa Aktive"   value={formatNumber(stats.activeDeliveries)} icon={Truck}     color="orange"  href="/admin/deliveries" />
         <StatCard title="Kthime në Pritje" value={formatNumber(stats.pendingReturns)}  icon={RotateCcw}  color="yellow"  href="/admin/returns" />
       </div>
+
+      {/* Product Analytics */}
+      {(topProducts.length > 0 || decliningProducts.length > 0) && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          {/* Top Products */}
+          {topProducts.length > 0 && (
+            <Card className="rounded-2xl shadow-sm">
+              <CardHeader className="pb-3 px-5 pt-5">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-base font-semibold flex items-center gap-2">
+                    <Trophy className="h-4 w-4 text-yellow-500" />Top Produktet (Ky Muaj)
+                  </CardTitle>
+                  <Link href="/admin/reports?type=product_leaderboard" className="text-xs font-semibold text-primary hover:text-primary/80">
+                    Raporti i plotë →
+                  </Link>
+                </div>
+              </CardHeader>
+              <CardContent className="px-5 pb-5 space-y-2">
+                {topProducts.map(p => (
+                  <div key={p.rank} className="flex items-center gap-3">
+                    <span className="w-6 text-center text-xs font-bold text-gray-400 shrink-0">#{p.rank}</span>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium truncate">{p.name}</p>
+                      <p className="text-xs text-gray-400">{p.totalQty.toLocaleString()} copë</p>
+                    </div>
+                    <p className="text-sm font-bold shrink-0">{formatCurrency(p.totalValue)}</p>
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Declining Products */}
+          {decliningProducts.length > 0 && (
+            <Card className="rounded-2xl shadow-sm">
+              <CardHeader className="pb-3 px-5 pt-5">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-base font-semibold flex items-center gap-2">
+                    <TrendingDown className="h-4 w-4 text-red-500" />Produkte në Rënie (7 ditë)
+                  </CardTitle>
+                  <Link href="/admin/reports?type=declining_products" className="text-xs font-semibold text-primary hover:text-primary/80">
+                    Raporti i plotë →
+                  </Link>
+                </div>
+              </CardHeader>
+              <CardContent className="px-5 pb-5 space-y-2">
+                {decliningProducts.map(p => (
+                  <div key={p.productId} className="flex items-center gap-3">
+                    <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full shrink-0 ${
+                      p.severity === 'SEVERE' ? 'bg-red-100 text-red-700' :
+                      p.severity === 'WARNING' ? 'bg-yellow-100 text-yellow-700' :
+                      'bg-gray-100 text-gray-600'
+                    }`}>
+                      {p.severity === 'SEVERE' ? 'KRITIK' : p.severity === 'WARNING' ? 'KUJDES' : 'NORMAL'}
+                    </span>
+                    <p className="text-sm font-medium flex-1 min-w-0 truncate">{p.name}</p>
+                    <p className="text-sm font-bold text-red-600 shrink-0">{p.growthPct}%</p>
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      )}
 
       {/* Bottom grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
