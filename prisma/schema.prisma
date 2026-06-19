@@ -356,6 +356,9 @@ model Visit {
   noOrderReason String?
   orderId      String?
   notes        String?
+  scheduledDate DateTime?
+  scheduledTime String?
+  priority      String   @default("NORMAL") // LOW, NORMAL, HIGH
   createdAt    DateTime  @default(now())
 
   customer Customer @relation(fields: [customerId], references: [id])

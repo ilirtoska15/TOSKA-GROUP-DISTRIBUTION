@@ -64,7 +64,7 @@ export default function AgjentCustomersPage() {
             <p>Nuk u gjet asnjë klient</p>
           </div>
         ) : customers.map(c => (
-          <Link key={c.id} href={`/admin/customers/${c.id}`}>
+          <Link key={c.id} href={`/agjent/customers/${c.id}`}>
             <div className="bg-white rounded-xl border p-4 hover:shadow-sm transition-shadow">
               <div className="flex items-start justify-between">
                 <div className="flex-1">

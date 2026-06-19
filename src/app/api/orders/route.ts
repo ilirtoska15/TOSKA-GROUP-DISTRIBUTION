@@ -5,6 +5,7 @@ import { generateReference } from '@/lib/utils'
 import { createAuditLog } from '@/lib/audit'
 import { getStockLevel, addStockMovement, convertToBase } from '@/lib/stock'
 import { sendPushToRole } from '@/lib/push'
+import { notifyRoles, createNotificationSafe } from '@/lib/notifications'
 import { z } from 'zod'
 
 export const dynamic = 'force-dynamic'
@@ -218,7 +219,43 @@ export async function POST(req: NextRequest) {
     })
 
     if (order.status === 'SUBMITTED' || order.status === 'PRET_APROVIM') {
-      sendPushToRole('ADMIN', 'Porosi e Re', `${order.reference} — Klient #${data.customerId.slice(-6)}`, '/admin/orders').catch(() => null)
+      sendPushToRole('ADMIN', 'Porosi e Re', `${order.reference} — ${customer.businessName}`, '/admin/orders').catch(() => null)
+      notifyRoles(db, ['ADMIN', 'DEPOIST'], {
+        type: 'ORDER_PENDING',
+        title: 'Porosi e Re',
+        message: `${order.reference} nga ${customer.businessName} — ${totalAmount.toFixed(0)} L`,
+        link: `/admin/orders/${order.id}`,
+      }).catch(() => null)
+
+      // Debt threshold notifications — only if debtLimit is set
+      if (customer.debtLimit > 0) {
+        try {
+          const [deliveredAgg, paidAgg] = await Promise.all([
+            db.order.aggregate({
+              where: { customerId: data.customerId, status: 'DORËZUAR' },
+              _sum: { totalAmount: true },
+            }),
+            db.payment.aggregate({
+              where: { customerId: data.customerId },
+              _sum: { amount: true },
+            }),
+          ])
+          const newDebt = (deliveredAgg._sum.totalAmount ?? 0) - (paidAgg._sum.amount ?? 0)
+          const pct = customer.debtLimit > 0 ? (newDebt / customer.debtLimit) * 100 : 0
+          const agentNotifTargets: string[] = []
+          if (session.user.role === 'AGJENT') agentNotifTargets.push(session.user.id)
+
+          const debtMsg = `${customer.businessName}: borxhi ${newDebt.toFixed(0)} L (${pct.toFixed(0)}% e limitit)`
+          if (pct >= 100) {
+            notifyRoles(db, ['ADMIN'], { type: 'OVERDUE_DEBT', title: 'Limit Borxhi Tejkaluar!', message: debtMsg, link: `/admin/customers/${customer.id}` }).catch(() => null)
+            agentNotifTargets.forEach(uid => createNotificationSafe(db, { userId: uid, type: 'OVERDUE_DEBT', title: 'Limit Borxhi Tejkaluar!', message: debtMsg, link: `/admin/customers/${customer.id}` }).catch(() => null))
+          } else if (pct >= 80) {
+            notifyRoles(db, ['ADMIN'], { type: 'OVERDUE_DEBT', title: 'Borxh 80% e Limitit', message: debtMsg, link: `/admin/customers/${customer.id}` }).catch(() => null)
+          } else if (pct >= 50) {
+            notifyRoles(db, ['ADMIN'], { type: 'OVERDUE_DEBT', title: 'Borxh 50% e Limitit', message: debtMsg, link: `/admin/customers/${customer.id}` }).catch(() => null)
+          }
+        } catch { /* non-fatal */ }
+      }
     }
 
     return NextResponse.json(order, { status: 201 })

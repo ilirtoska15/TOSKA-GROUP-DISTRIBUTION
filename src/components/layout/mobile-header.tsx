@@ -1,12 +1,19 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { signOut } from 'next-auth/react'
-import { Menu, X, LogOut } from 'lucide-react'
+import { Menu, X, LogOut, Bell } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { NAV_ITEMS } from './sidebar'
+
+const NOTIF_HREF: Record<string, string> = {
+  ADMIN: '/admin/notifications',
+  AGJENT: '/agjent/notifications',
+  SHOFER: '/shofer/notifications',
+  DEPOIST: '/depoist/notifications',
+}
 
 interface MobileHeaderProps {
   userRole: string
@@ -15,8 +22,21 @@ interface MobileHeaderProps {
 
 export function MobileHeader({ userRole, userName }: MobileHeaderProps) {
   const [open, setOpen] = useState(false)
+  const [unreadCount, setUnreadCount] = useState(0)
   const pathname = usePathname()
   const items = NAV_ITEMS.filter(item => item.roles.includes(userRole))
+
+  useEffect(() => {
+    const fetchCount = () => {
+      fetch('/api/notifications')
+        .then(r => r.json())
+        .then(d => setUnreadCount(d.unreadCount ?? 0))
+        .catch(() => null)
+    }
+    fetchCount()
+    const id = setInterval(fetchCount, 60_000)
+    return () => clearInterval(id)
+  }, [])
 
   const close = () => setOpen(false)
 
@@ -37,6 +57,18 @@ export function MobileHeader({ userRole, userName }: MobileHeaderProps) {
           </div>
           <span className="font-bold text-gray-900 text-sm tracking-tight">TOSKA DISTRIBUTION</span>
         </div>
+        <div className="flex-1" />
+        <Link
+          href={NOTIF_HREF[userRole] ?? '/admin/notifications'}
+          className="relative flex items-center justify-center w-10 h-10 rounded-xl hover:bg-gray-100 transition-colors"
+        >
+          <Bell className="h-5 w-5 text-gray-600" />
+          {unreadCount > 0 && (
+            <span className="absolute top-1.5 right-1.5 min-w-[16px] h-4 px-0.5 rounded-full bg-red-500 text-white text-[9px] font-bold flex items-center justify-center">
+              {unreadCount > 99 ? '99+' : unreadCount}
+            </span>
+          )}
+        </Link>
       </header>
 
       {/* Backdrop */}

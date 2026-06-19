@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { signOut } from 'next-auth/react'
@@ -10,7 +10,7 @@ import {
   DollarSign, RotateCcw, AlertTriangle, BarChart3, Settings,
   MapPin, Warehouse, Target, LogOut,
   ChevronLeft, ChevronRight, Building2, Car, Receipt,
-  Shield, ClipboardList, TrendingUp, Boxes
+  Shield, ClipboardList, TrendingUp, Boxes, Bell
 } from 'lucide-react'
 
 interface NavItem {
@@ -70,11 +70,31 @@ interface SidebarProps {
   userEmail: string
 }
 
+const NOTIF_HREF: Record<string, string> = {
+  ADMIN: '/admin/notifications',
+  AGJENT: '/agjent/notifications',
+  SHOFER: '/shofer/notifications',
+  DEPOIST: '/depoist/notifications',
+}
+
 export function Sidebar({ userRole, userName }: SidebarProps) {
   const [collapsed, setCollapsed] = useState(false)
+  const [unreadCount, setUnreadCount] = useState(0)
   const pathname = usePathname()
 
   const items = NAV_ITEMS.filter((item) => item.roles.includes(userRole))
+
+  useEffect(() => {
+    const fetchCount = () => {
+      fetch('/api/notifications')
+        .then(r => r.json())
+        .then(d => setUnreadCount(d.unreadCount ?? 0))
+        .catch(() => null)
+    }
+    fetchCount()
+    const id = setInterval(fetchCount, 60_000)
+    return () => clearInterval(id)
+  }, [])
 
   return (
     <aside
@@ -149,6 +169,24 @@ export function Sidebar({ userRole, userName }: SidebarProps) {
             </div>
           </div>
         )}
+        <Link
+          href={NOTIF_HREF[userRole] ?? '/admin/notifications'}
+          className={cn(
+            'flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-gray-600 hover:bg-gray-100 hover:text-gray-900 transition-colors w-full relative',
+            collapsed && 'justify-center px-2'
+          )}
+          title={collapsed ? 'Njoftimet' : undefined}
+        >
+          <span className="relative shrink-0">
+            <Bell className={cn(collapsed ? 'h-5 w-5' : 'h-4 w-4')} />
+            {unreadCount > 0 && (
+              <span className="absolute -top-1.5 -right-1.5 min-w-[16px] h-4 px-0.5 rounded-full bg-red-500 text-white text-[9px] font-bold flex items-center justify-center">
+                {unreadCount > 99 ? '99+' : unreadCount}
+              </span>
+            )}
+          </span>
+          {!collapsed && <span>Njoftimet{unreadCount > 0 ? ` (${unreadCount})` : ''}</span>}
+        </Link>
         <button
           onClick={() => signOut({ callbackUrl: '/login' })}
           className={cn(

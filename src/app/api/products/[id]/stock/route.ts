@@ -3,6 +3,7 @@ import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { getStockLevel } from '@/lib/stock'
 import { createAuditLog } from '@/lib/audit'
+import { notifyRoles } from '@/lib/notifications'
 import { z } from 'zod'
 
 export const dynamic = 'force-dynamic'
@@ -87,6 +88,16 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
         reference,
       },
     })
+
+    // Low stock alert when new level drops below 20 copje
+    if (newStock < 20 && newStock < currentStock) {
+      notifyRoles(db, ['ADMIN', 'DEPOIST'], {
+        type: 'LOW_STOCK',
+        title: 'Stok i Ulët',
+        message: `${product.name} (${product.code}): stoku ra në ${newStock} copë`,
+        link: `/admin/products/${params.id}`,
+      }).catch(() => null)
+    }
 
     return NextResponse.json({
       success: true,

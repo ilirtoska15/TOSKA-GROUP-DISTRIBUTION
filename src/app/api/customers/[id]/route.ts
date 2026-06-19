@@ -58,7 +58,7 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
 
     if (!customer) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
-    const [deliveredAmount, paidAmount] = await Promise.all([
+    const [deliveredAmount, paidAmount, topProductsRaw] = await Promise.all([
       db.order.aggregate({
         where: { customerId: params.id, status: 'DORËZUAR' },
         _sum: { totalAmount: true },
@@ -67,14 +67,34 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
         where: { customerId: params.id },
         _sum: { amount: true },
       }),
+      db.orderLine.groupBy({
+        by: ['productId'],
+        where: { order: { customerId: params.id, status: { in: ['SUBMITTED', 'APROVUAR', 'DORËZUAR'] } } },
+        _sum: { quantityCopje: true, lineTotal: true },
+        orderBy: { _sum: { lineTotal: 'desc' } },
+        take: 10,
+      }),
     ])
+
+    const productIds = topProductsRaw.map(r => r.productId)
+    const productNames = productIds.length > 0
+      ? await db.product.findMany({ where: { id: { in: productIds } }, select: { id: true, name: true, code: true } })
+      : []
+    const nameMap = Object.fromEntries(productNames.map(p => [p.id, p]))
+    const topProducts = topProductsRaw.map(r => ({
+      productId: r.productId,
+      name: nameMap[r.productId]?.name ?? r.productId,
+      code: nameMap[r.productId]?.code ?? '',
+      totalQty: r._sum.quantityCopje ?? 0,
+      totalValue: r._sum.lineTotal ?? 0,
+    }))
 
     const currentDebt = Math.max(
       0,
       (deliveredAmount._sum.totalAmount ?? 0) - (paidAmount._sum.amount ?? 0),
     )
 
-    return NextResponse.json({ ...customer, currentDebt })
+    return NextResponse.json({ ...customer, currentDebt, topProducts })
   } catch (err) {
     console.error(`[GET /api/customers/${params.id}] error:`, err)
     return NextResponse.json(

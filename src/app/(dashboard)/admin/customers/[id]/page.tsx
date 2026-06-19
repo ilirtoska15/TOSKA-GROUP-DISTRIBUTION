@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useParams } from 'next/navigation'
-import { ArrowLeft, MapPin, Phone, Building2, User, Edit, AlertTriangle, CheckCircle, Ban } from 'lucide-react'
+import { ArrowLeft, MapPin, Phone, Building2, User, Edit, AlertTriangle, CheckCircle, Ban, Package, Layers, RotateCcw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Separator } from '@/components/ui/separator'
@@ -33,12 +33,20 @@ interface Customer {
   lat?: number
   lng?: number
   currentDebt: number
+  isBusinessGroup?: boolean
+  parentCustomerId?: string
+  unitName?: string
+  unitType?: string
   agent?: { name: string } | null
   region?: { name: string } | null
   zone?: { name: string } | null
+  parentCustomer?: { id: string; code: string; businessName: string } | null
+  units?: Array<{ id: string; code: string; businessName: string; unitName?: string; unitType?: string; status: string }>
   orders: Array<{ id: string; reference: string; status: string; totalAmount: number; createdAt: string }>
   visits: Array<{ id: string; reference: string; status: string; openedAt: string; agent: { name: string } }>
   payments: Array<{ id: string; reference: string; amount: number; method: string; createdAt: string }>
+  returns: Array<{ id: string; reference: string; status: string; totalAmount: number; createdAt: string }>
+  topProducts: Array<{ productId: string; name: string; code: string; totalQty: number; totalValue: number }>
 }
 
 export default function CustomerDetailPage() {
@@ -214,6 +222,51 @@ export default function CustomerDetailPage() {
               <CardContent className="text-sm text-gray-600">{customer.notes}</CardContent>
             </Card>
           )}
+
+          {/* Business Structure */}
+          {(customer.isBusinessGroup || customer.parentCustomer) && (
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm flex items-center gap-2">
+                  <Layers className="h-4 w-4 text-blue-500" />
+                  Struktura e Biznesit
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2 text-sm">
+                {customer.isBusinessGroup && (
+                  <div className="px-2 py-1.5 bg-blue-50 rounded-lg text-blue-700 text-xs font-medium">Grup Biznesi</div>
+                )}
+                {customer.parentCustomer && (
+                  <div>
+                    <span className="text-gray-500 text-xs">Grupi Prind</span>
+                    <Link href={`/admin/customers/${customer.parentCustomer.id}`} className="block mt-0.5 text-primary hover:underline font-medium">
+                      {customer.parentCustomer.businessName}
+                    </Link>
+                  </div>
+                )}
+                {customer.unitName && (
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Emër Njësie</span>
+                    <span className="font-medium">{customer.unitName}</span>
+                  </div>
+                )}
+                {customer.units && customer.units.length > 0 && (
+                  <div className="mt-2 space-y-1.5">
+                    <p className="text-xs text-gray-500 font-medium">{customer.units.length} Njësi</p>
+                    {customer.units.map(u => (
+                      <Link key={u.id} href={`/admin/customers/${u.id}`} className="flex items-center justify-between p-2 rounded-lg border border-gray-100 hover:bg-gray-50">
+                        <div>
+                          <p className="text-xs font-medium">{u.businessName}</p>
+                          {u.unitName && <p className="text-[10px] text-gray-400">{u.unitName}</p>}
+                        </div>
+                        <span className={`badge text-[10px] ${getStatusColor(u.status)}`}>{getStatusLabel(u.status)}</span>
+                      </Link>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
         </div>
 
         {/* Right: History */}
@@ -305,6 +358,64 @@ export default function CustomerDetailPage() {
               )}
             </CardContent>
           </Card>
+
+          {/* Returns */}
+          {customer.returns && customer.returns.length > 0 && (
+            <Card>
+              <CardHeader className="pb-3">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <RotateCcw className="h-4 w-4 text-orange-500" />Kthimet
+                  </CardTitle>
+                  <Link href={`/admin/returns?customerId=${id}`} className="text-sm text-primary hover:underline">Shih të gjitha</Link>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                  {customer.returns.slice(0, 5).map((r) => (
+                    <div key={r.id} className="flex items-center justify-between p-3 rounded-lg border border-gray-100">
+                      <div>
+                        <p className="text-sm font-medium font-mono">{r.reference}</p>
+                        <p className="text-xs text-gray-500">{formatDate(r.createdAt)}</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-sm font-semibold text-orange-600">{formatCurrency(r.totalAmount)}</p>
+                        <span className={`badge text-[10px] ${getStatusColor(r.status)}`}>{getStatusLabel(r.status)}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Top Products */}
+          {customer.topProducts && customer.topProducts.length > 0 && (
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Package className="h-4 w-4 text-primary" />Produktet Më të Shitura
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                  {customer.topProducts.map((p, i) => (
+                    <div key={p.productId} className="flex items-center gap-3 p-2.5 rounded-lg border border-gray-100">
+                      <span className="text-xs font-bold text-gray-400 w-5 shrink-0">#{i + 1}</span>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium truncate">{p.name}</p>
+                        <p className="text-xs text-gray-400 font-mono">{p.code}</p>
+                      </div>
+                      <div className="text-right shrink-0">
+                        <p className="text-sm font-semibold">{formatCurrency(p.totalValue)}</p>
+                        <p className="text-xs text-gray-400">{p.totalQty} copë</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </div>
       </div>
     </div>
