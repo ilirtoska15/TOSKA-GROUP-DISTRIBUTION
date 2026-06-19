@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import {
-  ArrowLeft, ShoppingCart, Search, X, Plus, Minus, Check,
+  ArrowLeft, ShoppingCart, Search, X, Plus, Minus, Check, ZoomIn,
   AlertTriangle, Save, Send, Package,
   MapPin, Phone, Building2, CreditCard, Calendar, User, Store,
 } from 'lucide-react'
@@ -268,7 +268,16 @@ export default function NewOrderPage() {
   const [submitting, setSubmitting] = useState(false)
   const [loadingCustomers, setLoadingCustomers] = useState(true)
   const [loadingProducts, setLoadingProducts] = useState(true)
+  const [selectedImageProduct, setSelectedImageProduct] = useState<Product | null>(null)
   const draftRestored = useRef(false)
+
+  // Close image modal on ESC
+  useEffect(() => {
+    if (!selectedImageProduct) return
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setSelectedImageProduct(null) }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [selectedImageProduct])
 
   useEffect(() => {
     fetch('/api/customers?limit=500')
@@ -652,15 +661,23 @@ export default function NewOrderPage() {
                       <div className="flex gap-2.5 p-3">
 
                         {/* ─ Photo 110×110 ─ */}
-                        <div className="relative w-[110px] h-[110px] min-w-[110px] rounded-lg overflow-hidden bg-gray-100">
+                        <div
+                          className={`relative w-[110px] h-[110px] min-w-[110px] rounded-lg overflow-hidden bg-gray-100 ${product.photo ? 'cursor-pointer group' : ''}`}
+                          onClick={() => product.photo && setSelectedImageProduct(product)}
+                        >
                           {product.photo ? (
-                            <Image
-                              src={product.photo}
-                              alt={product.name}
-                              fill
-                              className="object-cover"
-                              sizes="110px"
-                            />
+                            <>
+                              <Image
+                                src={product.photo}
+                                alt={product.name}
+                                fill
+                                className="object-cover"
+                                sizes="110px"
+                              />
+                              <div className="absolute inset-0 bg-black/0 group-hover:bg-black/25 group-active:bg-black/35 transition-colors flex items-center justify-center pointer-events-none">
+                                <ZoomIn className="h-6 w-6 text-white opacity-0 group-hover:opacity-100 transition-opacity drop-shadow-lg" />
+                              </div>
+                            </>
                           ) : (
                             <div className="flex items-center justify-center h-full">
                               <Package className="h-8 w-8 text-gray-300" />
@@ -819,6 +836,53 @@ export default function NewOrderPage() {
               <Send className="h-4 w-4" />
               Dërgo
             </Button>
+          </div>
+        </div>
+      )}
+
+      {/* ─── Image Preview Modal ─── */}
+      {selectedImageProduct && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
+          onClick={() => setSelectedImageProduct(null)}
+        >
+          <div
+            className="relative flex flex-col items-center gap-3 max-w-[95vw]"
+            onClick={e => e.stopPropagation()}
+          >
+            {/* Close button */}
+            <button
+              className="absolute -top-3 -right-3 z-10 w-9 h-9 bg-white rounded-full shadow-lg flex items-center justify-center hover:bg-gray-100 active:bg-gray-200 transition-colors"
+              onClick={() => setSelectedImageProduct(null)}
+            >
+              <X className="h-4 w-4 text-gray-700" />
+            </button>
+
+            {/* Photo */}
+            <div className="relative rounded-xl overflow-hidden bg-gray-900"
+              style={{ width: 'min(95vw, 480px)', height: 'min(75vh, 480px)' }}
+            >
+              <Image
+                src={selectedImageProduct.photo}
+                alt={selectedImageProduct.name}
+                fill
+                className="object-contain"
+                sizes="min(95vw, 480px)"
+                priority
+              />
+            </div>
+
+            {/* Product info */}
+            <div className="text-center px-2 max-w-[min(95vw,480px)]">
+              <p className="text-white font-semibold text-sm leading-snug line-clamp-2">
+                {selectedImageProduct.name}
+              </p>
+              {(selectedImageProduct.category?.name || selectedImageProduct.brand?.name) && (
+                <p className="text-white/60 text-xs mt-0.5">
+                  {[selectedImageProduct.category?.name, selectedImageProduct.brand?.name].filter(Boolean).join(' · ')}
+                </p>
+              )}
+            </div>
           </div>
         </div>
       )}
