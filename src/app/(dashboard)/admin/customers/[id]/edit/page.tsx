@@ -1,12 +1,12 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { toast } from 'sonner'
-import { ArrowLeft, Save } from 'lucide-react'
+import { ArrowLeft, Save, Search, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -47,6 +47,7 @@ const schema = z.object({
 type FormData = z.infer<typeof schema>
 
 interface Agent { id: string; name: string }
+interface ParentCustomer { id: string; code: string; businessName: string; city?: string }
 
 export default function EditCustomerPage() {
   const { id } = useParams<{ id: string }>()
@@ -56,6 +57,20 @@ export default function EditCustomerPage() {
   const [saving, setSaving] = useState(false)
   const [code, setCode] = useState('')
   const [notFound, setNotFound] = useState(false)
+
+  // Business structure state
+  const [isBusinessGroup, setIsBusinessGroup] = useState(false)
+  const [parentCustomerId, setParentCustomerId] = useState<string | null>(null)
+  const [parentName, setParentName] = useState('')
+  const [unitName, setUnitName] = useState('')
+  const [unitType, setUnitType] = useState('')
+
+  // Parent picker state
+  const [parentSearch, setParentSearch] = useState('')
+  const [parentResults, setParentResults] = useState<ParentCustomer[]>([])
+  const [parentLoading, setParentLoading] = useState(false)
+  const [parentOpen, setParentOpen] = useState(false)
+  const parentRef = useRef<HTMLDivElement>(null)
 
   const {
     register, handleSubmit, setValue, watch, reset,
@@ -79,6 +94,11 @@ export default function EditCustomerPage() {
           return
         }
         setCode(cData.code ?? '')
+        setIsBusinessGroup(cData.isBusinessGroup ?? false)
+        setParentCustomerId(cData.parentCustomerId ?? null)
+        setParentName(cData.parentCustomer?.businessName ?? '')
+        setUnitName(cData.unitName ?? '')
+        setUnitType(cData.unitType ?? '')
         reset({
           businessName:   cData.businessName    ?? '',
           businessAddress: cData.businessAddress ?? '',
@@ -103,6 +123,39 @@ export default function EditCustomerPage() {
       .finally(() => setDataLoading(false))
   }, [id, reset])
 
+  // Debounced parent search
+  useEffect(() => {
+    if (!parentOpen) return
+    const t = setTimeout(async () => {
+      setParentLoading(true)
+      try {
+        const url = parentSearch.trim()
+          ? `/api/customers?search=${encodeURIComponent(parentSearch)}&type=GROUP&limit=20`
+          : `/api/customers?type=GROUP&limit=20`
+        const r = await fetch(url)
+        const d = r.ok ? await r.json() : { customers: [] }
+        setParentResults(d.customers ?? [])
+      } catch {
+        setParentResults([])
+      } finally {
+        setParentLoading(false)
+      }
+    }, 300)
+    return () => clearTimeout(t)
+  }, [parentSearch, parentOpen])
+
+  // Close parent picker on click outside
+  useEffect(() => {
+    if (!parentOpen) return
+    const onMousedown = (e: MouseEvent) => {
+      if (parentRef.current && !parentRef.current.contains(e.target as Node)) {
+        setParentOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', onMousedown)
+    return () => document.removeEventListener('mousedown', onMousedown)
+  }, [parentOpen])
+
   const onSubmit = async (data: FormData) => {
     setSaving(true)
     try {
@@ -116,6 +169,10 @@ export default function EditCustomerPage() {
         notes:         data.notes || null,
         lat:           data.lat ?? null,
         lng:           data.lng ?? null,
+        isBusinessGroup,
+        parentCustomerId: parentCustomerId || null,
+        unitName:      unitName || null,
+        unitType:      unitType || null,
       }
       const res = await fetch(`/api/customers/${id}`, {
         method: 'PATCH',
@@ -152,6 +209,8 @@ export default function EditCustomerPage() {
       </div>
     )
   }
+
+  const isUnit = !!parentCustomerId
 
   return (
     <div className="p-4 sm:p-6 max-w-3xl mx-auto space-y-4 pb-28 lg:pb-6">
@@ -206,6 +265,110 @@ export default function EditCustomerPage() {
                 <Input id="vatNumber" {...register('vatNumber')} className="mt-1 h-11 rounded-xl" />
               </div>
             </div>
+          </CardContent>
+        </Card>
+
+        {/* Business Structure */}
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base">Struktura e Biznesit</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {/* isBusinessGroup toggle */}
+            <label className="flex items-center justify-between gap-3 cursor-pointer">
+              <div>
+                <p className="text-sm font-medium text-gray-800">Grup Biznesesh</p>
+                <p className="text-xs text-gray-400">Aktivizo nëse ky klient ka disa njësi/pika</p>
+              </div>
+              <div
+                onClick={() => setIsBusinessGroup(v => !v)}
+                className={`relative w-11 h-6 rounded-full transition-colors ${isBusinessGroup ? 'bg-primary' : 'bg-gray-200'}`}
+              >
+                <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform ${isBusinessGroup ? 'translate-x-5' : 'translate-x-0.5'}`} />
+              </div>
+            </label>
+
+            {/* Parent picker */}
+            <div>
+              <Label>Grupi Kryesor (nëse është njësi e një grupi)</Label>
+              <div className="relative mt-1" ref={parentRef}>
+                {parentCustomerId ? (
+                  <div className="flex items-center justify-between h-11 px-3 rounded-xl border border-primary bg-primary/5">
+                    <span className="text-sm font-medium text-gray-900">{parentName}</span>
+                    <button type="button" onClick={() => { setParentCustomerId(null); setParentName('') }}>
+                      <X className="h-4 w-4 text-gray-400" />
+                    </button>
+                  </div>
+                ) : (
+                  <>
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
+                      <Input
+                        placeholder="Kërko grupin kryesor..."
+                        className="pl-9 h-11 rounded-xl"
+                        value={parentSearch}
+                        autoComplete="off"
+                        onChange={e => { setParentSearch(e.target.value); setParentOpen(true) }}
+                        onFocus={() => setParentOpen(true)}
+                      />
+                    </div>
+                    {parentOpen && (
+                      <div className="absolute z-30 left-0 right-0 top-full mt-1 bg-white border border-gray-200 rounded-xl shadow-xl max-h-52 overflow-y-auto">
+                        {parentLoading ? (
+                          <div className="p-3 text-center text-sm text-gray-400 animate-pulse">Duke kërkuar...</div>
+                        ) : parentResults.length === 0 ? (
+                          <div className="p-4 text-center text-sm text-gray-400">Nuk u gjet asnjë grup</div>
+                        ) : (
+                          parentResults.map(c => (
+                            <button
+                              key={c.id}
+                              type="button"
+                              className="w-full text-left px-4 py-3 hover:bg-gray-50 active:bg-gray-100 border-b last:border-0 border-gray-100"
+                              onClick={() => { setParentCustomerId(c.id); setParentName(c.businessName); setParentOpen(false); setParentSearch('') }}
+                            >
+                              <p className="font-semibold text-gray-900 text-sm">{c.businessName}</p>
+                              <p className="text-xs text-gray-400 font-mono">{c.code}{c.city ? ` · ${c.city}` : ''}</p>
+                            </button>
+                          ))
+                        )}
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+            </div>
+
+            {/* Unit name + type — visible when it's a unit */}
+            {isUnit && (
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label htmlFor="unitName">Emri i Njësisë</Label>
+                  <Input
+                    id="unitName"
+                    placeholder="p.sh. Dega Tiranë"
+                    value={unitName}
+                    onChange={e => setUnitName(e.target.value)}
+                    className="mt-1 h-11 rounded-xl"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="unitType">Lloji i Njësisë</Label>
+                  <select
+                    id="unitType"
+                    value={unitType}
+                    onChange={e => setUnitType(e.target.value)}
+                    className="mt-1 w-full h-11 px-3 rounded-xl border border-gray-200 text-sm bg-white"
+                  >
+                    <option value="">— Zgjidh —</option>
+                    <option value="DYQAN">Dyqan</option>
+                    <option value="MAGAZIN">Magazin</option>
+                    <option value="ZYRE">Zyrë</option>
+                    <option value="FILIAL">Filial</option>
+                    <option value="OTHER">Tjetër</option>
+                  </select>
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
 

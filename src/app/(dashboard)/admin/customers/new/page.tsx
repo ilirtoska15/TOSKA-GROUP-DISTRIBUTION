@@ -1,12 +1,12 @@
-﻿'use client'
+'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { toast } from 'sonner'
-import { ArrowLeft } from 'lucide-react'
+import { ArrowLeft, Search, X, Building2, Layers, Store } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -16,6 +16,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import Link from 'next/link'
 
 export const dynamic = 'force-dynamic'
+
+type CustomerType = 'CUSTOMER' | 'GROUP' | 'UNIT'
 
 const schema = z.object({
   businessName: z.string().min(1, 'Emri i biznesit kërkohet'),
@@ -34,10 +36,24 @@ const schema = z.object({
 
 type FormData = z.infer<typeof schema>
 
+interface ParentCustomer { id: string; code: string; businessName: string; city?: string }
+
 export default function NewCustomerPage() {
   const router = useRouter()
   const [agents, setAgents] = useState<{ id: string; name: string }[]>([])
   const [loading, setLoading] = useState(false)
+  const [customerType, setCustomerType] = useState<CustomerType>('CUSTOMER')
+
+  // Parent picker state (for UNIT type)
+  const [parentSearch, setParentSearch] = useState('')
+  const [parentResults, setParentResults] = useState<ParentCustomer[]>([])
+  const [parentLoading, setParentLoading] = useState(false)
+  const [parentOpen, setParentOpen] = useState(false)
+  const [parentId, setParentId] = useState('')
+  const [parentName, setParentName] = useState('')
+  const parentRef = useRef<HTMLDivElement>(null)
+  const [unitName, setUnitName] = useState('')
+  const [unitType, setUnitType] = useState('')
 
   const { register, handleSubmit, setValue, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(schema),
@@ -54,13 +70,66 @@ export default function NewCustomerPage() {
       .catch(() => {})
   }, [])
 
+  // Load initial parent options for unit type
+  useEffect(() => {
+    if (customerType !== 'UNIT') return
+    fetch('/api/customers?type=GROUP&limit=20')
+      .then(r => r.ok ? r.json() : { customers: [] })
+      .then(d => setParentResults(d.customers ?? []))
+      .catch(() => setParentResults([]))
+  }, [customerType])
+
+  // Debounced parent search
+  useEffect(() => {
+    if (customerType !== 'UNIT') return
+    const t = setTimeout(async () => {
+      setParentLoading(true)
+      try {
+        const url = parentSearch.trim()
+          ? `/api/customers?search=${encodeURIComponent(parentSearch)}&type=GROUP&limit=20`
+          : `/api/customers?type=GROUP&limit=20`
+        const r = await fetch(url)
+        const d = r.ok ? await r.json() : { customers: [] }
+        setParentResults(d.customers ?? [])
+      } catch {
+        setParentResults([])
+      } finally {
+        setParentLoading(false)
+      }
+    }, 300)
+    return () => clearTimeout(t)
+  }, [parentSearch, customerType])
+
+  // Close parent picker on click outside
+  useEffect(() => {
+    if (!parentOpen) return
+    const onMousedown = (e: MouseEvent) => {
+      if (parentRef.current && !parentRef.current.contains(e.target as Node)) {
+        setParentOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', onMousedown)
+    return () => document.removeEventListener('mousedown', onMousedown)
+  }, [parentOpen])
+
   const onSubmit = async (data: FormData) => {
+    if (customerType === 'UNIT' && !parentId) {
+      toast.error('Zgjidh grupin kryesor të biznesit')
+      return
+    }
     setLoading(true)
     try {
+      const payload = {
+        ...data,
+        isBusinessGroup: customerType === 'GROUP',
+        parentCustomerId: customerType === 'UNIT' ? parentId : null,
+        unitName: customerType === 'UNIT' ? (unitName || null) : null,
+        unitType: customerType === 'UNIT' ? (unitType || null) : null,
+      }
       const res = await fetch('/api/customers', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data),
+        body: JSON.stringify(payload),
       })
 
       if (!res.ok) {
@@ -77,6 +146,12 @@ export default function NewCustomerPage() {
     }
   }
 
+  const typeOptions: { value: CustomerType; label: string; desc: string; icon: React.ReactNode }[] = [
+    { value: 'CUSTOMER', label: 'Klient i Vetëm', desc: 'Dyqan ose biznes i pavarur', icon: <Store className="h-4 w-4" /> },
+    { value: 'GROUP', label: 'Grup Biznesesh', desc: 'Ka disa njësi/pika', icon: <Layers className="h-4 w-4" /> },
+    { value: 'UNIT', label: 'Njësi / Pikë', desc: 'Është pjesë e një grupi', icon: <Building2 className="h-4 w-4" /> },
+  ]
+
   return (
     <div className="p-4 sm:p-6 max-w-2xl mx-auto space-y-4">
       <div className="flex items-center gap-3">
@@ -87,6 +162,121 @@ export default function NewCustomerPage() {
         </Link>
         <h1 className="text-xl font-bold text-gray-900">Klient i Ri</h1>
       </div>
+
+      {/* Type selector */}
+      <Card>
+        <CardHeader><CardTitle>Lloji i Klientit</CardTitle></CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-3 gap-2">
+            {typeOptions.map(opt => (
+              <button
+                key={opt.value}
+                type="button"
+                onClick={() => { setCustomerType(opt.value); setParentId(''); setParentName('') }}
+                className={`flex flex-col items-start gap-1 p-3 rounded-xl border-2 text-left transition-colors ${
+                  customerType === opt.value
+                    ? 'border-primary bg-primary/5'
+                    : 'border-gray-200 hover:border-gray-300'
+                }`}
+              >
+                <div className={`${customerType === opt.value ? 'text-primary' : 'text-gray-500'}`}>
+                  {opt.icon}
+                </div>
+                <p className={`text-xs font-semibold ${customerType === opt.value ? 'text-primary' : 'text-gray-800'}`}>
+                  {opt.label}
+                </p>
+                <p className="text-[10px] text-gray-400 leading-tight">{opt.desc}</p>
+              </button>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Unit fields — only for UNIT type */}
+      {customerType === 'UNIT' && (
+        <Card>
+          <CardHeader><CardTitle>Lidhja me Grupin</CardTitle></CardHeader>
+          <CardContent className="space-y-4">
+            <div>
+              <Label>Grupi Kryesor *</Label>
+              <div className="relative mt-1" ref={parentRef}>
+                {parentId ? (
+                  <div className="flex items-center justify-between h-11 px-3 rounded-xl border border-primary bg-primary/5">
+                    <span className="text-sm font-medium text-gray-900">{parentName}</span>
+                    <button onClick={() => { setParentId(''); setParentName('') }}>
+                      <X className="h-4 w-4 text-gray-400" />
+                    </button>
+                  </div>
+                ) : (
+                  <>
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
+                      <Input
+                        placeholder="Kërko grupin e biznesit..."
+                        className="pl-9 h-11 rounded-xl"
+                        value={parentSearch}
+                        autoComplete="off"
+                        onChange={e => { setParentSearch(e.target.value); setParentOpen(true) }}
+                        onFocus={() => setParentOpen(true)}
+                      />
+                    </div>
+                    {parentOpen && (
+                      <div className="absolute z-30 left-0 right-0 top-full mt-1 bg-white border border-gray-200 rounded-xl shadow-xl max-h-60 overflow-y-auto">
+                        {parentLoading ? (
+                          <div className="p-3 text-center text-sm text-gray-400 animate-pulse">Duke kërkuar...</div>
+                        ) : parentResults.length === 0 ? (
+                          <div className="p-4 text-center text-sm text-gray-400">
+                            {parentSearch ? 'Nuk u gjet asnjë grup' : 'Ende nuk ka grupe — krijo një klient tip Grup së pari'}
+                          </div>
+                        ) : (
+                          parentResults.map(c => (
+                            <button
+                              key={c.id}
+                              className="w-full text-left px-4 py-3 hover:bg-gray-50 active:bg-gray-100 border-b last:border-0 border-gray-100"
+                              onClick={() => { setParentId(c.id); setParentName(c.businessName); setParentOpen(false); setParentSearch('') }}
+                            >
+                              <p className="font-semibold text-gray-900 text-sm">{c.businessName}</p>
+                              <p className="text-xs text-gray-400 font-mono">{c.code}{c.city ? ` · ${c.city}` : ''}</p>
+                            </button>
+                          ))
+                        )}
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label htmlFor="unitName">Emri i Njësisë</Label>
+                <Input
+                  id="unitName"
+                  placeholder="p.sh. Dega Tiranë"
+                  value={unitName}
+                  onChange={e => setUnitName(e.target.value)}
+                  className="mt-1"
+                />
+              </div>
+              <div>
+                <Label htmlFor="unitType">Lloji i Njësisë</Label>
+                <select
+                  id="unitType"
+                  value={unitType}
+                  onChange={e => setUnitType(e.target.value)}
+                  className="mt-1 w-full h-10 px-3 rounded-lg border border-gray-200 text-sm bg-white"
+                >
+                  <option value="">— Zgjidh —</option>
+                  <option value="DYQAN">Dyqan</option>
+                  <option value="MAGAZIN">Magazin</option>
+                  <option value="ZYRE">Zyrë</option>
+                  <option value="FILIAL">Filial</option>
+                  <option value="OTHER">Tjetër</option>
+                </select>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
         <Card>

@@ -128,12 +128,19 @@ model Customer {
   paymentTermDays Int     @default(30)
   status         String   @default("ACTIVE") // ACTIVE, INACTIVE, BLOCKED
   notes          String?
+  // Business group / unit hierarchy
+  parentCustomerId String?
+  isBusinessGroup  Boolean  @default(false)
+  unitName         String?
+  unitType         String?  // DYQAN, MAGAZIN, ZYRE, FILIAL, OTHER
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
   region  Region?  @relation(fields: [regionId], references: [id])
   zone    Zone?    @relation(fields: [zoneId], references: [id])
   agent   User?    @relation("AgentCustomers", fields: [agentId], references: [id])
+  parentCustomer   Customer?  @relation("BusinessUnits", fields: [parentCustomerId], references: [id])
+  units            Customer[] @relation("BusinessUnits")
 
   orders    Order[]
   visits    Visit[]

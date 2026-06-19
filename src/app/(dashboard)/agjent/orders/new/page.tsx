@@ -38,7 +38,10 @@ interface Customer {
   id: string
   code: string
   businessName: string
+  city?: string
   status: string
+  isBusinessGroup?: boolean
+  _count?: { units: number }
 }
 
 interface CustomerDetail {
@@ -54,6 +57,8 @@ interface CustomerDetail {
   debtLimit: number
   paymentTermDays: number
   currentDebt: number
+  isBusinessGroup?: boolean
+  units?: { id: string; businessName: string; unitName?: string | null }[]
   agent: { id: string; name: string } | null
   zone: { id: string; name: string } | null
   region: { id: string; name: string } | null
@@ -253,12 +258,16 @@ function CustomerCard({
 export default function NewOrderPage() {
   const router = useRouter()
 
-  const [customers, setCustomers] = useState<Customer[]>([])
   const [products, setProducts] = useState<Product[]>([])
   const [categories, setCategories] = useState<Category[]>([])
   const [customerId, setCustomerId] = useState('')
   const [customerDetail, setCustomerDetail] = useState<CustomerDetail | null>(null)
   const [loadingDetail, setLoadingDetail] = useState(false)
+  const [customerSearch, setCustomerSearch] = useState('')
+  const [customerResults, setCustomerResults] = useState<Customer[]>([])
+  const [customerLoading, setCustomerLoading] = useState(false)
+  const [pickerOpen, setPickerOpen] = useState(false)
+  const pickerRef = useRef<HTMLDivElement>(null)
   const [search, setSearch] = useState('')
   const [categoryId, setCategoryId] = useState('')
   const [cart, setCart] = useState<CartLine[]>([])
@@ -266,7 +275,6 @@ export default function NewOrderPage() {
   const [notes, setNotes] = useState('')
   const [showCart, setShowCart] = useState(false)
   const [submitting, setSubmitting] = useState(false)
-  const [loadingCustomers, setLoadingCustomers] = useState(true)
   const [loadingProducts, setLoadingProducts] = useState(true)
   const [selectedImageProduct, setSelectedImageProduct] = useState<Product | null>(null)
   const [inputDraft, setInputDraft] = useState<Record<string, string>>({})
@@ -280,13 +288,45 @@ export default function NewOrderPage() {
     return () => document.removeEventListener('keydown', onKey)
   }, [selectedImageProduct])
 
+  // Load initial customer results
   useEffect(() => {
-    fetch('/api/customers?limit=500')
-      .then(r => { if (!r.ok) throw new Error(`customers ${r.status}`); return r.json() })
-      .then(d => setCustomers(d.customers ?? []))
-      .catch(e => console.error('[orders/new] customers fetch:', e))
-      .finally(() => setLoadingCustomers(false))
+    fetch('/api/customers?limit=20')
+      .then(r => r.ok ? r.json() : { customers: [] })
+      .then(d => setCustomerResults(d.customers ?? []))
+      .catch(() => setCustomerResults([]))
   }, [])
+
+  // Debounced customer search
+  useEffect(() => {
+    const t = setTimeout(async () => {
+      setCustomerLoading(true)
+      try {
+        const url = customerSearch.trim()
+          ? `/api/customers?search=${encodeURIComponent(customerSearch)}&limit=20`
+          : `/api/customers?limit=20`
+        const r = await fetch(url)
+        const d = r.ok ? await r.json() : { customers: [] }
+        setCustomerResults(d.customers ?? [])
+      } catch {
+        setCustomerResults([])
+      } finally {
+        setCustomerLoading(false)
+      }
+    }, 300)
+    return () => clearTimeout(t)
+  }, [customerSearch])
+
+  // Close picker on click outside
+  useEffect(() => {
+    if (!pickerOpen) return
+    const onMousedown = (e: MouseEvent) => {
+      if (pickerRef.current && !pickerRef.current.contains(e.target as Node)) {
+        setPickerOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', onMousedown)
+    return () => document.removeEventListener('mousedown', onMousedown)
+  }, [pickerOpen])
 
   useEffect(() => {
     fetch('/api/products?status=ACTIVE&limit=500')
@@ -652,40 +692,89 @@ export default function NewOrderPage() {
 
         {/* ─ Customer selector OR card ─ */}
         {!customerId ? (
-          <div className="bg-white rounded-2xl border p-4 space-y-2">
-            <label className="text-sm font-semibold text-gray-700">Klienti *</label>
-            {loadingCustomers ? (
-              <div className="h-11 bg-gray-100 rounded-xl animate-pulse" />
-            ) : (
-              <select
-                className="w-full h-11 px-3 rounded-xl border border-gray-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary/30"
-                value={customerId}
-                onChange={e => setCustomerId(e.target.value)}
-              >
-                <option value="">— Zgjidh klientin —</option>
-                {customers.map(c => (
-                  <option key={c.id} value={c.id} disabled={c.status === 'BLOCKED'}>
-                    {c.businessName} ({c.code}){c.status === 'BLOCKED' ? ' — BLLOKUAR' : ''}
-                  </option>
-                ))}
-              </select>
-            )}
-          </div>
+          <>
+            <div className="bg-white rounded-2xl border p-4 space-y-2">
+              <label className="text-sm font-semibold text-gray-700">Klienti *</label>
+              <div className="relative" ref={pickerRef}>
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
+                  <Input
+                    placeholder="Kërko klientin, kodin, telefonin, adresën..."
+                    className="pl-9 h-11 rounded-xl"
+                    value={customerSearch}
+                    autoComplete="off"
+                    onChange={e => { setCustomerSearch(e.target.value); setPickerOpen(true) }}
+                    onFocus={() => setPickerOpen(true)}
+                  />
+                  {customerSearch && (
+                    <button
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                      onClick={() => { setCustomerSearch(''); setPickerOpen(false) }}
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  )}
+                </div>
+                {pickerOpen && (
+                  <div className="absolute z-30 left-0 right-0 top-full mt-1 bg-white border border-gray-200 rounded-xl shadow-xl max-h-72 overflow-y-auto">
+                    {customerLoading ? (
+                      <div className="p-4 text-center text-sm text-gray-400 animate-pulse">Duke kërkuar...</div>
+                    ) : customerResults.length === 0 ? (
+                      <div className="p-4 text-center text-sm text-gray-400">
+                        {customerSearch ? 'Nuk u gjet asnjë klient' : 'Shkruaj për të kërkuar...'}
+                      </div>
+                    ) : (
+                      customerResults.map(c => (
+                        <button
+                          key={c.id}
+                          className="w-full text-left px-4 py-3 hover:bg-gray-50 active:bg-gray-100 border-b last:border-0 border-gray-100 transition-colors"
+                          onClick={() => { setCustomerId(c.id); setPickerOpen(false); setCustomerSearch('') }}
+                        >
+                          <div className="flex items-center justify-between gap-2">
+                            <div className="min-w-0">
+                              <p className="font-semibold text-gray-900 text-sm truncate">{c.businessName}</p>
+                              <p className="text-xs text-gray-400 font-mono mt-0.5">
+                                {c.code}{c.city ? ` · ${c.city}` : ''}
+                                {c.isBusinessGroup ? ' · Grup' : ''}
+                              </p>
+                            </div>
+                            {c.status === 'BLOCKED' && (
+                              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-red-100 text-red-700 shrink-0">BLLOKUAR</span>
+                            )}
+                            {c.isBusinessGroup && c.status !== 'BLOCKED' && (
+                              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 shrink-0">GRUP</span>
+                            )}
+                          </div>
+                        </button>
+                      ))
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+            <div className="py-14 text-center bg-white rounded-2xl border">
+              <Store className="h-10 w-10 mx-auto mb-3 text-gray-200" />
+              <p className="text-sm font-medium text-gray-500">Zgjidh klientin për të vazhduar</p>
+              <p className="text-xs text-gray-400 mt-1">Produktet do të shfaqen pas zgjedhjes</p>
+            </div>
+          </>
         ) : (
-          <CustomerCard
-            customer={customerDetail}
-            loading={loadingDetail}
-            onClear={() => { setCustomerId(''); setCustomerDetail(null) }}
-          />
-        )}
-
-        {/* ─ Empty state when no customer ─ */}
-        {!customerId && !loadingCustomers && (
-          <div className="py-14 text-center bg-white rounded-2xl border">
-            <Store className="h-10 w-10 mx-auto mb-3 text-gray-200" />
-            <p className="text-sm font-medium text-gray-500">Zgjidh klientin për të vazhduar</p>
-            <p className="text-xs text-gray-400 mt-1">Produktet do të shfaqen pas zgjedhjes</p>
-          </div>
+          <>
+            <CustomerCard
+              customer={customerDetail}
+              loading={loadingDetail}
+              onClear={() => { setCustomerId(''); setCustomerDetail(null) }}
+            />
+            {customerDetail?.isBusinessGroup && (customerDetail.units?.length ?? 0) > 0 && (
+              <div className="flex items-start gap-2.5 bg-blue-50 border border-blue-200 rounded-xl px-3 py-2.5">
+                <AlertTriangle className="h-4 w-4 text-blue-500 shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-sm font-semibold text-blue-800">Grup Biznesesh me {customerDetail.units!.length} njësi</p>
+                  <p className="text-xs text-blue-600 mt-0.5">Sigurohuni që porosia shkon tek njësia e duhur, jo tek grupi kryesor.</p>
+                </div>
+              </div>
+            )}
+          </>
         )}
 
         {/* ─ Products section — only when customer selected ─ */}

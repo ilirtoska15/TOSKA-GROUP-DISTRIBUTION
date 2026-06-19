@@ -1,7 +1,7 @@
 ﻿'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { Plus, Search, Upload } from 'lucide-react'
+import { Plus, Search, Upload, Layers, Building2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -18,8 +18,11 @@ interface Customer {
   city: string
   phone: string
   status: string
+  isBusinessGroup: boolean
+  parentCustomerId?: string | null
+  unitName?: string | null
   agent?: { name: string } | null
-  _count: { orders: number; visits: number }
+  _count: { orders: number; visits: number; units: number }
   createdAt: string
 }
 
@@ -29,6 +32,7 @@ export default function CustomersPage() {
   const [page, setPage] = useState(1)
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
+  const [typeFilter, setTypeFilter] = useState('')
   const [loading, setLoading] = useState(true)
 
   const fetchCustomers = useCallback(async () => {
@@ -39,6 +43,7 @@ export default function CustomersPage() {
         limit: '20',
         search,
         status: statusFilter,
+        type: typeFilter,
       })
       const res = await fetch(`/api/customers?${params}`)
       if (!res.ok) {
@@ -57,7 +62,7 @@ export default function CustomersPage() {
     } finally {
       setLoading(false)
     }
-  }, [page, search, statusFilter])
+  }, [page, search, statusFilter, typeFilter])
 
   useEffect(() => { fetchCustomers() }, [fetchCustomers])
 
@@ -103,7 +108,7 @@ export default function CustomersPage() {
           />
         </div>
         <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v); setPage(1) }}>
-          <SelectTrigger className="w-full sm:w-44">
+          <SelectTrigger className="w-full sm:w-36">
             <SelectValue placeholder="Statusi" />
           </SelectTrigger>
           <SelectContent>
@@ -111,6 +116,17 @@ export default function CustomersPage() {
             <SelectItem value="ACTIVE">Aktiv</SelectItem>
             <SelectItem value="INACTIVE">Joaktiv</SelectItem>
             <SelectItem value="BLOCKED">Bllokuar</SelectItem>
+          </SelectContent>
+        </Select>
+        <Select value={typeFilter} onValueChange={(v) => { setTypeFilter(v); setPage(1) }}>
+          <SelectTrigger className="w-full sm:w-36">
+            <SelectValue placeholder="Lloji" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="">Të gjithë</SelectItem>
+            <SelectItem value="CUSTOMER">Klientë</SelectItem>
+            <SelectItem value="GROUP">Grupe</SelectItem>
+            <SelectItem value="UNIT">Njësi</SelectItem>
           </SelectContent>
         </Select>
       </div>
@@ -156,9 +172,21 @@ export default function CustomersPage() {
                       </Link>
                     </TableCell>
                     <TableCell>
-                      <Link href={`/admin/customers/${c.id}`} className="font-medium text-gray-900 hover:text-primary">
-                        {c.businessName}
-                      </Link>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <Link href={`/admin/customers/${c.id}`} className="font-medium text-gray-900 hover:text-primary">
+                          {c.businessName}
+                        </Link>
+                        {c.isBusinessGroup && (
+                          <span className="inline-flex items-center gap-0.5 text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-blue-100 text-blue-700">
+                            <Layers className="h-2.5 w-2.5" />GRUP
+                          </span>
+                        )}
+                        {c.parentCustomerId && (
+                          <span className="inline-flex items-center gap-0.5 text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-purple-100 text-purple-700">
+                            <Building2 className="h-2.5 w-2.5" />{c.unitName ?? 'NJËSI'}
+                          </span>
+                        )}
+                      </div>
                     </TableCell>
                     <TableCell className="hidden md:table-cell text-gray-500 text-sm">{c.city}</TableCell>
                     <TableCell className="hidden md:table-cell text-gray-500 text-sm">{c.phone}</TableCell>

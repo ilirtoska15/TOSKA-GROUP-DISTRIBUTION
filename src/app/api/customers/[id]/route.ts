@@ -25,6 +25,10 @@ const updateSchema = z.object({
   paymentTermDays: z.number().min(0).optional(),
   status: z.enum(['ACTIVE', 'INACTIVE', 'BLOCKED']).optional(),
   notes: z.string().optional().nullable(),
+  parentCustomerId: z.string().optional().nullable(),
+  isBusinessGroup: z.boolean().optional(),
+  unitName: z.string().optional().nullable(),
+  unitType: z.string().optional().nullable(),
 })
 
 export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
@@ -38,6 +42,8 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
         agent: { select: { id: true, name: true } },
         region: { select: { id: true, name: true } },
         zone: { select: { id: true, name: true } },
+        parentCustomer: { select: { id: true, code: true, businessName: true } },
+        units: { select: { id: true, code: true, businessName: true, unitName: true, unitType: true, status: true }, orderBy: { businessName: 'asc' } },
         orders: {
           orderBy: { createdAt: 'desc' },
           take: 10,

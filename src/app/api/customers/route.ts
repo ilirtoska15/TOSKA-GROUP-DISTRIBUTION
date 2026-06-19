@@ -25,6 +25,10 @@ const createSchema = z.object({
   debtLimit: z.number().min(0).default(0),
   paymentTermDays: z.number().min(0).default(30),
   notes: z.string().optional(),
+  parentCustomerId: z.string().optional().nullable(),
+  isBusinessGroup: z.boolean().default(false),
+  unitName: z.string().optional().nullable(),
+  unitType: z.string().optional().nullable(),
 })
 
 export async function GET(req: NextRequest) {
@@ -36,6 +40,8 @@ export async function GET(req: NextRequest) {
     const search = searchParams.get('search') ?? ''
     const status = searchParams.get('status') ?? ''
     const agentId = searchParams.get('agentId') ?? ''
+    const type = searchParams.get('type') ?? ''           // GROUP | UNIT | CUSTOMER
+    const parentCustomerId = searchParams.get('parentCustomerId') ?? ''
     const page = Math.max(1, parseInt(searchParams.get('page') || '1', 10) || 1)
     const limit = Math.min(200, Math.max(1, parseInt(searchParams.get('limit') || '20', 10) || 20))
     const skip = (page - 1) * limit
@@ -47,10 +53,15 @@ export async function GET(req: NextRequest) {
         { code: { contains: search, mode: 'insensitive' } },
         { phone: { contains: search, mode: 'insensitive' } },
         { city: { contains: search, mode: 'insensitive' } },
+        { businessAddress: { contains: search, mode: 'insensitive' } },
       ]
     }
     if (status) where.status = status
     if (agentId) where.agentId = agentId
+    if (parentCustomerId) where.parentCustomerId = parentCustomerId
+    if (type === 'GROUP') where.isBusinessGroup = true
+    else if (type === 'UNIT') where.parentCustomerId = { not: null }
+    else if (type === 'CUSTOMER') { where.isBusinessGroup = false; where.parentCustomerId = null }
 
     // Agents can only see their own customers
     if (session.user.role === 'AGJENT') {
@@ -64,7 +75,8 @@ export async function GET(req: NextRequest) {
           agent: { select: { id: true, name: true } },
           region: { select: { id: true, name: true } },
           zone: { select: { id: true, name: true } },
-          _count: { select: { orders: true, visits: true } },
+          parentCustomer: { select: { id: true, code: true, businessName: true } },
+          _count: { select: { orders: true, visits: true, units: true } },
         },
         orderBy: { businessName: 'asc' },
         skip,
