@@ -37,11 +37,11 @@ export async function GET(req: NextRequest) {
       orderBy: { name: 'asc' },
     })
 
-    return NextResponse.json(users.map((u) => ({ ...u, password: undefined })))
+    const safeUsers = users.map((u) => ({ ...u, password: undefined }))
+    return NextResponse.json({ users: safeUsers, total: safeUsers.length })
   } catch (err) {
-    const msg = err instanceof Error ? err.message : 'Internal server error'
-    console.error('[users] GET error:', err)
-    return NextResponse.json({ error: msg }, { status: 500 })
+    console.error('[GET /api/users] error:', err)
+    return NextResponse.json({ users: [], total: 0, error: 'Internal server error' }, { status: 500 })
   }
 }
 

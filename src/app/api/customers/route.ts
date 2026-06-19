@@ -76,7 +76,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ customers, total, page, limit })
   } catch (err) {
     console.error('[GET /api/customers] error:', err)
-    return NextResponse.json({ success: false, error: 'Internal server error' }, { status: 500 })
+    return NextResponse.json({ customers: [], total: 0, error: 'Internal server error' }, { status: 500 })
   }
 }
 

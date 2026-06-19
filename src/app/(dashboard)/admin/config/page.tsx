@@ -29,9 +29,11 @@ export default function ConfigPage() {
     fetch('/api/config')
       .then((r) => r.json())
       .then((data) => {
-        setConfig(data)
+        // API returns { config: {...}, items: [] }; handle both new and legacy flat shapes
+        setConfig(data.config ?? (typeof data === 'object' && !data.error ? data : {}))
         setLoading(false)
       })
+      .catch(() => setLoading(false))
   }, [])
 
   const save = async () => {

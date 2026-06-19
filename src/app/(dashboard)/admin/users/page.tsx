@@ -38,7 +38,8 @@ export default function UsersPage() {
   useEffect(() => {
     fetch('/api/users')
       .then((r) => r.json())
-      .then(setUsers)
+      .then((data) => setUsers(Array.isArray(data.users) ? data.users : Array.isArray(data) ? data : []))
+      .catch(() => setUsers([]))
       .finally(() => setLoading(false))
   }, [])
 

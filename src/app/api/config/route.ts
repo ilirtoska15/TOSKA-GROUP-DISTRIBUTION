@@ -16,11 +16,10 @@ export async function GET(_req: NextRequest) {
     const configs = await db.systemConfig.findMany()
     const configMap = Object.fromEntries(configs.map((c) => [c.key, c.value]))
 
-    return NextResponse.json(configMap)
+    return NextResponse.json({ config: configMap, items: configs })
   } catch (err) {
-    const msg = err instanceof Error ? err.message : 'Internal server error'
-    console.error('[config] GET error:', err)
-    return NextResponse.json({ error: msg }, { status: 500 })
+    console.error('[GET /api/config] error:', err)
+    return NextResponse.json({ config: {}, items: [], error: 'Internal server error' }, { status: 500 })
   }
 }
 

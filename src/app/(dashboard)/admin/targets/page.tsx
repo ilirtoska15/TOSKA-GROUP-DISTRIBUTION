@@ -42,15 +42,19 @@ export default function AdminTargetsPage() {
 
   const fetchData = useCallback(async () => {
     setLoading(true)
-    const [tRes, aRes] = await Promise.all([
-      fetch('/api/targets'),
-      fetch('/api/users?role=AGJENT'),
-    ])
-    const tData = await tRes.json()
-    const aData = await aRes.json()
-    setTargets(tData.targets ?? [])
-    setAgents(aData.users ?? [])
-    setLoading(false)
+    try {
+      const [tRes, aRes] = await Promise.all([
+        fetch('/api/targets'),
+        fetch('/api/users?role=AGJENT'),
+      ])
+      const [tData, aData] = await Promise.all([tRes.json(), aRes.json()])
+      setTargets(Array.isArray(tData.targets) ? tData.targets : [])
+      setAgents(Array.isArray(aData.users) ? aData.users : [])
+    } catch (e) {
+      console.error('[targets] fetchData error:', e)
+    } finally {
+      setLoading(false)
+    }
   }, [])
 
   useEffect(() => { fetchData() }, [fetchData])
