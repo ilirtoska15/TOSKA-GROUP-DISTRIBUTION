@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge'
 import {
   ShoppingCart, DollarSign, Users, Truck, AlertTriangle,
   TrendingUp, TrendingDown, RotateCcw, Clock, CheckCircle, MapPin, Trophy, Globe, AlertOctagon,
-  Activity
+  Activity, Target
 } from 'lucide-react'
 import { StatCard } from '@/components/ui/stat-card'
 import Link from 'next/link'
@@ -93,6 +93,42 @@ async function fetchTerritoryTop() {
       })
       .sort((a, b) => b.total - a.total)
       .slice(0, 5)
+  } catch { return [] }
+}
+
+async function fetchPenetrationTop() {
+  try {
+    const startOfMonth = new Date()
+    startOfMonth.setDate(1)
+    startOfMonth.setHours(0, 0, 0, 0)
+    const [totalActive, orderLines] = await Promise.all([
+      db.customer.count({ where: { status: 'ACTIVE' } }),
+      db.orderLine.findMany({
+        where: { order: { createdAt: { gte: startOfMonth }, status: { notIn: ['DRAFT', 'ANULUAR'] } } },
+        select: { productId: true, order: { select: { customerId: true } } },
+        take: 20000,
+      }),
+    ])
+    if (totalActive === 0 || orderLines.length === 0) return []
+    const productData: Record<string, Set<string>> = {}
+    for (const line of orderLines) {
+      if (!productData[line.productId]) productData[line.productId] = new Set()
+      productData[line.productId].add(line.order.customerId)
+    }
+    const topIds = Object.entries(productData)
+      .sort((a, b) => b[1].size - a[1].size)
+      .slice(0, 5)
+      .map(([id]) => id)
+    const products = await db.product.findMany({
+      where: { id: { in: topIds } },
+      select: { id: true, name: true },
+    })
+    const nameMap = Object.fromEntries(products.map(p => [p.id, p.name]))
+    return topIds.map(id => ({
+      name: nameMap[id] ?? id,
+      customers: productData[id].size,
+      penetrationPct: Math.round((productData[id].size / totalActive) * 100),
+    }))
   } catch { return [] }
 }
 
@@ -354,13 +390,14 @@ async function getAdminStats() {
 
 export default async function AdminDashboard() {
   const session = await auth()
-  const [stats, topProducts, decliningProducts, territoryTop, recoveryOpps, activityFeed] = await Promise.all([
+  const [stats, topProducts, decliningProducts, territoryTop, recoveryOpps, activityFeed, penetrationTop] = await Promise.all([
     getAdminStats(),
     fetchProductLeaderboard(),
     fetchDecliningProducts(),
     fetchTerritoryTop(),
     fetchRecoveryOpportunities(),
     fetchActivityFeed(),
+    fetchPenetrationTop(),
   ])
 
   return (
@@ -565,6 +602,42 @@ export default async function AdminDashboard() {
             </Card>
           )}
         </div>
+      )}
+
+      {/* Product Penetration */}
+      {penetrationTop.length > 0 && (
+        <Card className="rounded-2xl shadow-sm">
+          <CardHeader className="pb-3 px-5 pt-5">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-base font-semibold flex items-center gap-2">
+                <Target className="h-4 w-4 text-purple-500" />Penetrimi i Produkteve (Ky Muaj)
+              </CardTitle>
+              <Link href="/admin/reports?type=product_penetration" className="text-xs font-semibold text-primary hover:text-primary/80">
+                Raporti i plotë →
+              </Link>
+            </div>
+          </CardHeader>
+          <CardContent className="px-5 pb-5 space-y-3">
+            {penetrationTop.map((p, i) => (
+              <div key={p.name} className="space-y-1">
+                <div className="flex items-center gap-3">
+                  <span className="w-6 text-center text-xs font-bold text-gray-400 shrink-0">#{i + 1}</span>
+                  <p className="text-sm font-medium flex-1 min-w-0 truncate">{p.name}</p>
+                  <div className="text-right shrink-0">
+                    <span className="text-sm font-bold text-purple-700">{p.penetrationPct}%</span>
+                    <span className="text-xs text-gray-400 ml-1">({p.customers} klientë)</span>
+                  </div>
+                </div>
+                <div className="ml-9 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                  <div
+                    className={`h-full rounded-full ${p.penetrationPct >= 80 ? 'bg-green-500' : p.penetrationPct >= 50 ? 'bg-blue-500' : p.penetrationPct >= 20 ? 'bg-amber-400' : 'bg-red-400'}`}
+                    style={{ width: `${Math.min(p.penetrationPct, 100)}%` }}
+                  />
+                </div>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
       )}
 
       {/* Activity Feed */}

@@ -82,6 +82,10 @@ export default function ReportsPage() {
   const [period, setPeriod] = useState('7')
   const [data, setData] = useState<any>(null)
   const [loading, setLoading] = useState(false)
+  const [penCategory, setPenCategory] = useState('')
+  const [penBrand, setPenBrand] = useState('')
+  const [penMin, setPenMin] = useState('')
+  const [penMax, setPenMax] = useState('')
 
   const runReport = async () => {
     setLoading(true)
@@ -606,28 +610,167 @@ export default function ReportsPage() {
           {reportType === 'product_penetration' && data.penetration && (
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center gap-2"><Target className="h-5 w-5 text-purple-500" />Penetrimi i Produkteve — {data.totalActiveCustomers} klientë aktiv</CardTitle>
+                <CardTitle className="flex items-center gap-2">
+                  <Target className="h-5 w-5 text-purple-500" />
+                  Penetrimi i Produkteve — {data.totalActiveCustomers} klientë aktiv
+                </CardTitle>
               </CardHeader>
               <CardContent>
                 {data.penetration.length === 0 ? (
                   <p className="text-sm text-gray-500 text-center py-8">Nuk ka të dhëna</p>
-                ) : (
-                  <div className="space-y-2">
-                    {data.penetration.map((p: any, i: number) => (
-                      <div key={p.productId} className="flex items-center gap-3 p-2.5 rounded-lg border border-gray-100">
-                        <span className="w-6 text-center text-xs font-bold text-gray-400 shrink-0">#{i + 1}</span>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium truncate">{p.name}</p>
-                          <p className="text-xs text-gray-400">{p.code} · {p.category} · {p.brand}</p>
+                ) : (() => {
+                  const cats: string[] = Array.from(new Set<string>(data.penetration.map((p: any) => p.category).filter((c: string) => c !== '—')))
+                  const brands: string[] = Array.from(new Set<string>(data.penetration.map((p: any) => p.brand).filter((b: string) => b !== '—')))
+                  const filtered: any[] = data.penetration.filter((p: any) =>
+                    (!penCategory || p.category === penCategory) &&
+                    (!penBrand || p.brand === penBrand) &&
+                    (!penMin || p.penetrationPct >= Number(penMin)) &&
+                    (!penMax || p.penetrationPct <= Number(penMax))
+                  )
+                  const topPen = filtered[0]
+                  const bottomPen = filtered.length > 1 ? [...filtered].sort((a: any, b: any) => a.penetrationPct - b.penetrationPct)[0] : null
+                  const penBadge = (pct: number) => {
+                    if (pct >= 80) return { label: 'EXCELENT', cls: 'bg-green-100 text-green-700' }
+                    if (pct >= 50) return { label: 'MIRË', cls: 'bg-blue-100 text-blue-700' }
+                    if (pct >= 20) return { label: 'I ULËT', cls: 'bg-amber-100 text-amber-700' }
+                    return { label: 'SHUMË I ULËT', cls: 'bg-red-100 text-red-700' }
+                  }
+                  const barColor = (pct: number) => pct >= 80 ? 'bg-green-500' : pct >= 50 ? 'bg-blue-500' : pct >= 20 ? 'bg-amber-400' : 'bg-red-400'
+                  return (
+                    <div className="space-y-5">
+                      {/* Filters */}
+                      <div className="flex flex-wrap items-center gap-2">
+                        {cats.length > 1 && (
+                          <select
+                            className="text-xs border rounded-lg px-2 py-1.5 bg-white text-gray-700 focus:outline-none focus:ring-1 focus:ring-primary"
+                            value={penCategory} onChange={e => setPenCategory(e.target.value)}
+                          >
+                            <option value="">Të gjitha kategorit</option>
+                            {cats.map(c => <option key={c} value={c}>{c}</option>)}
+                          </select>
+                        )}
+                        {brands.length > 1 && (
+                          <select
+                            className="text-xs border rounded-lg px-2 py-1.5 bg-white text-gray-700 focus:outline-none focus:ring-1 focus:ring-primary"
+                            value={penBrand} onChange={e => setPenBrand(e.target.value)}
+                          >
+                            <option value="">Të gjitha brendet</option>
+                            {brands.map(b => <option key={b} value={b}>{b}</option>)}
+                          </select>
+                        )}
+                        <div className="flex items-center gap-1 text-xs text-gray-500">
+                          <span>Pen.</span>
+                          <input type="number" min="0" max="100" placeholder="Min %" value={penMin} onChange={e => setPenMin(e.target.value)}
+                            className="w-16 border rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-primary" />
+                          <span>–</span>
+                          <input type="number" min="0" max="100" placeholder="Max %" value={penMax} onChange={e => setPenMax(e.target.value)}
+                            className="w-16 border rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-primary" />
                         </div>
-                        <div className="text-right shrink-0">
-                          <p className="text-sm font-bold text-purple-600">{p.penetrationPct}%</p>
-                          <p className="text-xs text-gray-400">{p.uniqueCustomers} klientë · {formatCurrency(p.totalValue)}</p>
+                        {(penCategory || penBrand || penMin || penMax) && (
+                          <button onClick={() => { setPenCategory(''); setPenBrand(''); setPenMin(''); setPenMax('') }}
+                            className="text-xs text-red-500 hover:text-red-700 px-2 py-1.5">Pastro</button>
+                        )}
+                      </div>
+
+                      {/* Summary KPIs */}
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                        <div className="bg-purple-50 rounded-xl p-3">
+                          <p className="text-xs text-purple-600 font-medium">Klientë Aktiv</p>
+                          <p className="text-base font-bold text-purple-900 mt-1">{data.totalActiveCustomers}</p>
+                        </div>
+                        <div className="bg-indigo-50 rounded-xl p-3">
+                          <p className="text-xs text-indigo-600 font-medium">Produkte të Shitura</p>
+                          <p className="text-base font-bold text-indigo-900 mt-1">{filtered.length}</p>
+                        </div>
+                        <div className="bg-green-50 rounded-xl p-3">
+                          <p className="text-xs text-green-600 font-medium">Pen. Më e Lartë</p>
+                          <p className="text-sm font-bold text-green-900 mt-1 truncate">{topPen ? `${topPen.name} (${topPen.penetrationPct}%)` : '—'}</p>
+                        </div>
+                        <div className="bg-red-50 rounded-xl p-3">
+                          <p className="text-xs text-red-600 font-medium">Pen. Më e Ulët</p>
+                          <p className="text-sm font-bold text-red-900 mt-1 truncate">{bottomPen ? `${bottomPen.name} (${bottomPen.penetrationPct}%)` : '—'}</p>
                         </div>
                       </div>
-                    ))}
-                  </div>
-                )}
+
+                      {filtered.length === 0 ? (
+                        <p className="text-sm text-gray-500 text-center py-6">Nuk ka produkte për filtrat e zgjedhur</p>
+                      ) : (
+                        <>
+                          {/* Mobile cards */}
+                          <div className="md:hidden space-y-2">
+                            {filtered.map((p: any, i: number) => {
+                              const b = penBadge(p.penetrationPct)
+                              return (
+                                <div key={p.productId} className="border rounded-xl p-3">
+                                  <div className="flex items-start justify-between gap-2 mb-2">
+                                    <div className="min-w-0">
+                                      <div className="flex items-center gap-1.5">
+                                        <span className="text-xs font-bold text-gray-400 shrink-0">#{i + 1}</span>
+                                        <p className="text-sm font-semibold truncate">{p.name}</p>
+                                      </div>
+                                      <p className="text-xs text-gray-400 mt-0.5">{p.category} · {p.brand}</p>
+                                    </div>
+                                    <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full shrink-0 ${b.cls}`}>{b.label}</span>
+                                  </div>
+                                  <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden mb-2">
+                                    <div className={`h-full rounded-full ${barColor(p.penetrationPct)}`} style={{ width: `${Math.min(p.penetrationPct, 100)}%` }} />
+                                  </div>
+                                  <div className="flex items-center justify-between text-xs">
+                                    <span className="font-semibold text-purple-700">{p.penetrationPct}% · {p.uniqueCustomers} klientë</span>
+                                    <span className="text-gray-500">{(p.quantitySold ?? 0).toLocaleString()} copë · {formatCurrency(p.totalValue)}</span>
+                                  </div>
+                                </div>
+                              )
+                            })}
+                          </div>
+
+                          {/* Desktop table */}
+                          <div className="hidden md:block overflow-x-auto">
+                            <table className="w-full text-sm">
+                              <thead className="bg-gray-50 border-b">
+                                <tr>
+                                  <th className="px-3 py-2 text-left font-medium text-gray-600">Produkti</th>
+                                  <th className="px-3 py-2 text-left font-medium text-gray-600">Kategoria</th>
+                                  <th className="px-3 py-2 text-left font-medium text-gray-600">Brendi</th>
+                                  <th className="px-3 py-2 text-right font-medium text-gray-600">Klientë</th>
+                                  <th className="px-3 py-2 text-right font-medium text-gray-600">Penetrimi</th>
+                                  <th className="px-3 py-2 text-right font-medium text-gray-600">Sasia</th>
+                                  <th className="px-3 py-2 text-right font-medium text-gray-600">Të Ardhura</th>
+                                  <th className="px-3 py-2 text-right font-medium text-gray-600">Porosi</th>
+                                </tr>
+                              </thead>
+                              <tbody className="divide-y">
+                                {filtered.map((p: any) => {
+                                  const b = penBadge(p.penetrationPct)
+                                  return (
+                                    <tr key={p.productId} className="hover:bg-gray-50">
+                                      <td className="px-3 py-2.5">
+                                        <p className="font-medium">{p.name}</p>
+                                        <p className="text-xs text-gray-400 font-mono">{p.code}</p>
+                                      </td>
+                                      <td className="px-3 py-2.5 text-sm text-gray-600">{p.category}</td>
+                                      <td className="px-3 py-2.5 text-sm text-gray-600">{p.brand}</td>
+                                      <td className="px-3 py-2.5 text-right">{p.uniqueCustomers}</td>
+                                      <td className="px-3 py-2.5 text-right">
+                                        <div className="flex items-center justify-end gap-2">
+                                          <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${b.cls}`}>{b.label}</span>
+                                          <span className="font-semibold text-purple-700">{p.penetrationPct}%</span>
+                                        </div>
+                                      </td>
+                                      <td className="px-3 py-2.5 text-right text-gray-600">{(p.quantitySold ?? 0).toLocaleString()}</td>
+                                      <td className="px-3 py-2.5 text-right font-semibold">{formatCurrency(p.totalValue)}</td>
+                                      <td className="px-3 py-2.5 text-right text-gray-600">{p.orderCount}</td>
+                                    </tr>
+                                  )
+                                })}
+                              </tbody>
+                            </table>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  )
+                })()}
               </CardContent>
             </Card>
           )}

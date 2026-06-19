@@ -342,18 +342,19 @@ export async function GET(req: NextRequest) {
       db.customer.count({ where: { status: 'ACTIVE' } }),
       db.orderLine.findMany({
         where: { order: { createdAt: { gte: from, lte: to }, status: { notIn: ['DRAFT', 'ANULUAR'] } } },
-        select: { productId: true, lineTotal: true, order: { select: { customerId: true } } },
+        select: { productId: true, lineTotal: true, quantityCopje: true, order: { select: { customerId: true } } },
         take: 50000,
       }),
     ])
 
     // Aggregate per product
-    const productData: Record<string, { customers: Set<string>; orderCount: number; totalValue: number }> = {}
+    const productData: Record<string, { customers: Set<string>; orderCount: number; totalValue: number; quantitySold: number }> = {}
     for (const line of orderLines) {
-      if (!productData[line.productId]) productData[line.productId] = { customers: new Set(), orderCount: 0, totalValue: 0 }
+      if (!productData[line.productId]) productData[line.productId] = { customers: new Set(), orderCount: 0, totalValue: 0, quantitySold: 0 }
       productData[line.productId].customers.add(line.order.customerId)
       productData[line.productId].orderCount++
       productData[line.productId].totalValue += line.lineTotal
+      productData[line.productId].quantitySold += line.quantityCopje
     }
 
     const productIds = Object.keys(productData)
@@ -375,10 +376,11 @@ export async function GET(req: NextRequest) {
         uniqueCustomers: productData[pid].customers.size,
         penetrationPct: totalActive > 0 ? Math.round((productData[pid].customers.size / totalActive) * 100) : 0,
         orderCount: productData[pid].orderCount,
+        quantitySold: productData[pid].quantitySold,
         totalValue: productData[pid].totalValue,
       }))
       .sort((a, b) => b.penetrationPct - a.penetrationPct)
-      .slice(0, 30)
+      .slice(0, 100)
 
     return NextResponse.json({ penetration, totalActiveCustomers: totalActive })
   }
