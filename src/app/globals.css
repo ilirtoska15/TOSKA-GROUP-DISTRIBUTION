@@ -137,6 +137,15 @@
   padding-top: env(safe-area-inset-top);
 }
 
+/* Hide scrollbar utility */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
 /* Sticky order bar sits above the mobile nav on small screens */
 .order-bar-bottom {
   bottom: calc(64px + env(safe-area-inset-bottom));

@@ -151,15 +151,17 @@ export default async function AdminDashboard() {
   const stats = await getAdminStats()
 
   return (
-    <div className="p-4 sm:p-6 space-y-6 animate-fade-in">
+    <div className="p-4 sm:p-6 space-y-5 animate-fade-in">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
-          <p className="text-sm text-gray-500 mt-0.5">Mirë se vini, {session?.user?.name}</p>
+          <p className="text-sm text-slate-500 mt-0.5">
+            Mirë se vini, <span className="font-semibold text-gray-700">{session?.user?.name}</span>
+          </p>
         </div>
-        <div className="text-right">
-          <p className="text-xs text-gray-500">
+        <div className="text-right shrink-0">
+          <p className="text-xs font-medium text-slate-500 capitalize">
             {new Date().toLocaleDateString('sq-AL', { weekday: 'long', day: 'numeric', month: 'long' })}
           </p>
         </div>
@@ -167,72 +169,73 @@ export default async function AdminDashboard() {
 
       {/* Alerts Banner */}
       {(stats.pendingApprovals > 0 || stats.outOfStock > 0 || stats.blockedCustomers > 0) && (
-        <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex flex-wrap gap-3">
+        <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 flex flex-wrap gap-3">
           {stats.pendingApprovals > 0 && (
-            <Link href="/admin/orders?status=PRET_APROVIM" className="flex items-center gap-2 text-amber-700 text-sm font-medium hover:underline">
-              <Clock className="h-4 w-4" />
+            <Link href="/admin/orders?status=PRET_APROVIM" className="flex items-center gap-1.5 text-amber-800 text-sm font-semibold bg-amber-100 px-3 py-1.5 rounded-xl hover:bg-amber-200 transition-colors">
+              <Clock className="h-3.5 w-3.5" />
               {stats.pendingApprovals} porosi pret aprovim
             </Link>
           )}
           {stats.outOfStock > 0 && (
-            <Link href="/admin/products?stock=out" className="flex items-center gap-2 text-red-700 text-sm font-medium hover:underline">
-              <AlertTriangle className="h-4 w-4" />
+            <Link href="/admin/products?stock=out" className="flex items-center gap-1.5 text-red-800 text-sm font-semibold bg-red-100 px-3 py-1.5 rounded-xl hover:bg-red-200 transition-colors">
+              <AlertTriangle className="h-3.5 w-3.5" />
               {stats.outOfStock} produkte pa stok
             </Link>
           )}
           {stats.blockedCustomers > 0 && (
-            <Link href="/admin/customers?status=BLOCKED" className="flex items-center gap-2 text-red-700 text-sm font-medium hover:underline">
-              <Users className="h-4 w-4" />
+            <Link href="/admin/customers?status=BLOCKED" className="flex items-center gap-1.5 text-red-800 text-sm font-semibold bg-red-100 px-3 py-1.5 rounded-xl hover:bg-red-200 transition-colors">
+              <Users className="h-3.5 w-3.5" />
               {stats.blockedCustomers} klientë bllokuar
             </Link>
           )}
         </div>
       )}
 
-      {/* KPI Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard title="Porosi Sot" value={formatNumber(stats.ordersToday)} icon={ShoppingCart} color="blue" href="/admin/orders" />
-        <StatCard title="Shitje Sot" value={formatCurrency(stats.salesToday)} icon={TrendingUp} color="green" href="/admin/reports" />
-        <StatCard title="Inkaso Sot" value={formatCurrency(stats.collectionsToday)} icon={DollarSign} color="emerald" href="/admin/payments" />
-        <StatCard title="Borxh Total" value={formatCurrency(stats.totalDebt)} icon={DollarSign} color="red" href="/admin/payments?type=debt" />
+      {/* KPI Row 1 */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <StatCard title="Porosi Sot"   value={formatNumber(stats.ordersToday)}      icon={ShoppingCart} color="blue"    href="/admin/orders" />
+        <StatCard title="Shitje Sot"   value={formatCurrency(stats.salesToday)}      icon={TrendingUp}   color="green"   href="/admin/reports" />
+        <StatCard title="Inkaso Sot"   value={formatCurrency(stats.collectionsToday)} icon={DollarSign}  color="emerald" href="/admin/payments" />
+        <StatCard title="Borxh Total"  value={formatCurrency(stats.totalDebt)}        icon={DollarSign}  color="red"     href="/admin/payments?type=debt" />
       </div>
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard title="Klientë Aktiv" value={formatNumber(stats.totalCustomers)} icon={Users} color="indigo" href="/admin/customers" />
-        <StatCard title="Vizita Sot" value={formatNumber(stats.visitedToday)} icon={MapPin} color="purple" href="/admin/visits" />
-        <StatCard title="Dërgesa Aktive" value={formatNumber(stats.activeDeliveries)} icon={Truck} color="orange" href="/admin/deliveries" />
-        <StatCard title="Kthime në Pritje" value={formatNumber(stats.pendingReturns)} icon={RotateCcw} color="yellow" href="/admin/returns" />
+      {/* KPI Row 2 */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <StatCard title="Klientë Aktiv"    value={formatNumber(stats.totalCustomers)}  icon={Users}      color="indigo"  href="/admin/customers" />
+        <StatCard title="Vizita Sot"       value={formatNumber(stats.visitedToday)}    icon={MapPin}     color="purple"  href="/admin/visits" />
+        <StatCard title="Dërgesa Aktive"   value={formatNumber(stats.activeDeliveries)} icon={Truck}     color="orange"  href="/admin/deliveries" />
+        <StatCard title="Kthime në Pritje" value={formatNumber(stats.pendingReturns)}  icon={RotateCcw}  color="yellow"  href="/admin/returns" />
       </div>
 
-      {/* Quick Action + Recent */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      {/* Bottom grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* Recent Orders */}
-        <Card>
-          <CardHeader className="pb-3">
+        <Card className="rounded-2xl shadow-sm">
+          <CardHeader className="pb-3 px-5 pt-5">
             <div className="flex items-center justify-between">
-              <CardTitle className="text-base">Porositë e Fundit</CardTitle>
-              <Link href="/admin/orders" className="text-sm text-primary hover:underline">
-                Shih të gjitha
+              <CardTitle className="text-base font-semibold">Porositë e Fundit</CardTitle>
+              <Link href="/admin/orders" className="text-xs font-semibold text-primary hover:text-primary/80 transition-colors">
+                Shih të gjitha →
               </Link>
             </div>
           </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
+          <CardContent className="px-5 pb-5">
+            <div className="space-y-2">
               {stats.recentOrders.length === 0 ? (
-                <p className="text-sm text-gray-500 text-center py-4">Nuk ka porosi</p>
+                <p className="text-sm text-slate-500 text-center py-6">Nuk ka porosi</p>
               ) : (
                 stats.recentOrders.map((order) => (
                   <Link
                     key={order.id}
                     href={`/admin/orders/${order.id}`}
-                    className="flex items-center justify-between p-3 rounded-lg hover:bg-gray-50 border border-gray-100 transition-colors"
+                    className="flex items-center justify-between p-3 rounded-xl hover:bg-gray-50 border border-gray-100 transition-all duration-150 hover:border-gray-200 hover:shadow-sm"
                   >
-                    <div>
-                      <p className="text-sm font-medium text-gray-900">{order.reference}</p>
-                      <p className="text-xs text-gray-500">{order.customer.businessName}</p>
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold text-gray-900">{order.reference}</p>
+                      <p className="text-xs text-slate-500 truncate">{order.customer.businessName}</p>
                     </div>
-                    <div className="text-right">
-                      <p className="text-sm font-semibold text-gray-900">{formatCurrency(order.totalAmount)}</p>
+                    <div className="text-right shrink-0 ml-3">
+                      <p className="text-sm font-bold text-gray-900">{formatCurrency(order.totalAmount)}</p>
                       <OrderStatusBadge status={order.status} />
                     </div>
                   </Link>
@@ -243,23 +246,23 @@ export default async function AdminDashboard() {
         </Card>
 
         {/* Health Check */}
-        <Card>
-          <CardHeader className="pb-3">
+        <Card className="rounded-2xl shadow-sm">
+          <CardHeader className="pb-3 px-5 pt-5">
             <div className="flex items-center justify-between">
-              <CardTitle className="text-base">Kontrolli i Shëndetit</CardTitle>
-              <Link href="/admin/health" className="text-sm text-primary hover:underline">
-                Shih detaje
+              <CardTitle className="text-base font-semibold">Kontrolli i Sistemit</CardTitle>
+              <Link href="/admin/health" className="text-xs font-semibold text-primary hover:text-primary/80 transition-colors">
+                Detaje →
               </Link>
             </div>
           </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              <HealthItem label="Porosi Pret Aprovim" value={stats.pendingApprovals} href="/admin/orders?status=PRET_APROVIM" severity={stats.pendingApprovals > 0 ? 'warning' : 'ok'} />
-              <HealthItem label="Produkte Pa Stok" value={stats.outOfStock} href="/admin/products?stock=out" severity={stats.outOfStock > 0 ? 'error' : 'ok'} />
-              <HealthItem label="Produkte Stok i Ulët" value={stats.lowStock} href="/admin/products?stock=low" severity={stats.lowStock > 0 ? 'warning' : 'ok'} />
-              <HealthItem label="Produkte Afër Skadimit" value={stats.nearExpiryCount} href="/admin/products?expiry=soon" severity={stats.nearExpiryCount > 0 ? 'warning' : 'ok'} />
-              <HealthItem label="Kthime në Pritje" value={stats.pendingReturns} href="/admin/returns" severity={stats.pendingReturns > 0 ? 'warning' : 'ok'} />
-              <HealthItem label="Dërgesa Dështuar Sot" value={stats.failedDeliveries} href="/admin/deliveries?status=FAILED" severity={stats.failedDeliveries > 0 ? 'error' : 'ok'} />
+          <CardContent className="px-5 pb-5">
+            <div className="divide-y divide-gray-50">
+              <HealthItem label="Porosi Pret Aprovim"    value={stats.pendingApprovals} href="/admin/orders?status=PRET_APROVIM"   severity={stats.pendingApprovals > 0 ? 'warning' : 'ok'} />
+              <HealthItem label="Produkte Pa Stok"       value={stats.outOfStock}       href="/admin/products?stock=out"           severity={stats.outOfStock > 0 ? 'error' : 'ok'} />
+              <HealthItem label="Stok i Ulët"            value={stats.lowStock}         href="/admin/products?stock=low"           severity={stats.lowStock > 0 ? 'warning' : 'ok'} />
+              <HealthItem label="Afër Skadimit"          value={stats.nearExpiryCount}  href="/admin/products?expiry=soon"         severity={stats.nearExpiryCount > 0 ? 'warning' : 'ok'} />
+              <HealthItem label="Kthime në Pritje"       value={stats.pendingReturns}   href="/admin/returns"                      severity={stats.pendingReturns > 0 ? 'warning' : 'ok'} />
+              <HealthItem label="Dërgesa Dështuar Sot"   value={stats.failedDeliveries} href="/admin/deliveries?status=FAILED"     severity={stats.failedDeliveries > 0 ? 'error' : 'ok'} />
             </div>
           </CardContent>
         </Card>
@@ -271,24 +274,25 @@ export default async function AdminDashboard() {
 function StatCard({ title, value, icon: Icon, color, href }: {
   title: string; value: string; icon: React.ElementType; color: string; href: string
 }) {
-  const colorMap: Record<string, string> = {
-    blue: 'bg-blue-50 text-blue-600', green: 'bg-green-50 text-green-600',
-    emerald: 'bg-emerald-50 text-emerald-600', red: 'bg-red-50 text-red-600',
-    indigo: 'bg-indigo-50 text-indigo-600', purple: 'bg-purple-50 text-purple-600',
-    orange: 'bg-orange-50 text-orange-600', yellow: 'bg-yellow-50 text-yellow-600',
+  const colorMap: Record<string, { grad: string; icon: string; border: string }> = {
+    blue:    { grad: 'from-blue-50 to-white',    icon: 'bg-blue-500',    border: 'border-blue-100' },
+    green:   { grad: 'from-green-50 to-white',   icon: 'bg-green-500',   border: 'border-green-100' },
+    emerald: { grad: 'from-emerald-50 to-white', icon: 'bg-emerald-500', border: 'border-emerald-100' },
+    red:     { grad: 'from-red-50 to-white',     icon: 'bg-red-500',     border: 'border-red-100' },
+    indigo:  { grad: 'from-indigo-50 to-white',  icon: 'bg-indigo-500',  border: 'border-indigo-100' },
+    purple:  { grad: 'from-purple-50 to-white',  icon: 'bg-purple-500',  border: 'border-purple-100' },
+    orange:  { grad: 'from-orange-50 to-white',  icon: 'bg-orange-500',  border: 'border-orange-100' },
+    yellow:  { grad: 'from-yellow-50 to-white',  icon: 'bg-yellow-500',  border: 'border-yellow-100' },
   }
+  const c = colorMap[color] ?? colorMap.blue
   return (
     <Link href={href}>
-      <div className="bg-white rounded-xl border border-gray-100 p-4 shadow-sm hover:shadow-md transition-shadow">
-        <div className="flex items-start justify-between">
-          <div>
-            <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">{title}</p>
-            <p className="text-xl font-bold text-gray-900 mt-1">{value}</p>
-          </div>
-          <div className={`p-2.5 rounded-xl ${colorMap[color] ?? 'bg-gray-50 text-gray-600'}`}>
-            <Icon className="h-5 w-5" />
-          </div>
+      <div className={`bg-gradient-to-br ${c.grad} rounded-2xl border ${c.border} p-4 shadow-sm hover:shadow-md hover:-translate-y-0.5 active:scale-[0.98] transition-all duration-200`}>
+        <div className={`w-10 h-10 ${c.icon} rounded-xl flex items-center justify-center shadow-sm mb-3`}>
+          <Icon className="h-5 w-5 text-white" />
         </div>
+        <p className="text-2xl font-bold text-gray-900 leading-none">{value}</p>
+        <p className="text-xs font-medium text-slate-500 mt-1.5 uppercase tracking-wide">{title}</p>
       </div>
     </Link>
   )
@@ -297,19 +301,18 @@ function StatCard({ title, value, icon: Icon, color, href }: {
 function HealthItem({ label, value, href, severity }: {
   label: string; value: number; href: string; severity: 'ok' | 'warning' | 'error'
 }) {
-  const colors = { ok: 'text-green-600', warning: 'text-yellow-600', error: 'text-red-600' }
+  const map = {
+    ok:      { badge: 'bg-green-100 text-green-700',   Icon: CheckCircle,   iconCls: 'text-green-500' },
+    warning: { badge: 'bg-yellow-100 text-yellow-700', Icon: Clock,         iconCls: 'text-yellow-500' },
+    error:   { badge: 'bg-red-100 text-red-700',       Icon: AlertTriangle, iconCls: 'text-red-500' },
+  }
+  const { badge, Icon, iconCls } = map[severity]
   return (
-    <Link href={href} className="flex items-center justify-between py-1.5 hover:bg-gray-50 rounded-lg px-2 -mx-2 transition-colors">
-      <span className="text-sm text-gray-700">{label}</span>
+    <Link href={href} className="flex items-center justify-between py-2.5 hover:bg-gray-50 rounded-xl px-2 -mx-2 transition-colors group">
+      <span className="text-sm text-gray-700 group-hover:text-gray-900 transition-colors">{label}</span>
       <div className="flex items-center gap-2">
-        <span className={`text-sm font-semibold ${colors[severity]}`}>{value}</span>
-        {severity === 'ok' ? (
-          <CheckCircle className="h-4 w-4 text-green-500" />
-        ) : severity === 'warning' ? (
-          <Clock className="h-4 w-4 text-yellow-500" />
-        ) : (
-          <AlertTriangle className="h-4 w-4 text-red-500" />
-        )}
+        <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${badge}`}>{value}</span>
+        <Icon className={`h-4 w-4 shrink-0 ${iconCls}`} />
       </div>
     </Link>
   )

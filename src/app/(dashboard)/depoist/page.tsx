@@ -66,95 +66,118 @@ export default async function DepositDashboard() {
   const stats = await getDepositStats()
 
   return (
-    <div className="p-4 space-y-4">
-      <div>
-        <h1 className="text-xl font-bold text-gray-900">Mirë se vini, {session.user.name}</h1>
-        <p className="text-sm text-gray-500">
-          {new Date().toLocaleDateString('sq-AL', { weekday: 'long', day: 'numeric', month: 'long' })}
-        </p>
+    <div className="p-4 space-y-4 animate-fade-in">
+      {/* Header */}
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-xl font-bold text-gray-900">
+            Mirë se vini, <span className="text-primary">{session.user.name}</span>
+          </h1>
+          <p className="text-sm text-slate-500 capitalize">
+            {new Date().toLocaleDateString('sq-AL', { weekday: 'long', day: 'numeric', month: 'long' })}
+          </p>
+        </div>
       </div>
 
       {/* Alerts */}
       {(stats.outOfStock > 0 || stats.nearExpiry > 0) && (
         <div className="space-y-2">
           {stats.outOfStock > 0 && (
-            <div className="bg-red-50 border border-red-200 rounded-xl p-3 flex items-center gap-2">
-              <AlertTriangle className="h-4 w-4 text-red-500 shrink-0" />
-              <p className="text-sm text-red-700 font-medium">{stats.outOfStock} produkte pa stok</p>
-              <Link href="/depoist/stock?filter=out" className="ml-auto text-xs text-red-600 underline">Shiko</Link>
-            </div>
+            <Link href="/depoist/stock?filter=out">
+              <div className="bg-red-50 border border-red-200 rounded-2xl p-3.5 flex items-center gap-3 hover:bg-red-100 transition-colors">
+                <div className="w-9 h-9 bg-red-500 rounded-xl flex items-center justify-center shrink-0">
+                  <AlertTriangle className="h-4 w-4 text-white" />
+                </div>
+                <p className="text-sm text-red-800 font-semibold flex-1">{stats.outOfStock} produkte pa stok</p>
+                <span className="text-xs text-red-600 font-semibold shrink-0">Shiko →</span>
+              </div>
+            </Link>
           )}
           {stats.nearExpiry > 0 && (
-            <div className="bg-orange-50 border border-orange-200 rounded-xl p-3 flex items-center gap-2">
-              <AlertTriangle className="h-4 w-4 text-orange-500 shrink-0" />
-              <p className="text-sm text-orange-700 font-medium">{stats.nearExpiry} produkte afër skadimit</p>
-              <Link href="/depoist/stock?filter=expiry" className="ml-auto text-xs text-orange-600 underline">Shiko</Link>
-            </div>
+            <Link href="/depoist/stock?filter=expiry">
+              <div className="bg-orange-50 border border-orange-200 rounded-2xl p-3.5 flex items-center gap-3 hover:bg-orange-100 transition-colors">
+                <div className="w-9 h-9 bg-orange-500 rounded-xl flex items-center justify-center shrink-0">
+                  <AlertTriangle className="h-4 w-4 text-white" />
+                </div>
+                <p className="text-sm text-orange-800 font-semibold flex-1">{stats.nearExpiry} produkte afër skadimit</p>
+                <span className="text-xs text-orange-600 font-semibold shrink-0">Shiko →</span>
+              </div>
+            </Link>
           )}
         </div>
       )}
 
       {/* Stats */}
       <div className="grid grid-cols-2 gap-3">
-        <StatCard title="Porosi për Prep." value={String(stats.ordersToPrep)} icon={ClipboardList} color="blue" href="/depoist/orders?status=APROVUAR" />
-        <StatCard title="Në Përgatitje" value={String(stats.ordersInPrep)} icon={Warehouse} color="purple" href="/depoist/orders?status=NE_PERGATITJE" />
-        <StatCard title="Gati për Ngarkim" value={String(stats.ordersReady)} icon={CheckCircle} color="green" href="/depoist/orders?status=GATI_PER_NGARKIM" />
-        <StatCard title="Kthime Pendues" value={String(stats.pendingReturns)} icon={RotateCcw} color="orange" href="/depoist/returns" />
+        <StatCard title="Për Përgatitje"   value={String(stats.ordersToPrep)}   icon={ClipboardList} color="blue"   href="/depoist/orders?status=APROVUAR" />
+        <StatCard title="Në Përgatitje"    value={String(stats.ordersInPrep)}   icon={Warehouse}     color="purple" href="/depoist/orders?status=NE_PERGATITJE" />
+        <StatCard title="Gati për Ngarkim" value={String(stats.ordersReady)}    icon={CheckCircle}   color="green"  href="/depoist/orders?status=GATI_PER_NGARKIM" />
+        <StatCard title="Kthime në Pritje" value={String(stats.pendingReturns)} icon={RotateCcw}     color="orange" href="/depoist/returns" />
       </div>
 
       {/* Stock summary */}
-      <Card>
-        <CardHeader className="pb-2"><CardTitle className="text-sm">Gjendja e Stokut</CardTitle></CardHeader>
-        <CardContent className="space-y-2">
-          <div className="flex items-center justify-between text-sm">
-            <span className="text-gray-600">Pa stok</span>
-            <span className={`font-semibold ${stats.outOfStock > 0 ? 'text-red-600' : 'text-green-600'}`}>{stats.outOfStock}</span>
-          </div>
-          <div className="flex items-center justify-between text-sm">
-            <span className="text-gray-600">Stok i ulët (&lt;20 copë)</span>
-            <span className={`font-semibold ${stats.lowStock > 0 ? 'text-yellow-600' : 'text-green-600'}`}>{stats.lowStock}</span>
-          </div>
-          <div className="flex items-center justify-between text-sm">
-            <span className="text-gray-600">Afër skadimit (30d)</span>
-            <span className={`font-semibold ${stats.nearExpiry > 0 ? 'text-orange-600' : 'text-green-600'}`}>{stats.nearExpiry}</span>
-          </div>
+      <Card className="rounded-2xl shadow-sm">
+        <CardHeader className="pb-2 px-5 pt-5">
+          <CardTitle className="text-sm font-semibold text-gray-700">Gjendja e Stokut</CardTitle>
+        </CardHeader>
+        <CardContent className="px-5 pb-5 space-y-1">
+          {[
+            { label: 'Pa stok',              value: stats.outOfStock, color: stats.outOfStock > 0 ? 'bg-red-100 text-red-700'    : 'bg-green-100 text-green-700' },
+            { label: 'Stok i ulët (<20 copë)', value: stats.lowStock,  color: stats.lowStock > 0  ? 'bg-yellow-100 text-yellow-700' : 'bg-green-100 text-green-700' },
+            { label: 'Afër skadimit (30d)',   value: stats.nearExpiry, color: stats.nearExpiry > 0 ? 'bg-orange-100 text-orange-700' : 'bg-green-100 text-green-700' },
+          ].map(({ label, value, color }) => (
+            <div key={label} className="flex items-center justify-between py-2">
+              <span className="text-sm text-gray-700">{label}</span>
+              <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${color}`}>{value}</span>
+            </div>
+          ))}
         </CardContent>
       </Card>
 
       {/* Quick Actions */}
-      <div className="grid grid-cols-2 gap-3">
-        <Link href="/depoist/inventory">
-          <div className="bg-primary rounded-xl p-4 text-white flex items-center gap-3 cursor-pointer hover:opacity-90">
-            <Warehouse className="h-5 w-5" />
-            <span className="text-sm font-semibold">Inventar i Shpejtë</span>
-          </div>
-        </Link>
-        <Link href="/depoist/orders">
-          <div className="bg-green-600 rounded-xl p-4 text-white flex items-center gap-3 cursor-pointer hover:opacity-90">
-            <ClipboardList className="h-5 w-5" />
-            <span className="text-sm font-semibold">Porosi Sot</span>
-          </div>
-        </Link>
+      <div>
+        <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2.5">Veprime të Shpejta</p>
+        <div className="grid grid-cols-2 gap-3">
+          <Link href="/depoist/inventory">
+            <div className="bg-primary hover:bg-primary/90 rounded-2xl p-4 text-white cursor-pointer active:scale-[0.97] transition-all shadow-sm">
+              <div className="w-9 h-9 bg-white/20 rounded-xl flex items-center justify-center mb-2.5">
+                <Warehouse className="h-5 w-5 text-white" />
+              </div>
+              <p className="text-sm font-bold">Inventar</p>
+              <p className="text-[11px] text-white/70 mt-0.5">Numërim i shpejtë</p>
+            </div>
+          </Link>
+          <Link href="/depoist/orders">
+            <div className="bg-green-600 hover:bg-green-700 rounded-2xl p-4 text-white cursor-pointer active:scale-[0.97] transition-all shadow-sm">
+              <div className="w-9 h-9 bg-white/20 rounded-xl flex items-center justify-center mb-2.5">
+                <ClipboardList className="h-5 w-5 text-white" />
+              </div>
+              <p className="text-sm font-bold">Porosi Sot</p>
+              <p className="text-[11px] text-white/70 mt-0.5">Shiko kërkesat</p>
+            </div>
+          </Link>
+        </div>
       </div>
     </div>
   )
 }
 
 function StatCard({ title, value, icon: Icon, color, href }: { title: string; value: string; icon: React.ElementType; color: string; href: string }) {
-  const colorMap: Record<string, string> = {
-    blue: 'bg-blue-50 text-blue-600',
-    green: 'bg-green-50 text-green-600',
-    purple: 'bg-purple-50 text-purple-600',
-    orange: 'bg-orange-50 text-orange-600',
+  const colorMap: Record<string, { grad: string; icon: string; border: string }> = {
+    blue:   { grad: 'from-blue-50 to-white',   icon: 'bg-blue-500',   border: 'border-blue-100' },
+    green:  { grad: 'from-green-50 to-white',  icon: 'bg-green-500',  border: 'border-green-100' },
+    purple: { grad: 'from-purple-50 to-white', icon: 'bg-purple-500', border: 'border-purple-100' },
+    orange: { grad: 'from-orange-50 to-white', icon: 'bg-orange-500', border: 'border-orange-100' },
   }
+  const c = colorMap[color] ?? colorMap.blue
   return (
     <Link href={href}>
-      <div className="bg-white rounded-xl border border-gray-100 p-4 shadow-sm hover:shadow-md transition-shadow">
-        <div className={`w-8 h-8 rounded-lg flex items-center justify-center mb-2 ${colorMap[color]}`}>
-          <Icon className="h-4 w-4" />
+      <div className={`bg-gradient-to-br ${c.grad} rounded-2xl border ${c.border} p-4 shadow-sm hover:shadow-md hover:-translate-y-0.5 active:scale-[0.98] transition-all duration-200`}>
+        <div className={`w-10 h-10 ${c.icon} rounded-xl flex items-center justify-center shadow-sm mb-3`}>
+          <Icon className="h-5 w-5 text-white" />
         </div>
-        <p className="text-xl font-bold text-gray-900">{value}</p>
-        <p className="text-xs text-gray-500 mt-0.5">{title}</p>
+        <p className="text-2xl font-bold text-gray-900 leading-none">{value}</p>
+        <p className="text-xs font-medium text-slate-500 mt-1.5 uppercase tracking-wide">{title}</p>
       </div>
     </Link>
   )

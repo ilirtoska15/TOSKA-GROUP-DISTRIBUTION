@@ -88,54 +88,68 @@ export default async function AgentDashboard() {
 
   const stats = await getAgentStats(session.user.id)
 
+  const realizationPct = Math.min(100, Math.round(stats.realization))
+  const realizationColor = realizationPct >= 80 ? 'bg-green-500' : realizationPct >= 50 ? 'bg-primary' : 'bg-orange-500'
+
   return (
     <div className="p-4 space-y-4 animate-fade-in">
       {/* Header */}
-      <div>
-        <h1 className="text-xl font-bold text-gray-900">Mirë se vini, {session.user.name}</h1>
-        <p className="text-sm text-gray-500">
-          {new Date().toLocaleDateString('sq-AL', { weekday: 'long', day: 'numeric', month: 'long' })}
-        </p>
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-xl font-bold text-gray-900">
+            Mirë se vini, <span className="text-primary">{session.user.name}</span>
+          </h1>
+          <p className="text-sm text-slate-500 capitalize">
+            {new Date().toLocaleDateString('sq-AL', { weekday: 'long', day: 'numeric', month: 'long' })}
+          </p>
+        </div>
       </div>
 
       {/* Open Visit Alert */}
       {stats.openVisit && (
-        <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
-          <p className="text-sm font-semibold text-blue-800">Vizitë e hapur:</p>
-          <p className="text-sm text-blue-700">{stats.openVisit.customer.businessName}</p>
-          <Link href="/agjent/visits">
-            <button className="mt-2 text-xs text-blue-600 underline">Menaxho vizitën</button>
-          </Link>
-        </div>
+        <Link href="/agjent/visits">
+          <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4 flex items-center gap-3 hover:bg-blue-100 transition-colors">
+            <div className="w-10 h-10 bg-blue-500 rounded-xl flex items-center justify-center shrink-0">
+              <MapPin className="h-5 w-5 text-white" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-semibold text-blue-600 uppercase tracking-wide">Vizitë e Hapur</p>
+              <p className="text-sm font-bold text-blue-900 truncate">{stats.openVisit.customer.businessName}</p>
+            </div>
+            <span className="text-xs text-blue-600 font-semibold shrink-0">Menaxho →</span>
+          </div>
+        </Link>
       )}
 
       {/* Today Stats */}
       <div className="grid grid-cols-2 gap-3">
-        <StatCard title="Vizita Sot" value={String(stats.visitsToday)} icon={MapPin} color="blue" href="/agjent/visits" />
-        <StatCard title="Porosi Sot" value={String(stats.ordersToday)} icon={ShoppingCart} color="green" href="/agjent/orders" />
-        <StatCard title="Shitje Sot" value={formatCurrency(stats.salesToday)} icon={TrendingUp} color="emerald" href="/agjent/orders" />
-        <StatCard title="Inkaso Sot" value={formatCurrency(stats.paymentsToday)} icon={DollarSign} color="yellow" href="/agjent/payments" />
+        <StatCard title="Vizita Sot"  value={String(stats.visitsToday)}          icon={MapPin}      color="blue"    href="/agjent/visits" />
+        <StatCard title="Porosi Sot"  value={String(stats.ordersToday)}           icon={ShoppingCart} color="green"  href="/agjent/orders" />
+        <StatCard title="Shitje Sot"  value={formatCurrency(stats.salesToday)}    icon={TrendingUp}  color="emerald" href="/agjent/orders" />
+        <StatCard title="Inkaso Sot"  value={formatCurrency(stats.paymentsToday)} icon={DollarSign}  color="yellow"  href="/agjent/payments" />
       </div>
 
       {/* Monthly Target */}
       {stats.targetValue > 0 && (
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm">Targeti Mujor</CardTitle>
+        <Card className="rounded-2xl shadow-sm">
+          <CardHeader className="pb-2 px-5 pt-5">
+            <CardTitle className="text-sm font-semibold text-gray-700">Targeti Mujor</CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="flex items-end justify-between mb-2">
-              <span className="text-2xl font-bold text-gray-900">{Math.round(stats.realization)}%</span>
+          <CardContent className="px-5 pb-5">
+            <div className="flex items-end justify-between mb-3">
+              <div>
+                <span className="text-3xl font-bold text-gray-900">{realizationPct}%</span>
+                <span className="text-sm text-slate-400 ml-1">realizuar</span>
+              </div>
               <div className="text-right">
-                <p className="text-xs text-gray-500">Realizuar</p>
-                <p className="text-sm font-semibold">{formatCurrency(stats.monthlySalesValue)}</p>
-                <p className="text-xs text-gray-400">/ {formatCurrency(stats.targetValue)}</p>
+                <p className="text-base font-bold text-gray-900">{formatCurrency(stats.monthlySalesValue)}</p>
+                <p className="text-xs text-slate-400">nga {formatCurrency(stats.targetValue)}</p>
               </div>
             </div>
-            <div className="w-full bg-gray-100 rounded-full h-2.5">
+            <div className="w-full bg-gray-100 rounded-full h-3 overflow-hidden">
               <div
-                className="bg-primary rounded-full h-2.5 transition-all"
-                style={{ width: `${Math.min(100, stats.realization)}%` }}
+                className={`${realizationColor} h-3 rounded-full transition-all duration-500`}
+                style={{ width: `${realizationPct}%` }}
               />
             </div>
           </CardContent>
@@ -143,67 +157,79 @@ export default async function AgentDashboard() {
       )}
 
       {/* Quick Actions */}
-      <div className="grid grid-cols-2 gap-3">
-        <Link href="/agjent/visits">
-          <QuickAction icon={MapPin} label="Fillo Vizitë" color="blue" />
-        </Link>
-        <Link href="/agjent/orders/new">
-          <QuickAction icon={Plus} label="Porosi e Re" color="green" />
-        </Link>
-        <Link href="/agjent/catalog">
-          <QuickAction icon={Package} label="Katalog" color="purple" />
-        </Link>
-        <Link href="/agjent/customers">
-          <QuickAction icon={Users} label="Klientët e Mi" color="indigo" />
-        </Link>
+      <div>
+        <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2.5">Veprime të Shpejta</p>
+        <div className="grid grid-cols-2 gap-3">
+          <Link href="/agjent/visits">
+            <QuickAction icon={MapPin}      label="Fillo Vizitë"  sublabel="Regjistro vizitë" color="blue" />
+          </Link>
+          <Link href="/agjent/orders/new">
+            <QuickAction icon={Plus}        label="Porosi e Re"   sublabel="Krijo porosi"     color="green" />
+          </Link>
+          <Link href="/agjent/catalog">
+            <QuickAction icon={Package}     label="Katalog"       sublabel="Shiko produktet"  color="purple" />
+          </Link>
+          <Link href="/agjent/customers">
+            <QuickAction icon={Users}       label="Klientët e Mi" sublabel="Lista e klientëve" color="indigo" />
+          </Link>
+        </div>
       </div>
 
       {/* Pending Orders Alert */}
       {stats.pendingOrders > 0 && (
-        <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4">
-          <p className="text-sm font-semibold text-yellow-800">
-            {stats.pendingOrders} porosi në pritje
-          </p>
-          <Link href="/agjent/orders?status=PRET_APROVIM">
-            <p className="text-xs text-yellow-600 underline mt-1">Shih porositë</p>
-          </Link>
-        </div>
+        <Link href="/agjent/orders?status=PRET_APROVIM">
+          <div className="bg-yellow-50 border border-yellow-200 rounded-2xl p-4 flex items-center gap-3 hover:bg-yellow-100 transition-colors">
+            <div className="w-9 h-9 bg-yellow-400 rounded-xl flex items-center justify-center shrink-0">
+              <ShoppingCart className="h-4 w-4 text-white" />
+            </div>
+            <div className="flex-1">
+              <p className="text-sm font-bold text-yellow-900">{stats.pendingOrders} porosi në pritje</p>
+              <p className="text-xs text-yellow-700">Pret aprovim nga admin</p>
+            </div>
+            <span className="text-xs text-yellow-700 font-semibold shrink-0">Shih →</span>
+          </div>
+        </Link>
       )}
     </div>
   )
 }
 
 function StatCard({ title, value, icon: Icon, color, href }: { title: string; value: string; icon: React.ElementType; color: string; href: string }) {
-  const colorMap: Record<string, string> = {
-    blue: 'bg-blue-50 text-blue-600',
-    green: 'bg-green-50 text-green-600',
-    emerald: 'bg-emerald-50 text-emerald-600',
-    yellow: 'bg-yellow-50 text-yellow-600',
+  const colorMap: Record<string, { grad: string; icon: string; border: string }> = {
+    blue:    { grad: 'from-blue-50 to-white',    icon: 'bg-blue-500',    border: 'border-blue-100' },
+    green:   { grad: 'from-green-50 to-white',   icon: 'bg-green-500',   border: 'border-green-100' },
+    emerald: { grad: 'from-emerald-50 to-white', icon: 'bg-emerald-500', border: 'border-emerald-100' },
+    yellow:  { grad: 'from-yellow-50 to-white',  icon: 'bg-yellow-500',  border: 'border-yellow-100' },
   }
+  const c = colorMap[color] ?? colorMap.blue
   return (
     <Link href={href}>
-      <div className="bg-white rounded-xl border border-gray-100 p-4 shadow-sm hover:shadow-md transition-shadow">
-        <div className={`w-8 h-8 rounded-lg flex items-center justify-center mb-2 ${colorMap[color]}`}>
-          <Icon className="h-4 w-4" />
+      <div className={`bg-gradient-to-br ${c.grad} rounded-2xl border ${c.border} p-4 shadow-sm hover:shadow-md hover:-translate-y-0.5 active:scale-[0.98] transition-all duration-200`}>
+        <div className={`w-10 h-10 ${c.icon} rounded-xl flex items-center justify-center shadow-sm mb-3`}>
+          <Icon className="h-5 w-5 text-white" />
         </div>
-        <p className="text-xl font-bold text-gray-900">{value}</p>
-        <p className="text-xs text-gray-500 mt-0.5">{title}</p>
+        <p className="text-2xl font-bold text-gray-900 leading-none">{value}</p>
+        <p className="text-xs font-medium text-slate-500 mt-1.5 uppercase tracking-wide">{title}</p>
       </div>
     </Link>
   )
 }
 
-function QuickAction({ icon: Icon, label, color }: { icon: React.ElementType; label: string; color: string }) {
-  const colorMap: Record<string, string> = {
-    blue: 'bg-blue-500',
-    green: 'bg-green-500',
-    purple: 'bg-purple-500',
-    indigo: 'bg-indigo-500',
+function QuickAction({ icon: Icon, label, sublabel, color }: { icon: React.ElementType; label: string; sublabel: string; color: string }) {
+  const colorMap: Record<string, { bg: string; hover: string }> = {
+    blue:   { bg: 'bg-blue-500',   hover: 'hover:bg-blue-600' },
+    green:  { bg: 'bg-green-500',  hover: 'hover:bg-green-600' },
+    purple: { bg: 'bg-purple-500', hover: 'hover:bg-purple-600' },
+    indigo: { bg: 'bg-indigo-500', hover: 'hover:bg-indigo-600' },
   }
+  const c = colorMap[color] ?? colorMap.blue
   return (
-    <div className={`${colorMap[color]} rounded-xl p-4 text-white flex items-center gap-3 cursor-pointer hover:opacity-90 transition-opacity`}>
-      <Icon className="h-5 w-5" />
-      <span className="text-sm font-semibold">{label}</span>
+    <div className={`${c.bg} ${c.hover} rounded-2xl p-4 text-white cursor-pointer active:scale-[0.97] transition-all duration-150 shadow-sm`}>
+      <div className="w-9 h-9 bg-white/20 rounded-xl flex items-center justify-center mb-2.5">
+        <Icon className="h-5 w-5 text-white" />
+      </div>
+      <p className="text-sm font-bold leading-tight">{label}</p>
+      <p className="text-[11px] text-white/70 mt-0.5">{sublabel}</p>
     </div>
   )
 }

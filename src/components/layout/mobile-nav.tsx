@@ -46,7 +46,7 @@ export function MobileNav({ userRole }: { userRole: string }) {
   const items = MOBILE_NAV.filter((item) => item.roles.includes(userRole))
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-gray-200 flex lg:hidden pb-safe">
+    <nav className="fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-gray-100 flex lg:hidden pb-safe shadow-[0_-2px_12px_rgba(0,0,0,0.06)]">
       {items.map((item) => {
         const isActive = pathname === item.href || (item.href !== '/' && pathname.startsWith(item.href))
         const Icon = item.icon
@@ -55,12 +55,22 @@ export function MobileNav({ userRole }: { userRole: string }) {
             key={item.href}
             href={item.href}
             className={cn(
-              'flex flex-col items-center justify-center gap-0.5 flex-1 py-2 px-1 transition-colors min-w-0',
-              isActive ? 'text-primary' : 'text-gray-500 hover:text-gray-700'
+              'relative flex flex-col items-center justify-center gap-0.5 flex-1 py-2 px-1 min-w-0 transition-colors',
+              isActive ? 'text-primary' : 'text-gray-400 hover:text-gray-600'
             )}
           >
-            <Icon className="h-5 w-5 shrink-0" />
-            <span className="text-[10px] font-medium truncate">{item.label}</span>
+            {isActive && (
+              <span className="absolute top-0 left-1/2 -translate-x-1/2 w-8 h-0.5 bg-primary rounded-full" />
+            )}
+            <div className={cn(
+              'flex items-center justify-center w-8 h-8 rounded-xl transition-colors',
+              isActive ? 'bg-primary/10' : ''
+            )}>
+              <Icon className="h-5 w-5 shrink-0" />
+            </div>
+            <span className={cn('text-[10px] truncate transition-all', isActive ? 'font-bold' : 'font-medium')}>
+              {item.label}
+            </span>
           </Link>
         )
       })}

@@ -692,27 +692,37 @@ export default function NewOrderPage() {
         {customerId && !loadingDetail && (
           <>
             {/* Search + Category */}
-            <div className="flex gap-2">
-              <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
-                <Input
-                  placeholder="Kërko produkte..."
-                  className="pl-9 bg-white h-11 rounded-xl border-gray-200"
-                  value={search}
-                  onChange={e => setSearch(e.target.value)}
-                />
-              </div>
-              {categories.length > 0 && (
-                <select
-                  className="h-11 px-3 rounded-xl border border-gray-200 text-sm bg-white shrink-0 max-w-[140px] focus:outline-none focus:ring-2 focus:ring-primary/30"
-                  value={categoryId}
-                  onChange={e => setCategoryId(e.target.value)}
-                >
-                  <option value="">Të gjitha</option>
-                  {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                </select>
-              )}
+            {/* Search bar */}
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
+              <Input
+                placeholder="Kërko produkte..."
+                className="pl-9 bg-white h-11 rounded-xl border-gray-200"
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+              />
             </div>
+
+            {/* Category chips */}
+            {categories.length > 0 && (
+              <div className="flex gap-2 overflow-x-auto scrollbar-hide -mx-4 px-4 pb-0.5">
+                <button
+                  className={`shrink-0 h-8 px-3.5 rounded-full text-xs font-semibold border transition-colors ${!categoryId ? 'bg-primary text-white border-primary' : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'}`}
+                  onClick={() => setCategoryId('')}
+                >
+                  Të Gjitha
+                </button>
+                {categories.map(c => (
+                  <button
+                    key={c.id}
+                    className={`shrink-0 h-8 px-3.5 rounded-full text-xs font-semibold border transition-colors ${categoryId === c.id ? 'bg-primary text-white border-primary' : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'}`}
+                    onClick={() => setCategoryId(categoryId === c.id ? '' : c.id)}
+                  >
+                    {c.name}
+                  </button>
+                ))}
+              </div>
+            )}
 
             {/* Product count row */}
             {!loadingProducts && (
