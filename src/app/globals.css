@@ -146,3 +146,13 @@
     bottom: 0;
   }
 }
+
+/* Cart drawer footer — clears mobile nav on small screens */
+.cart-footer-pb {
+  padding-bottom: calc(80px + env(safe-area-inset-bottom));
+}
+@media (min-width: 1024px) {
+  .cart-footer-pb {
+    padding-bottom: 1rem;
+  }
+}

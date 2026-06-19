@@ -375,6 +375,15 @@ export default function NewOrderPage() {
     return sum + priceInUnit(p, line.unit) * line.quantity
   }, 0)
 
+  const cartSubtotal = cart.reduce((sum, line) => {
+    const p = products.find(p => p.id === line.productId)
+    if (!p) return sum
+    const base = line.unit === 'COPE' ? p.salesPrice : p.salesPrice * (p.pakoCopje ?? 1)
+    return sum + base * line.quantity
+  }, 0)
+
+  const cartDiscount = Math.max(0, cartSubtotal - cartTotal)
+
   const cartItemCount = cart.reduce((s, l) => s + l.quantity, 0)
 
   const filteredProducts = products.filter(p => {
@@ -459,75 +468,160 @@ export default function NewOrderPage() {
 
       {/* ─── Cart Slide Panel ─── */}
       {showCart && (
-        <div className="fixed inset-0 z-30 bg-black/40" onClick={() => setShowCart(false)}>
+        <div className="fixed inset-0 z-40 bg-black/50" onClick={() => setShowCart(false)}>
           <div
-            className="absolute right-0 top-0 bottom-0 w-full max-w-sm bg-white shadow-2xl flex flex-col"
+            className="absolute right-0 top-0 bottom-0 w-full sm:max-w-[420px] bg-white shadow-2xl flex flex-col"
             onClick={e => e.stopPropagation()}
           >
-            <div className="flex items-center justify-between px-4 py-3 border-b">
-              <h2 className="font-semibold text-gray-900">Shporta ({cart.length})</h2>
+            {/* ── Header ── */}
+            <div className="shrink-0 flex items-start justify-between px-4 py-3 border-b">
+              <div>
+                <div className="flex items-center gap-2">
+                  <h2 className="font-bold text-gray-900 text-base">Shporta</h2>
+                  <span className="bg-primary text-white text-[11px] font-bold px-2 py-0.5 rounded-full leading-none">
+                    {cartItemCount} artikuj
+                  </span>
+                </div>
+                <p className="text-xs text-gray-400 mt-0.5">Rishiko porosinë para dërgimit</p>
+              </div>
               <button
                 onClick={() => setShowCart(false)}
-                className="w-11 h-11 flex items-center justify-center hover:bg-gray-100 rounded-xl"
+                className="w-9 h-9 flex items-center justify-center hover:bg-gray-100 active:bg-gray-200 rounded-xl text-gray-500 transition-colors"
               >
                 <X className="h-5 w-5" />
               </button>
             </div>
 
+            {/* ── Product list ── */}
             <div className="flex-1 overflow-y-auto p-4 space-y-3">
               {cart.length === 0 ? (
-                <p className="text-center text-gray-500 py-10">Shporta është bosh</p>
+                <div className="flex flex-col items-center justify-center py-16 text-center">
+                  <div className="w-16 h-16 bg-gray-100 rounded-2xl flex items-center justify-center mb-4">
+                    <ShoppingCart className="h-8 w-8 text-gray-300" />
+                  </div>
+                  <p className="font-semibold text-gray-700">Shporta është bosh</p>
+                  <p className="text-sm text-gray-400 mt-1 max-w-[200px]">
+                    Shto produkte për të krijuar porosinë
+                  </p>
+                </div>
               ) : cart.map(line => {
                 const p = products.find(p => p.id === line.productId)
                 if (!p) return null
+                const unitLabel = line.unit === 'PAKO' ? `Pako×${p.pakoCopje}` : 'Copë'
+                const unitPrice = priceInUnit(p, line.unit)
+                const lineTotal = unitPrice * line.quantity
+                const lineMaxStock = stockInUnit(p, line.unit)
+                const pDiscount = p.discountPercent ?? 0
                 return (
-                  <div key={line.productId} className="flex items-start gap-3 bg-gray-50 rounded-xl p-3">
-                    <div className="w-10 h-10 relative rounded-lg overflow-hidden bg-gray-200 shrink-0">
-                      {p.photo ? (
-                        <Image src={p.photo} alt={p.name} fill className="object-cover" />
-                      ) : (
-                        <div className="flex items-center justify-center h-full">
-                          <Package className="h-5 w-5 text-gray-300" />
+                  <div key={line.productId} className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
+                    <div className="flex gap-3 p-3">
+                      {/* Photo */}
+                      <div className="relative w-16 h-16 min-w-[64px] rounded-lg overflow-hidden bg-gray-100 shrink-0">
+                        {p.photo ? (
+                          <Image src={p.photo} alt={p.name} fill className="object-cover" sizes="64px" />
+                        ) : (
+                          <div className="flex items-center justify-center h-full">
+                            <Package className="h-6 w-6 text-gray-300" />
+                          </div>
+                        )}
+                        {pDiscount > 0 && (
+                          <span className="absolute top-1 left-1 bg-orange-500 text-white text-[8px] font-bold px-1 py-0.5 rounded-full leading-none">
+                            -{pDiscount}%
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Info */}
+                      <div className="flex-1 min-w-0 flex flex-col gap-1">
+                        <div className="flex items-start justify-between gap-1">
+                          <div className="flex-1 min-w-0">
+                            <p className="font-semibold text-gray-900 text-[13px] leading-tight line-clamp-2">{p.name}</p>
+                            {(p.category?.name || p.brand?.name) && (
+                              <p className="text-[11px] text-gray-400 truncate">
+                                {[p.category?.name, p.brand?.name].filter(Boolean).join(' · ')}
+                              </p>
+                            )}
+                          </div>
+                          <button
+                            onClick={() => setQty(p, 0)}
+                            className="w-7 h-7 flex items-center justify-center hover:bg-red-50 active:bg-red-100 rounded-lg text-red-400 hover:text-red-600 shrink-0 transition-colors"
+                          >
+                            <X className="h-3.5 w-3.5" />
+                          </button>
                         </div>
-                      )}
+
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-[10px] font-semibold text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded-md">
+                            {unitLabel}
+                          </span>
+                          <span className="text-[11px] text-gray-400">
+                            {line.quantity} × {formatCurrency(unitPrice)}
+                          </span>
+                        </div>
+
+                        <div className="flex items-center justify-between gap-2 mt-auto">
+                          <span className="text-sm font-bold text-primary">{formatCurrency(lineTotal)}</span>
+                          <div className="flex items-center gap-0.5">
+                            <button
+                              className="w-7 h-7 rounded-md border border-gray-200 flex items-center justify-center hover:bg-gray-50 active:bg-gray-100 transition-colors"
+                              onClick={() => setQty(p, line.quantity - 1)}
+                            >
+                              <Minus className="h-3 w-3 text-gray-700" />
+                            </button>
+                            <span className="w-8 text-center text-xs font-bold text-gray-900">{line.quantity}</span>
+                            <button
+                              className="w-7 h-7 rounded-md border border-gray-200 flex items-center justify-center hover:bg-gray-50 active:bg-gray-100 transition-colors disabled:opacity-40"
+                              onClick={() => setQty(p, line.quantity + 1)}
+                              disabled={line.quantity >= lineMaxStock}
+                            >
+                              <Plus className="h-3 w-3 text-gray-700" />
+                            </button>
+                          </div>
+                        </div>
+                      </div>
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-gray-900 truncate">{p.name}</p>
-                      <p className="text-xs text-gray-500">
-                        {line.quantity} {line.unit === 'COPE' ? 'copë' : 'pako'} × {formatCurrency(priceInUnit(p, line.unit))}
-                      </p>
-                      <p className="text-xs font-semibold text-primary">
-                        {formatCurrency(priceInUnit(p, line.unit) * line.quantity)}
-                      </p>
-                    </div>
-                    <button
-                      onClick={() => setQty(p, 0)}
-                      className="w-11 h-11 flex items-center justify-center hover:bg-red-100 rounded-xl text-red-500 shrink-0"
-                    >
-                      <X className="h-4 w-4" />
-                    </button>
                   </div>
                 )
               })}
             </div>
 
-            <div className="border-t p-4 space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="font-medium text-gray-700">Total</span>
-                <span className="text-xl font-bold text-primary">{formatCurrency(cartTotal)}</span>
+            {/* ── Footer ── */}
+            <div className="shrink-0 border-t bg-white px-4 pt-4 space-y-3 cart-footer-pb">
+              {/* Totals */}
+              <div className="space-y-1.5">
+                {cartDiscount > 0 && (
+                  <>
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-gray-500">Nëntotali</span>
+                      <span className="text-gray-700">{formatCurrency(cartSubtotal)}</span>
+                    </div>
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-green-600 font-medium">Rabat</span>
+                      <span className="text-green-600 font-semibold">−{formatCurrency(cartDiscount)}</span>
+                    </div>
+                  </>
+                )}
+                <div className="flex items-center justify-between">
+                  <span className="font-semibold text-gray-900 text-base">Total</span>
+                  <span className="text-xl font-bold text-primary">{formatCurrency(cartTotal)}</span>
+                </div>
               </div>
+
+              {/* Notes */}
               <textarea
                 placeholder="Shënime për porosinë..."
-                className="w-full border rounded-xl px-3 py-2.5 text-sm resize-none h-20 focus:outline-none focus:ring-2 focus:ring-primary/30"
+                className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm resize-none h-20 focus:outline-none focus:ring-2 focus:ring-primary/30"
                 value={notes}
                 onChange={e => setNotes(e.target.value)}
               />
+
+              {/* Action buttons */}
               <div className="grid grid-cols-2 gap-2">
                 <Button
                   variant="outline"
                   onClick={() => { setShowCart(false); handleSubmit('DRAFT') }}
                   disabled={submitting || !customerId || cart.length === 0}
-                  className="gap-1.5 h-11"
+                  className="gap-1.5 min-h-[44px]"
                 >
                   <Save className="h-4 w-4" />
                   Ruaj Draft
@@ -535,14 +629,15 @@ export default function NewOrderPage() {
                 <Button
                   onClick={() => { setShowCart(false); handleSubmit('SUBMITTED') }}
                   disabled={submitting || !customerId || cart.length === 0 || isBlocked}
-                  className="gap-1.5 h-11"
+                  className="gap-1.5 min-h-[44px]"
                 >
                   <Send className="h-4 w-4" />
-                  Dërgo
+                  Dërgo Porosinën
                 </Button>
               </div>
+
               {isBlocked && (
-                <div className="flex items-center gap-2 text-red-600 bg-red-50 rounded-xl px-3 py-2 text-sm">
+                <div className="flex items-center gap-2 text-red-600 bg-red-50 rounded-xl px-3 py-2.5 text-sm">
                   <AlertTriangle className="h-4 w-4 shrink-0" />
                   Ky klient është bllokuar.
                 </div>
