@@ -280,9 +280,9 @@ export default function NewOrderPage() {
 
   useEffect(() => {
     fetch('/api/products?status=ACTIVE&limit=500')
-      .then(r => { if (!r.ok) throw new Error(`products ${r.status}`); return r.json() })
-      .then(d => setProducts(d.products ?? []))
-      .catch(e => console.error('[orders/new] products fetch:', e))
+      .then(r => r.json().catch(() => ({ products: [], total: 0 })))
+      .then(d => setProducts(Array.isArray(d.products) ? d.products : []))
+      .catch(e => { console.error('[orders/new] products fetch:', e); setProducts([]) })
       .finally(() => setLoadingProducts(false))
   }, [])
 

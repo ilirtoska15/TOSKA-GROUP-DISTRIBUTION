@@ -35,25 +35,30 @@ export async function GET(req: NextRequest) {
     if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
     const { searchParams } = new URL(req.url)
-    const search = searchParams.get('search') ?? ''
-    const status = searchParams.get('status') ?? ''
-    const categoryId = searchParams.get('categoryId') ?? ''
-    const brandId = searchParams.get('brandId') ?? ''
+    const search = (searchParams.get('search') ?? '').trim()
+    const status = (searchParams.get('status') ?? '').trim()
+    const categoryId = (searchParams.get('categoryId') ?? '').trim()
+    const brandId = (searchParams.get('brandId') ?? '').trim()
 
-    const page = parseInt(searchParams.get('page') ?? '1')
-    const limit = parseInt(searchParams.get('limit') ?? '30')
+    const page = Math.max(1, parseInt(searchParams.get('page') ?? '1') || 1)
+    const limit = Math.min(500, Math.max(1, parseInt(searchParams.get('limit') ?? '30') || 30))
     const skip = (page - 1) * limit
 
     const where: Record<string, unknown> = {}
-    if (search.trim()) {
+
+    // Only apply search filter when non-empty
+    if (search) {
       where.OR = [
         { name: { contains: search, mode: 'insensitive' } },
         { code: { contains: search, mode: 'insensitive' } },
         { barcode: { contains: search, mode: 'insensitive' } },
       ]
     }
-    if (status) where.status = status
-    else where.status = 'ACTIVE'
+
+    // Only apply status filter when non-empty; default to ACTIVE
+    where.status = status || 'ACTIVE'
+
+    // Only apply optional filters when non-empty
     if (categoryId) where.categoryId = categoryId
     if (brandId) where.brandId = brandId
 
@@ -71,13 +76,13 @@ export async function GET(req: NextRequest) {
       db.product.count({ where }),
     ])
 
-    // Stock calculation is non-fatal: if it fails, products get stockCopje: 0
+    // Stock calculation is non-fatal — if it fails, products get stockCopje: 0
     let stockMap: Record<string, number> = {}
     if (products.length > 0) {
       try {
         stockMap = await getMultipleStockLevels(products.map((p) => p.id))
-      } catch (err) {
-        console.warn('[products] stock calculation failed, returning 0 for all:', err)
+      } catch (stockErr) {
+        console.warn('[GET /api/products] stock calculation failed, defaulting to 0:', stockErr)
       }
     }
 
@@ -88,9 +93,12 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json({ products: productsWithStock, total, page, limit })
   } catch (err) {
-    const msg = err instanceof Error ? err.message : 'Internal server error'
-    console.error('[products] GET error:', err)
-    return NextResponse.json({ error: msg }, { status: 500 })
+    console.error('[GET /api/products] error:', err)
+    // Always return a valid envelope so frontend can use data.products ?? []
+    return NextResponse.json(
+      { products: [], total: 0, error: 'Internal server error' },
+      { status: 500 },
+    )
   }
 }
 
