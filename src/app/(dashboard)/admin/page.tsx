@@ -5,8 +5,9 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import {
   ShoppingCart, DollarSign, Users, Truck, AlertTriangle,
-  TrendingUp, TrendingDown, RotateCcw, Clock, CheckCircle, MapPin, Trophy
+  TrendingUp, TrendingDown, RotateCcw, Clock, CheckCircle, MapPin, Trophy, Globe, AlertOctagon
 } from 'lucide-react'
+import { StatCard } from '@/components/ui/stat-card'
 import Link from 'next/link'
 import { getMultipleStockLevels } from '@/lib/stock'
 
@@ -47,6 +48,72 @@ async function fetchProductLeaderboard() {
     const products = await db.product.findMany({ where: { id: { in: raw.map(r => r.productId) } }, select: { id: true, name: true } })
     const nm = Object.fromEntries(products.map(p => [p.id, p.name]))
     return raw.map((r, i) => ({ rank: i + 1, name: nm[r.productId] ?? r.productId, totalValue: r._sum.lineTotal ?? 0, totalQty: r._sum.quantityCopje ?? 0 }))
+  } catch { return [] }
+}
+
+async function fetchTerritoryTop() {
+  try {
+    const startOfMonth = new Date()
+    startOfMonth.setDate(1)
+    startOfMonth.setHours(0, 0, 0, 0)
+    const zones = await db.zone.findMany({
+      include: { customers: { where: { status: 'ACTIVE' }, select: { id: true } } },
+      orderBy: { name: 'asc' },
+    })
+    const allCustomerIds = zones.flatMap(z => z.customers.map(c => c.id))
+    if (allCustomerIds.length === 0) return []
+    const orders = await db.order.groupBy({
+      by: ['customerId'],
+      where: { customerId: { in: allCustomerIds }, createdAt: { gte: startOfMonth }, status: { notIn: ['DRAFT', 'ANULUAR'] } },
+      _sum: { totalAmount: true },
+    })
+    const salesMap: Record<string, number> = {}
+    for (const r of orders) salesMap[r.customerId] = r._sum.totalAmount ?? 0
+    return zones
+      .filter(z => z.customers.length > 0)
+      .map(z => ({
+        name: z.name,
+        total: z.customers.reduce((s, c) => s + (salesMap[c.id] ?? 0), 0),
+      }))
+      .sort((a, b) => b.total - a.total)
+      .slice(0, 5)
+  } catch { return [] }
+}
+
+async function fetchRecoveryOpportunities() {
+  try {
+    const now = new Date()
+    const last30 = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)
+    const prev60 = new Date(now.getTime() - 60 * 24 * 60 * 60 * 1000)
+    const filter = { status: { notIn: ['DRAFT', 'ANULUAR'] as string[] } }
+    const [curr, prev] = await Promise.all([
+      db.order.groupBy({ by: ['customerId'], where: { ...filter, createdAt: { gte: last30 } }, _sum: { totalAmount: true } }),
+      db.order.groupBy({ by: ['customerId'], where: { ...filter, createdAt: { gte: prev60, lt: last30 } }, _sum: { totalAmount: true } }),
+    ])
+    const currMap: Record<string, number> = {}
+    for (const r of curr) currMap[r.customerId] = r._sum.totalAmount ?? 0
+    const prevMap: Record<string, number> = {}
+    for (const r of prev) prevMap[r.customerId] = r._sum.totalAmount ?? 0
+
+    const declining = Object.keys(prevMap)
+      .map(cid => {
+        const p = prevMap[cid], c = currMap[cid] ?? 0
+        if (p === 0) return null
+        const g = Math.round(((c - p) / p) * 100)
+        if (g >= -20) return null
+        return { customerId: cid, growthPct: g, status: g <= -40 ? 'CRITICAL' : 'WARNING' }
+      })
+      .filter(Boolean)
+      .sort((a, b) => a!.growthPct - b!.growthPct)
+      .slice(0, 4) as Array<{ customerId: string; growthPct: number; status: string }>
+
+    if (declining.length === 0) return []
+    const customers = await db.customer.findMany({
+      where: { id: { in: declining.map(d => d.customerId) } },
+      select: { id: true, businessName: true },
+    })
+    const nm = Object.fromEntries(customers.map(c => [c.id, c.businessName]))
+    return declining.map(d => ({ ...d, name: nm[d.customerId] ?? d.customerId }))
   } catch { return [] }
 }
 
@@ -201,10 +268,12 @@ async function getAdminStats() {
 
 export default async function AdminDashboard() {
   const session = await auth()
-  const [stats, topProducts, decliningProducts] = await Promise.all([
+  const [stats, topProducts, decliningProducts, territoryTop, recoveryOpps] = await Promise.all([
     getAdminStats(),
     fetchProductLeaderboard(),
     fetchDecliningProducts(),
+    fetchTerritoryTop(),
+    fetchRecoveryOpportunities(),
   ])
 
   return (
@@ -328,6 +397,63 @@ export default async function AdminDashboard() {
         </div>
       )}
 
+      {/* Territory & Recovery */}
+      {(territoryTop.length > 0 || recoveryOpps.length > 0) && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          {territoryTop.length > 0 && (
+            <Card className="rounded-2xl shadow-sm">
+              <CardHeader className="pb-3 px-5 pt-5">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-base font-semibold flex items-center gap-2">
+                    <Globe className="h-4 w-4 text-blue-500" />Top 5 Territore (Ky Muaj)
+                  </CardTitle>
+                  <Link href="/admin/reports?type=territory" className="text-xs font-semibold text-primary hover:text-primary/80">
+                    Raporti i plotë →
+                  </Link>
+                </div>
+              </CardHeader>
+              <CardContent className="px-5 pb-5 space-y-2">
+                {territoryTop.map((z, i) => (
+                  <div key={z.name} className="flex items-center gap-3">
+                    <span className="w-6 text-center text-xs font-bold text-gray-400 shrink-0">#{i + 1}</span>
+                    <p className="text-sm font-medium flex-1 min-w-0 truncate">{z.name}</p>
+                    <p className="text-sm font-bold shrink-0">{formatCurrency(z.total)}</p>
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+          )}
+
+          {recoveryOpps.length > 0 && (
+            <Card className="rounded-2xl shadow-sm">
+              <CardHeader className="pb-3 px-5 pt-5">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-base font-semibold flex items-center gap-2">
+                    <AlertOctagon className="h-4 w-4 text-orange-500" />Mundësi Rikuperimi
+                  </CardTitle>
+                  <Link href="/admin/reports?type=recovery_opportunities" className="text-xs font-semibold text-primary hover:text-primary/80">
+                    Të gjitha →
+                  </Link>
+                </div>
+              </CardHeader>
+              <CardContent className="px-5 pb-5 space-y-2">
+                {recoveryOpps.map(c => (
+                  <div key={c.customerId} className="flex items-center gap-3">
+                    <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full shrink-0 ${
+                      c.status === 'CRITICAL' ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700'
+                    }`}>
+                      {c.status === 'CRITICAL' ? 'KRITIK' : 'KUJDES'}
+                    </span>
+                    <p className="text-sm font-medium flex-1 min-w-0 truncate">{c.name}</p>
+                    <p className="text-sm font-bold text-red-600 shrink-0">{c.growthPct}%</p>
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      )}
+
       {/* Bottom grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* Recent Orders */}
@@ -392,32 +518,6 @@ export default async function AdminDashboard() {
   )
 }
 
-function StatCard({ title, value, icon: Icon, color, href }: {
-  title: string; value: string; icon: React.ElementType; color: string; href: string
-}) {
-  const colorMap: Record<string, { grad: string; icon: string; border: string }> = {
-    blue:    { grad: 'from-blue-50 to-white',    icon: 'bg-blue-500',    border: 'border-blue-100' },
-    green:   { grad: 'from-green-50 to-white',   icon: 'bg-green-500',   border: 'border-green-100' },
-    emerald: { grad: 'from-emerald-50 to-white', icon: 'bg-emerald-500', border: 'border-emerald-100' },
-    red:     { grad: 'from-red-50 to-white',     icon: 'bg-red-500',     border: 'border-red-100' },
-    indigo:  { grad: 'from-indigo-50 to-white',  icon: 'bg-indigo-500',  border: 'border-indigo-100' },
-    purple:  { grad: 'from-purple-50 to-white',  icon: 'bg-purple-500',  border: 'border-purple-100' },
-    orange:  { grad: 'from-orange-50 to-white',  icon: 'bg-orange-500',  border: 'border-orange-100' },
-    yellow:  { grad: 'from-yellow-50 to-white',  icon: 'bg-yellow-500',  border: 'border-yellow-100' },
-  }
-  const c = colorMap[color] ?? colorMap.blue
-  return (
-    <Link href={href}>
-      <div className={`bg-gradient-to-br ${c.grad} rounded-2xl border ${c.border} p-4 shadow-sm hover:shadow-md hover:-translate-y-0.5 active:scale-[0.98] transition-all duration-200`}>
-        <div className={`w-10 h-10 ${c.icon} rounded-xl flex items-center justify-center shadow-sm mb-3`}>
-          <Icon className="h-5 w-5 text-white" />
-        </div>
-        <p className="text-2xl font-bold text-gray-900 leading-none">{value}</p>
-        <p className="text-xs font-medium text-slate-500 mt-1.5 uppercase tracking-wide">{title}</p>
-      </div>
-    </Link>
-  )
-}
 
 function HealthItem({ label, value, href, severity }: {
   label: string; value: number; href: string; severity: 'ok' | 'warning' | 'error'

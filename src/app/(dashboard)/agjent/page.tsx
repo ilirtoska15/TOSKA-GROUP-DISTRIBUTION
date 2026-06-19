@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import {
   ShoppingCart, DollarSign, MapPin, TrendingUp, Plus, Users, Package
 } from 'lucide-react'
+import { StatCard } from '@/components/ui/stat-card'
 import Link from 'next/link'
 
 export const dynamic = 'force-dynamic'
@@ -194,26 +195,6 @@ export default async function AgentDashboard() {
   )
 }
 
-function StatCard({ title, value, icon: Icon, color, href }: { title: string; value: string; icon: React.ElementType; color: string; href: string }) {
-  const colorMap: Record<string, { grad: string; icon: string; border: string }> = {
-    blue:    { grad: 'from-blue-50 to-white',    icon: 'bg-blue-500',    border: 'border-blue-100' },
-    green:   { grad: 'from-green-50 to-white',   icon: 'bg-green-500',   border: 'border-green-100' },
-    emerald: { grad: 'from-emerald-50 to-white', icon: 'bg-emerald-500', border: 'border-emerald-100' },
-    yellow:  { grad: 'from-yellow-50 to-white',  icon: 'bg-yellow-500',  border: 'border-yellow-100' },
-  }
-  const c = colorMap[color] ?? colorMap.blue
-  return (
-    <Link href={href}>
-      <div className={`bg-gradient-to-br ${c.grad} rounded-2xl border ${c.border} p-4 shadow-sm hover:shadow-md hover:-translate-y-0.5 active:scale-[0.98] transition-all duration-200`}>
-        <div className={`w-10 h-10 ${c.icon} rounded-xl flex items-center justify-center shadow-sm mb-3`}>
-          <Icon className="h-5 w-5 text-white" />
-        </div>
-        <p className="text-2xl font-bold text-gray-900 leading-none">{value}</p>
-        <p className="text-xs font-medium text-slate-500 mt-1.5 uppercase tracking-wide">{title}</p>
-      </div>
-    </Link>
-  )
-}
 
 function QuickAction({ icon: Icon, label, sublabel, color }: { icon: React.ElementType; label: string; sublabel: string; color: string }) {
   const colorMap: Record<string, { bg: string; hover: string }> = {

@@ -55,7 +55,6 @@ export function MobileHeader({ userRole, userName }: MobileHeaderProps) {
           <div className="w-7 h-7 rounded-lg bg-primary flex items-center justify-center shrink-0">
             <span className="text-white text-[11px] font-bold">TD</span>
           </div>
-          <span className="font-bold text-gray-900 text-sm tracking-tight">TOSKA DISTRIBUTION</span>
         </div>
         <div className="flex-1" />
         <Link

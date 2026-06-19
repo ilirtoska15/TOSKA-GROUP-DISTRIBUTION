@@ -2,6 +2,7 @@
 import { db } from '@/lib/db'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { ClipboardList, Warehouse, AlertTriangle, RotateCcw, CheckCircle } from 'lucide-react'
+import { StatCard } from '@/components/ui/stat-card'
 import Link from 'next/link'
 import { getMultipleStockLevels } from '@/lib/stock'
 
@@ -122,14 +123,14 @@ export default async function DepositDashboard() {
         </CardHeader>
         <CardContent className="px-5 pb-5 space-y-1">
           {[
-            { label: 'Pa stok',              value: stats.outOfStock, color: stats.outOfStock > 0 ? 'bg-red-100 text-red-700'    : 'bg-green-100 text-green-700' },
-            { label: 'Stok i ulët (<20 copë)', value: stats.lowStock,  color: stats.lowStock > 0  ? 'bg-yellow-100 text-yellow-700' : 'bg-green-100 text-green-700' },
-            { label: 'Afër skadimit (30d)',   value: stats.nearExpiry, color: stats.nearExpiry > 0 ? 'bg-orange-100 text-orange-700' : 'bg-green-100 text-green-700' },
-          ].map(({ label, value, color }) => (
-            <div key={label} className="flex items-center justify-between py-2">
+            { label: 'Pa stok',                value: stats.outOfStock, color: stats.outOfStock > 0 ? 'bg-red-100 text-red-700'     : 'bg-green-100 text-green-700', href: '/depoist/stock?filter=out' },
+            { label: 'Stok i ulët (<20 copë)', value: stats.lowStock,   color: stats.lowStock > 0  ? 'bg-yellow-100 text-yellow-700' : 'bg-green-100 text-green-700', href: '/depoist/stock?filter=low' },
+            { label: 'Afër skadimit (30d)',     value: stats.nearExpiry, color: stats.nearExpiry > 0 ? 'bg-orange-100 text-orange-700' : 'bg-green-100 text-green-700', href: '/depoist/stock?filter=expiry' },
+          ].map(({ label, value, color, href }) => (
+            <Link key={label} href={href} className="flex items-center justify-between py-2 px-1 -mx-1 rounded-lg hover:bg-gray-50 transition-colors">
               <span className="text-sm text-gray-700">{label}</span>
               <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${color}`}>{value}</span>
-            </div>
+            </Link>
           ))}
         </CardContent>
       </Card>
@@ -162,23 +163,3 @@ export default async function DepositDashboard() {
   )
 }
 
-function StatCard({ title, value, icon: Icon, color, href }: { title: string; value: string; icon: React.ElementType; color: string; href: string }) {
-  const colorMap: Record<string, { grad: string; icon: string; border: string }> = {
-    blue:   { grad: 'from-blue-50 to-white',   icon: 'bg-blue-500',   border: 'border-blue-100' },
-    green:  { grad: 'from-green-50 to-white',  icon: 'bg-green-500',  border: 'border-green-100' },
-    purple: { grad: 'from-purple-50 to-white', icon: 'bg-purple-500', border: 'border-purple-100' },
-    orange: { grad: 'from-orange-50 to-white', icon: 'bg-orange-500', border: 'border-orange-100' },
-  }
-  const c = colorMap[color] ?? colorMap.blue
-  return (
-    <Link href={href}>
-      <div className={`bg-gradient-to-br ${c.grad} rounded-2xl border ${c.border} p-4 shadow-sm hover:shadow-md hover:-translate-y-0.5 active:scale-[0.98] transition-all duration-200`}>
-        <div className={`w-10 h-10 ${c.icon} rounded-xl flex items-center justify-center shadow-sm mb-3`}>
-          <Icon className="h-5 w-5 text-white" />
-        </div>
-        <p className="text-2xl font-bold text-gray-900 leading-none">{value}</p>
-        <p className="text-xs font-medium text-slate-500 mt-1.5 uppercase tracking-wide">{title}</p>
-      </div>
-    </Link>
-  )
-}

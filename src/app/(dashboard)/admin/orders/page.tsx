@@ -1,7 +1,7 @@
 ﻿'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { Plus, Search } from 'lucide-react'
+import { Plus, Search, ShoppingCart } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -9,6 +9,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { formatCurrency, formatDateTime, getStatusColor, getStatusLabel, debounce } from '@/lib/utils'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
+import { PageHeader } from '@/components/ui/page-header'
+import { EmptyState } from '@/components/ui/empty-state'
 
 export const dynamic = 'force-dynamic'
 
@@ -18,7 +20,7 @@ interface Order {
   status: string
   totalAmount: number
   createdAt: string
-  customer: { businessName: string; code: string }
+  customer: { id: string; businessName: string; code: string }
   createdBy: { name: string }
   _count: { lines: number }
 }
@@ -76,18 +78,18 @@ export default function OrdersPage() {
 
   return (
     <div className="p-4 sm:p-6 space-y-4">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Porositë</h1>
-          <p className="text-sm text-gray-500">{total} gjithsej</p>
-        </div>
-        <Link href="/agjent/orders/new">
-          <Button className="gap-2">
-            <Plus className="h-4 w-4" />
-            <span className="hidden sm:inline">Porosi e Re</span>
-          </Button>
-        </Link>
-      </div>
+      <PageHeader
+        title="Porositë"
+        count={total}
+        action={
+          <Link href="/agjent/orders/new">
+            <Button className="gap-2">
+              <Plus className="h-4 w-4" />
+              <span className="hidden sm:inline">Porosi e Re</span>
+            </Button>
+          </Link>
+        }
+      />
 
       <div className="flex flex-col sm:flex-row gap-3">
         <div className="relative flex-1">
@@ -111,33 +113,45 @@ export default function OrdersPage() {
       </div>
 
       <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
-        <div className="overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Referenca</TableHead>
-                <TableHead>Klienti</TableHead>
-                <TableHead className="hidden md:table-cell">Krijuar Nga</TableHead>
-                <TableHead className="hidden md:table-cell">Data</TableHead>
-                <TableHead className="text-right">Shuma</TableHead>
-                <TableHead>Statusi</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {loading ? (
-                Array.from({ length: 8 }).map((_, i) => (
+        {loading ? (
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Referenca</TableHead><TableHead>Klienti</TableHead>
+                  <TableHead className="hidden md:table-cell">Krijuar Nga</TableHead>
+                  <TableHead className="hidden md:table-cell">Data</TableHead>
+                  <TableHead className="text-right">Shuma</TableHead><TableHead>Statusi</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {Array.from({ length: 8 }).map((_, i) => (
                   <TableRow key={i}>
                     {Array.from({ length: 6 }).map((_, j) => (
                       <TableCell key={j}><div className="h-4 bg-gray-100 rounded animate-pulse" /></TableCell>
                     ))}
                   </TableRow>
-                ))
-              ) : orders.length === 0 ? (
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        ) : orders.length === 0 ? (
+          <EmptyState icon={ShoppingCart} title="Nuk ka porosi" description="Krijoni porosinë e parë duke klikuar butonin 'Porosi e Re'" />
+        ) : (
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center py-8 text-gray-500">Nuk ka porosi</TableCell>
+                  <TableHead>Referenca</TableHead>
+                  <TableHead>Klienti</TableHead>
+                  <TableHead className="hidden md:table-cell">Krijuar Nga</TableHead>
+                  <TableHead className="hidden md:table-cell">Data</TableHead>
+                  <TableHead className="text-right">Shuma</TableHead>
+                  <TableHead>Statusi</TableHead>
                 </TableRow>
-              ) : (
-                orders.map((o) => (
+              </TableHeader>
+              <TableBody>
+                {orders.map((o) => (
                   <TableRow key={o.id}>
                     <TableCell>
                       <Link href={`/admin/orders/${o.id}`} className="font-mono text-sm text-primary hover:underline">
@@ -145,7 +159,7 @@ export default function OrdersPage() {
                       </Link>
                     </TableCell>
                     <TableCell>
-                      <Link href={`/admin/customers/${o.customer.code}`} className="text-sm font-medium text-gray-900 hover:text-primary">
+                      <Link href={`/admin/customers/${o.customer.id}`} className="text-sm font-medium text-gray-900 hover:text-primary">
                         {o.customer.businessName}
                       </Link>
                       <p className="text-xs text-gray-400">{o.customer.code}</p>
@@ -157,11 +171,11 @@ export default function OrdersPage() {
                       <span className={`badge text-xs ${getStatusColor(o.status)}`}>{getStatusLabel(o.status)}</span>
                     </TableCell>
                   </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </div>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        )}
         {totalPages > 1 && (
           <div className="flex items-center justify-between px-4 py-3 border-t border-gray-100">
             <p className="text-sm text-gray-500">Faqja {page} / {totalPages}</p>

@@ -5,11 +5,14 @@ import { Plus, Search, Package, Upload, SlidersHorizontal } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { formatCurrency, debounce } from '@/lib/utils'
 import Link from 'next/link'
 import Image from 'next/image'
 import { toast } from 'sonner'
+import { PageHeader } from '@/components/ui/page-header'
+import { EmptyState } from '@/components/ui/empty-state'
 
 export const dynamic = 'force-dynamic'
 
@@ -38,8 +41,6 @@ export default function ProductsPage() {
   const [categoryId, setCategoryId] = useState('')
   const [categories, setCategories] = useState<Category[]>([])
   const [loading, setLoading] = useState(true)
-  const [_viewMode, _setViewMode] = useState<'grid' | 'table'>('grid')
-
   // Quick stock adjustment state
   const [adjustTarget, setAdjustTarget] = useState<Product | null>(null)
   const [adjustStock, setAdjustStock] = useState('')
@@ -124,26 +125,26 @@ export default function ProductsPage() {
 
   return (
     <div className="p-4 sm:p-6 space-y-4">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Produktet</h1>
-          <p className="text-sm text-gray-500">{total} gjithsej</p>
-        </div>
-        <div className="flex gap-2">
-          <Link href="/admin/products/import">
-            <Button variant="outline" className="gap-2">
-              <Upload className="h-4 w-4" />
-              <span className="hidden sm:inline">Importo Excel</span>
-            </Button>
-          </Link>
-          <Link href="/admin/products/new">
-            <Button className="gap-2">
-              <Plus className="h-4 w-4" />
-              <span className="hidden sm:inline">Produkt i Ri</span>
-            </Button>
-          </Link>
-        </div>
-      </div>
+      <PageHeader
+        title="Produktet"
+        count={total}
+        action={
+          <>
+            <Link href="/admin/products/import">
+              <Button variant="outline" className="gap-2">
+                <Upload className="h-4 w-4" />
+                <span className="hidden sm:inline">Importo Excel</span>
+              </Button>
+            </Link>
+            <Link href="/admin/products/new">
+              <Button className="gap-2">
+                <Plus className="h-4 w-4" />
+                <span className="hidden sm:inline">Produkt i Ri</span>
+              </Button>
+            </Link>
+          </>
+        }
+      />
 
       <div className="flex gap-3">
         <div className="relative flex-1">
@@ -155,14 +156,15 @@ export default function ProductsPage() {
           />
         </div>
         {categories.length > 0 && (
-          <select
-            className="h-10 px-3 rounded-lg border border-gray-200 text-sm bg-white min-w-[160px]"
-            value={categoryId}
-            onChange={(e) => { setCategoryId(e.target.value); setPage(1) }}
-          >
-            <option value="">Të gjitha kategorit</option>
-            {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-          </select>
+          <Select value={categoryId} onValueChange={(v) => { setCategoryId(v); setPage(1) }}>
+            <SelectTrigger className="w-44">
+              <SelectValue placeholder="Të gjitha kategorit" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="">Të gjitha kategorit</SelectItem>
+              {categories.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+            </SelectContent>
+          </Select>
         )}
       </div>
 
@@ -173,10 +175,7 @@ export default function ProductsPage() {
           ))}
         </div>
       ) : products.length === 0 ? (
-        <div className="text-center py-16">
-          <Package className="h-12 w-12 text-gray-300 mx-auto mb-3" />
-          <p className="text-gray-500">Nuk u gjet asnjë produkt</p>
-        </div>
+        <EmptyState icon={Package} title="Nuk u gjet asnjë produkt" description="Shtoni produktin e parë ose ndryshoni filtrat" />
       ) : (
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4">
           {products.map((p) => {

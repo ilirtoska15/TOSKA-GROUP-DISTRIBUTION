@@ -1,13 +1,15 @@
 ﻿'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { Plus, Search, Upload, Layers, Building2 } from 'lucide-react'
+import { Plus, Search, Upload, Layers, Building2, Users } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { getStatusColor, getStatusLabel, debounce } from '@/lib/utils'
 import Link from 'next/link'
+import { PageHeader } from '@/components/ui/page-header'
+import { EmptyState } from '@/components/ui/empty-state'
 
 export const dynamic = 'force-dynamic'
 
@@ -75,27 +77,26 @@ export default function CustomersPage() {
 
   return (
     <div className="p-4 sm:p-6 space-y-4">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Klientët / Tregjet</h1>
-          <p className="text-sm text-gray-500">{total} gjithsej</p>
-        </div>
-        <div className="flex gap-2">
-          <Link href="/admin/customers/import">
-            <Button variant="outline" className="gap-2">
-              <Upload className="h-4 w-4" />
-              <span className="hidden sm:inline">Importo Excel</span>
-            </Button>
-          </Link>
-          <Link href="/admin/customers/new">
-            <Button className="gap-2">
-              <Plus className="h-4 w-4" />
-              <span className="hidden sm:inline">Klient i Ri</span>
-            </Button>
-          </Link>
-        </div>
-      </div>
+      <PageHeader
+        title="Klientët / Tregjet"
+        count={total}
+        action={
+          <>
+            <Link href="/admin/customers/import">
+              <Button variant="outline" className="gap-2">
+                <Upload className="h-4 w-4" />
+                <span className="hidden sm:inline">Importo Excel</span>
+              </Button>
+            </Link>
+            <Link href="/admin/customers/new">
+              <Button className="gap-2">
+                <Plus className="h-4 w-4" />
+                <span className="hidden sm:inline">Klient i Ri</span>
+              </Button>
+            </Link>
+          </>
+        }
+      />
 
       {/* Filters */}
       <div className="flex flex-col sm:flex-row gap-3">
@@ -133,38 +134,48 @@ export default function CustomersPage() {
 
       {/* Table */}
       <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
-        <div className="overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Kodi</TableHead>
-                <TableHead>Emri i Biznesit</TableHead>
-                <TableHead className="hidden md:table-cell">Qyteti</TableHead>
-                <TableHead className="hidden md:table-cell">Telefon</TableHead>
-                <TableHead className="hidden lg:table-cell">Agjent</TableHead>
-                <TableHead className="hidden lg:table-cell">Porosi</TableHead>
-                <TableHead>Statusi</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {loading ? (
-                Array.from({ length: 8 }).map((_, i) => (
+        {loading ? (
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Kodi</TableHead><TableHead>Emri i Biznesit</TableHead>
+                  <TableHead className="hidden md:table-cell">Qyteti</TableHead>
+                  <TableHead className="hidden md:table-cell">Telefon</TableHead>
+                  <TableHead className="hidden lg:table-cell">Agjent</TableHead>
+                  <TableHead className="hidden lg:table-cell">Porosi</TableHead>
+                  <TableHead>Statusi</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {Array.from({ length: 8 }).map((_, i) => (
                   <TableRow key={i}>
                     {Array.from({ length: 7 }).map((_, j) => (
-                      <TableCell key={j}>
-                        <div className="h-4 bg-gray-100 rounded animate-pulse" />
-                      </TableCell>
+                      <TableCell key={j}><div className="h-4 bg-gray-100 rounded animate-pulse" /></TableCell>
                     ))}
                   </TableRow>
-                ))
-              ) : customers.length === 0 ? (
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        ) : customers.length === 0 ? (
+          <EmptyState icon={Users} title="Nuk u gjet asnjë klient" description="Shtoni klientin e parë ose ndryshoni filtrat e kërkimit" />
+        ) : (
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center py-8 text-gray-500">
-                    Nuk u gjet asnjë klient
-                  </TableCell>
+                  <TableHead>Kodi</TableHead>
+                  <TableHead>Emri i Biznesit</TableHead>
+                  <TableHead className="hidden md:table-cell">Qyteti</TableHead>
+                  <TableHead className="hidden md:table-cell">Telefon</TableHead>
+                  <TableHead className="hidden lg:table-cell">Agjent</TableHead>
+                  <TableHead className="hidden lg:table-cell">Porosi</TableHead>
+                  <TableHead>Statusi</TableHead>
                 </TableRow>
-              ) : (
-                customers.map((c) => (
+              </TableHeader>
+              <TableBody>
+                {customers.map((c) => (
                   <TableRow key={c.id} className="cursor-pointer hover:bg-gray-50">
                     <TableCell>
                       <Link href={`/admin/customers/${c.id}`} className="text-primary font-mono text-sm hover:underline">
@@ -193,16 +204,14 @@ export default function CustomersPage() {
                     <TableCell className="hidden lg:table-cell text-gray-500 text-sm">{c.agent?.name ?? '-'}</TableCell>
                     <TableCell className="hidden lg:table-cell text-center text-sm">{c._count.orders}</TableCell>
                     <TableCell>
-                      <span className={`badge ${getStatusColor(c.status)}`}>
-                        {getStatusLabel(c.status)}
-                      </span>
+                      <span className={`badge ${getStatusColor(c.status)}`}>{getStatusLabel(c.status)}</span>
                     </TableCell>
                   </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </div>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        )}
 
         {/* Pagination */}
         {totalPages > 1 && (
