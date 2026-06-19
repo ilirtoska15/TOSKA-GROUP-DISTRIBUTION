@@ -810,7 +810,7 @@ export default function NewOrderPage() {
 
       {/* ─── Sticky Bottom Bar ─── */}
       {cart.length > 0 && (
-        <div className="fixed bottom-0 left-0 right-0 z-20 bg-white border-t shadow-lg px-4 pt-3 pb-[max(12px,env(safe-area-inset-bottom))]">
+        <div className="fixed order-bar-bottom left-0 right-0 z-20 bg-white border-t shadow-lg px-4 pt-3 pb-3">
           <div className="flex items-center gap-3">
             <div className="flex-1 min-w-0">
               <p className="text-xs text-gray-500 truncate">

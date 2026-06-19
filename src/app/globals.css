@@ -136,3 +136,13 @@
 .pt-safe {
   padding-top: env(safe-area-inset-top);
 }
+
+/* Sticky order bar sits above the mobile nav on small screens */
+.order-bar-bottom {
+  bottom: calc(64px + env(safe-area-inset-bottom));
+}
+@media (min-width: 1024px) {
+  .order-bar-bottom {
+    bottom: 0;
+  }
+}
