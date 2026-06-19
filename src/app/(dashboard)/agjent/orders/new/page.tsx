@@ -345,7 +345,8 @@ export default function NewOrderPage() {
   useEffect(() => { saveDraft() }, [saveDraft])
 
   const isBlocked = customerDetail?.status === 'BLOCKED'
-  const getUnit = (productId: string): Unit => units[productId] ?? 'COPE'
+  const getUnit = (productId: string, pakoCopje?: number | null): Unit =>
+    units[productId] ?? (pakoCopje && pakoCopje > 1 ? 'PAKO' : 'COPE')
 
   function setUnit(productId: string, unit: Unit) {
     setUnits(u => ({ ...u, [productId]: unit }))
@@ -357,7 +358,7 @@ export default function NewOrderPage() {
   }
 
   function setQty(product: Product, qty: number) {
-    const unit = getUnit(product.id)
+    const unit = getUnit(product.id, product.pakoCopje)
     const maxStock = stockInUnit(product, unit)
     const clamped = Math.max(0, Math.min(qty, maxStock))
     setCart(prev => {
@@ -640,7 +641,7 @@ export default function NewOrderPage() {
             ) : (
               <div className="space-y-3">
                 {filteredProducts.map(product => {
-                  const unit = getUnit(product.id)
+                  const unit = getUnit(product.id, product.pakoCopje)
                   const qty = getCartQty(product.id)
                   const maxStock = stockInUnit(product, unit)
                   const price = priceInUnit(product, unit)
@@ -725,19 +726,19 @@ export default function NewOrderPage() {
                               <div className="flex rounded-md border border-gray-200 overflow-hidden shrink-0">
                                 <button
                                   className={`px-1.5 h-[22px] text-[10px] font-semibold transition-colors ${
-                                    unit === 'COPE' ? 'bg-primary text-white' : 'text-gray-600 bg-white hover:bg-gray-50 active:bg-gray-100'
-                                  }`}
-                                  onClick={() => setUnit(product.id, 'COPE')}
-                                >
-                                  Copë
-                                </button>
-                                <button
-                                  className={`px-1.5 h-[22px] text-[10px] font-semibold border-l border-gray-200 transition-colors ${
                                     unit === 'PAKO' ? 'bg-primary text-white' : 'text-gray-600 bg-white hover:bg-gray-50 active:bg-gray-100'
                                   }`}
                                   onClick={() => setUnit(product.id, 'PAKO')}
                                 >
                                   Pako×{product.pakoCopje}
+                                </button>
+                                <button
+                                  className={`px-1.5 h-[22px] text-[10px] font-semibold border-l border-gray-200 transition-colors ${
+                                    unit === 'COPE' ? 'bg-primary text-white' : 'text-gray-600 bg-white hover:bg-gray-50 active:bg-gray-100'
+                                  }`}
+                                  onClick={() => setUnit(product.id, 'COPE')}
+                                >
+                                  Copë
                                 </button>
                               </div>
                             )}
