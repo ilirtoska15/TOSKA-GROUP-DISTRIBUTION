@@ -279,6 +279,8 @@ export default function NewOrderPage() {
   const [selectedImageProduct, setSelectedImageProduct] = useState<Product | null>(null)
   const [inputDraft, setInputDraft] = useState<Record<string, string>>({})
   const draftRestored = useRef(false)
+  const customerCardRef = useRef<HTMLDivElement>(null)
+  const [showStickyCustomer, setShowStickyCustomer] = useState(false)
 
   // Close image modal on ESC
   useEffect(() => {
@@ -385,7 +387,23 @@ export default function NewOrderPage() {
 
   useEffect(() => { saveDraft() }, [saveDraft])
 
+  useEffect(() => {
+    const el = customerCardRef.current
+    if (!el || !customerId || !customerDetail) { setShowStickyCustomer(false); return }
+    const observer = new IntersectionObserver(
+      ([entry]) => setShowStickyCustomer(!entry.isIntersecting),
+      { threshold: 0 }
+    )
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [customerId, customerDetail])
+
   const isBlocked = customerDetail?.status === 'BLOCKED'
+  const debtPct = customerDetail && customerDetail.debtLimit > 0
+    ? Math.min(Math.round(customerDetail.currentDebt / customerDetail.debtLimit * 100), 100)
+    : 0
+  const debtPctColor = debtPct >= 80 ? 'text-red-600' : debtPct >= 50 ? 'text-amber-600' : 'text-green-700'
+
   const getUnit = (productId: string, pakoCopje?: number | null): Unit =>
     units[productId] ?? (pakoCopje && pakoCopje > 1 ? 'PAKO' : 'COPE')
 
@@ -484,26 +502,62 @@ export default function NewOrderPage() {
     <div className="flex flex-col min-h-screen bg-gray-50">
 
       {/* ─── Header ─── */}
-      <div className="sticky top-0 z-20 bg-white border-b shadow-sm">
-        <div className="flex items-center gap-3 px-4 py-3">
-          <Link href="/agjent/orders">
-            <button className="p-2 rounded-xl hover:bg-gray-100 w-11 h-11 flex items-center justify-center">
-              <ArrowLeft className="h-5 w-5 text-gray-600" />
+      <div className="sticky top-0 z-20">
+        <div className="bg-white border-b shadow-sm">
+          <div className="flex items-center gap-3 px-4 py-3">
+            <Link href="/agjent/orders">
+              <button className="p-2 rounded-xl hover:bg-gray-100 w-11 h-11 flex items-center justify-center">
+                <ArrowLeft className="h-5 w-5 text-gray-600" />
+              </button>
+            </Link>
+            <h1 className="flex-1 font-semibold text-gray-900">Porosi e Re</h1>
+            <button
+              onClick={() => setShowCart(!showCart)}
+              className="relative p-2 rounded-xl bg-primary text-white w-11 h-11 flex items-center justify-center"
+            >
+              <ShoppingCart className="h-5 w-5" />
+              {cart.length > 0 && (
+                <span className="absolute -top-1.5 -right-1.5 bg-red-500 text-white text-[10px] font-bold rounded-full w-5 h-5 flex items-center justify-center leading-none">
+                  {cart.length}
+                </span>
+              )}
             </button>
-          </Link>
-          <h1 className="flex-1 font-semibold text-gray-900">Porosi e Re</h1>
-          <button
-            onClick={() => setShowCart(!showCart)}
-            className="relative p-2 rounded-xl bg-primary text-white w-11 h-11 flex items-center justify-center"
-          >
-            <ShoppingCart className="h-5 w-5" />
-            {cart.length > 0 && (
-              <span className="absolute -top-1.5 -right-1.5 bg-red-500 text-white text-[10px] font-bold rounded-full w-5 h-5 flex items-center justify-center leading-none">
-                {cart.length}
-              </span>
-            )}
-          </button>
+          </div>
         </div>
+
+        {/* ─── Sticky Customer Summary ─── */}
+        {showStickyCustomer && customerDetail && (
+          <div className="bg-white border-b border-gray-100 shadow-sm px-4 py-2.5">
+            <div className="flex items-center gap-3">
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2">
+                  <p className="font-semibold text-gray-900 text-sm truncate leading-tight">{customerDetail.businessName}</p>
+                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 ${
+                    isBlocked ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'
+                  }`}>
+                    {isBlocked ? 'Bllokuar' : 'Aktiv'}
+                  </span>
+                </div>
+                <div className="flex items-center gap-3 mt-0.5">
+                  {(customerDetail.city || customerDetail.zone) && (
+                    <span className="text-[11px] text-gray-500">
+                      {[customerDetail.city, customerDetail.zone?.name].filter(Boolean).join(' · ')}
+                    </span>
+                  )}
+                  {customerDetail.debtLimit > 0 && (
+                    <span className={`text-[11px] font-semibold ${debtPctColor}`}>{debtPct}% borxh</span>
+                  )}
+                </div>
+              </div>
+              <button
+                onClick={() => { setCustomerId(''); setCustomerDetail(null) }}
+                className="text-xs text-primary font-semibold border border-primary/30 px-3 py-1.5 rounded-lg hover:bg-primary/5 active:bg-primary/10 shrink-0 transition-colors"
+              >
+                Ndrysho
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* ─── Cart Slide Panel ─── */}
@@ -519,10 +573,10 @@ export default function NewOrderPage() {
                 <div className="flex items-center gap-2">
                   <h2 className="font-bold text-gray-900 text-base">Shporta</h2>
                   <span className="bg-primary text-white text-[11px] font-bold px-2 py-0.5 rounded-full leading-none">
-                    {cartItemCount} artikuj
+                    {cart.length} {cart.length === 1 ? 'produkt' : 'produkte'}
                   </span>
                 </div>
-                <p className="text-xs text-gray-400 mt-0.5">Rishiko porosinë para dërgimit</p>
+                <p className="text-xs text-gray-400 mt-0.5">{cartItemCount} artikuj · Rishiko para dërgimit</p>
               </div>
               <button
                 onClick={() => setShowCart(false)}
@@ -628,7 +682,7 @@ export default function NewOrderPage() {
             {/* ── Footer ── */}
             <div className="shrink-0 border-t bg-white px-4 pt-4 space-y-3 cart-footer-pb">
               {/* Totals */}
-              <div className="space-y-1.5">
+              <div className="bg-gray-50 rounded-xl px-3 py-3 space-y-2">
                 {cartDiscount > 0 && (
                   <>
                     <div className="flex items-center justify-between text-sm">
@@ -636,24 +690,28 @@ export default function NewOrderPage() {
                       <span className="text-gray-700">{formatCurrency(cartSubtotal)}</span>
                     </div>
                     <div className="flex items-center justify-between text-sm">
-                      <span className="text-green-600 font-medium">Rabat</span>
+                      <span className="text-green-600 font-semibold">Rabat</span>
                       <span className="text-green-600 font-semibold">−{formatCurrency(cartDiscount)}</span>
                     </div>
+                    <div className="border-t border-gray-200" />
                   </>
                 )}
                 <div className="flex items-center justify-between">
-                  <span className="font-semibold text-gray-900 text-base">Total</span>
+                  <span className="font-bold text-gray-900 text-base">Total</span>
                   <span className="text-xl font-bold text-primary">{formatCurrency(cartTotal)}</span>
                 </div>
               </div>
 
               {/* Notes */}
-              <textarea
-                placeholder="Shënime për porosinë..."
-                className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm resize-none h-20 focus:outline-none focus:ring-2 focus:ring-primary/30"
-                value={notes}
-                onChange={e => setNotes(e.target.value)}
-              />
+              <div className="space-y-1.5">
+                <label className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Shënime (opsionale)</label>
+                <textarea
+                  placeholder="Shënime për porosinë..."
+                  className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm resize-none h-16 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/40"
+                  value={notes}
+                  onChange={e => setNotes(e.target.value)}
+                />
+              </div>
 
               {/* Action buttons */}
               <div className="grid grid-cols-2 gap-2">
@@ -752,19 +810,23 @@ export default function NewOrderPage() {
                 )}
               </div>
             </div>
-            <div className="py-14 text-center bg-white rounded-2xl border">
-              <Store className="h-10 w-10 mx-auto mb-3 text-gray-200" />
-              <p className="text-sm font-medium text-gray-500">Zgjidh klientin për të vazhduar</p>
-              <p className="text-xs text-gray-400 mt-1">Produktet do të shfaqen pas zgjedhjes</p>
+            <div className="py-16 text-center bg-white rounded-2xl border">
+              <div className="w-16 h-16 bg-gray-50 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                <Store className="h-8 w-8 text-gray-300" />
+              </div>
+              <p className="text-sm font-semibold text-gray-700">Zgjidh klientin për të vazhduar</p>
+              <p className="text-xs text-gray-400 mt-1.5">Produktet do të shfaqen pas zgjedhjes</p>
             </div>
           </>
         ) : (
           <>
-            <CustomerCard
-              customer={customerDetail}
-              loading={loadingDetail}
-              onClear={() => { setCustomerId(''); setCustomerDetail(null) }}
-            />
+            <div ref={customerCardRef}>
+              <CustomerCard
+                customer={customerDetail}
+                loading={loadingDetail}
+                onClear={() => { setCustomerId(''); setCustomerDetail(null) }}
+              />
+            </div>
             {customerDetail?.isBusinessGroup && (customerDetail.units?.length ?? 0) > 0 && (
               <div className="flex items-start gap-2.5 bg-blue-50 border border-blue-200 rounded-xl px-3 py-2.5">
                 <AlertTriangle className="h-4 w-4 text-blue-500 shrink-0 mt-0.5" />
@@ -796,7 +858,7 @@ export default function NewOrderPage() {
             {categories.length > 0 && (
               <div className="flex gap-2 overflow-x-auto scrollbar-hide -mx-4 px-4 pb-0.5">
                 <button
-                  className={`shrink-0 h-8 px-3.5 rounded-full text-xs font-semibold border transition-colors ${!categoryId ? 'bg-primary text-white border-primary' : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'}`}
+                  className={`shrink-0 h-8 px-3.5 rounded-full text-xs font-semibold border transition-all ${!categoryId ? 'bg-primary text-white border-primary shadow-sm' : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50 hover:border-gray-300'}`}
                   onClick={() => setCategoryId('')}
                 >
                   Të Gjitha
@@ -804,7 +866,7 @@ export default function NewOrderPage() {
                 {categories.map(c => (
                   <button
                     key={c.id}
-                    className={`shrink-0 h-8 px-3.5 rounded-full text-xs font-semibold border transition-colors ${categoryId === c.id ? 'bg-primary text-white border-primary' : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'}`}
+                    className={`shrink-0 h-8 px-3.5 rounded-full text-xs font-semibold border transition-all ${categoryId === c.id ? 'bg-primary text-white border-primary shadow-sm' : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50 hover:border-gray-300'}`}
                     onClick={() => setCategoryId(categoryId === c.id ? '' : c.id)}
                   >
                     {c.name}
@@ -816,8 +878,11 @@ export default function NewOrderPage() {
             {/* Product count row */}
             {!loadingProducts && (
               <div className="flex items-center justify-between px-0.5">
-                <span className="text-sm font-semibold text-gray-700">Produkte</span>
-                <span className="text-sm text-gray-400">{filteredProducts.length} produkte</span>
+                <div className="flex items-center gap-2">
+                  <Package className="h-4 w-4 text-gray-400" />
+                  <span className="text-sm font-semibold text-gray-700">Produkte</span>
+                </div>
+                <span className="text-sm text-gray-400">{filteredProducts.length} {filteredProducts.length === 1 ? 'produkt' : 'produkte'}</span>
               </div>
             )}
 
@@ -830,8 +895,13 @@ export default function NewOrderPage() {
               </div>
             ) : filteredProducts.length === 0 ? (
               <div className="py-16 text-center bg-white rounded-2xl border">
-                <Package className="h-10 w-10 mx-auto mb-3 text-gray-300" />
-                <p className="text-gray-500 text-sm">Nuk u gjet asnjë produkt</p>
+                <div className="w-16 h-16 bg-gray-50 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                  <Package className="h-8 w-8 text-gray-300" />
+                </div>
+                <p className="text-sm font-semibold text-gray-700">Nuk u gjet asnjë produkt</p>
+                <p className="text-xs text-gray-400 mt-1.5">
+                  {search ? `Nuk ka rezultate për "${search}"` : 'Nuk ka produkte në këtë kategori'}
+                </p>
               </div>
             ) : (
               <div className="space-y-3">
