@@ -778,39 +778,114 @@ export default function ReportsPage() {
           {reportType === 'visit_effectiveness' && data.effectiveness && (
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center gap-2"><Activity className="h-5 w-5 text-indigo-500" />Efektiviteti i Vizitave sipas Agjentit</CardTitle>
+                <CardTitle className="flex items-center gap-2">
+                  <Activity className="h-5 w-5 text-indigo-500" />
+                  Efektiviteti i Vizitave sipas Agjentit
+                </CardTitle>
               </CardHeader>
               <CardContent>
                 {data.effectiveness.length === 0 ? (
                   <p className="text-sm text-gray-500 text-center py-8">Nuk ka vizita në këtë periudhë</p>
-                ) : (
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-sm">
-                      <thead className="bg-gray-50 border-b">
-                        <tr>
-                          <th className="px-3 py-2 text-left font-medium text-gray-600">Agjenti</th>
-                          <th className="px-3 py-2 text-right font-medium text-gray-600">Vizita Gjithsej</th>
-                          <th className="px-3 py-2 text-right font-medium text-gray-600">Me Porosi</th>
-                          <th className="px-3 py-2 text-right font-medium text-gray-600">Norma Konv.</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y">
-                        {data.effectiveness.map((a: any) => (
-                          <tr key={a.agentId} className="hover:bg-gray-50">
-                            <td className="px-3 py-2.5 font-medium">{a.agentName}</td>
-                            <td className="px-3 py-2.5 text-right text-gray-600">{a.totalVisits}</td>
-                            <td className="px-3 py-2.5 text-right text-gray-600">{a.visitsWithOrder}</td>
-                            <td className="px-3 py-2.5 text-right">
-                              <span className={`text-sm font-bold ${a.conversionRate >= 50 ? 'text-green-600' : a.conversionRate >= 25 ? 'text-yellow-600' : 'text-red-600'}`}>
-                                {a.conversionRate}%
-                              </span>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
+                ) : (() => {
+                  const totalVisitsAll: number = data.effectiveness.reduce((s: number, a: any) => s + a.totalVisits, 0)
+                  const completedAll: number = data.effectiveness.reduce((s: number, a: any) => s + a.completedVisits, 0)
+                  const ordersAll: number = data.effectiveness.reduce((s: number, a: any) => s + a.ordersAfterVisit, 0)
+                  const avgConversion = completedAll > 0 ? Math.round((ordersAll / completedAll) * 100) : 0
+                  const totalRevenueAll: number = data.effectiveness.reduce((s: number, a: any) => s + a.revenueAfterVisit, 0)
+                  const visBadge = (rate: number) => {
+                    if (rate >= 80) return { label: 'SHKËLQYESHËM', cls: 'bg-green-100 text-green-700' }
+                    if (rate >= 50) return { label: 'MIRË', cls: 'bg-blue-100 text-blue-700' }
+                    if (rate >= 25) return { label: 'MESATAR', cls: 'bg-amber-100 text-amber-700' }
+                    return { label: 'DOBËT', cls: 'bg-red-100 text-red-700' }
+                  }
+                  const barColor = (rate: number) => rate >= 80 ? 'bg-green-500' : rate >= 50 ? 'bg-blue-500' : rate >= 25 ? 'bg-amber-400' : 'bg-red-400'
+                  return (
+                    <div className="space-y-5">
+                      {/* Summary KPIs */}
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                        <div className="bg-indigo-50 rounded-xl p-3">
+                          <p className="text-xs text-indigo-600 font-medium">Vizita Totale</p>
+                          <p className="text-base font-bold text-indigo-900 mt-1">{totalVisitsAll}</p>
+                        </div>
+                        <div className="bg-blue-50 rounded-xl p-3">
+                          <p className="text-xs text-blue-600 font-medium">Vizita të Kryera</p>
+                          <p className="text-base font-bold text-blue-900 mt-1">{completedAll}</p>
+                        </div>
+                        <div className="bg-green-50 rounded-xl p-3">
+                          <p className="text-xs text-green-600 font-medium">Konvertim në Porosi</p>
+                          <p className="text-base font-bold text-green-900 mt-1">{avgConversion}%</p>
+                        </div>
+                        <div className="bg-emerald-50 rounded-xl p-3">
+                          <p className="text-xs text-emerald-600 font-medium">Xhiro pas Vizitave</p>
+                          <p className="text-base font-bold text-emerald-900 mt-1">{formatCurrency(totalRevenueAll)}</p>
+                        </div>
+                      </div>
+
+                      {/* Mobile cards */}
+                      <div className="md:hidden space-y-2">
+                        {data.effectiveness.map((a: any) => {
+                          const b = visBadge(a.visitToOrderRate)
+                          return (
+                            <div key={a.agentId} className="border rounded-xl p-3">
+                              <div className="flex items-start justify-between gap-2 mb-2">
+                                <p className="text-sm font-semibold">{a.agentName}</p>
+                                <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full shrink-0 ${b.cls}`}>{b.label}</span>
+                              </div>
+                              <p className="text-xs text-gray-400 mb-2">{a.completedVisits}/{a.totalVisits} vizita · {a.ordersAfterVisit} porosi pas vizitës</p>
+                              <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden mb-2">
+                                <div className={`h-full rounded-full ${barColor(a.visitToOrderRate)}`} style={{ width: `${Math.min(a.visitToOrderRate, 100)}%` }} />
+                              </div>
+                              <div className="flex items-center justify-between text-xs">
+                                <span className="font-semibold text-indigo-700">{a.visitToOrderRate}% konvertim</span>
+                                <span className="text-gray-500">{formatCurrency(a.revenueAfterVisit)}</span>
+                              </div>
+                            </div>
+                          )
+                        })}
+                      </div>
+
+                      {/* Desktop table */}
+                      <div className="hidden md:block overflow-x-auto">
+                        <table className="w-full text-sm">
+                          <thead className="bg-gray-50 border-b">
+                            <tr>
+                              <th className="px-3 py-2 text-left font-medium text-gray-600">Agjenti</th>
+                              <th className="px-3 py-2 text-right font-medium text-gray-600">Vizita</th>
+                              <th className="px-3 py-2 text-right font-medium text-gray-600">Kryera</th>
+                              <th className="px-3 py-2 text-right font-medium text-gray-600">Humbura</th>
+                              <th className="px-3 py-2 text-right font-medium text-gray-600">Porosi</th>
+                              <th className="px-3 py-2 text-right font-medium text-gray-600">Pagesa</th>
+                              <th className="px-3 py-2 text-right font-medium text-gray-600">Konvertim</th>
+                              <th className="px-3 py-2 text-right font-medium text-gray-600">Revenue</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y">
+                            {data.effectiveness.map((a: any) => {
+                              const b = visBadge(a.visitToOrderRate)
+                              return (
+                                <tr key={a.agentId} className="hover:bg-gray-50">
+                                  <td className="px-3 py-2.5 font-medium">{a.agentName}</td>
+                                  <td className="px-3 py-2.5 text-right text-gray-600">{a.totalVisits}</td>
+                                  <td className="px-3 py-2.5 text-right text-gray-600">{a.completedVisits}</td>
+                                  <td className="px-3 py-2.5 text-right text-gray-600">{a.missedVisits + a.cancelledVisits}</td>
+                                  <td className="px-3 py-2.5 text-right text-gray-600">{a.ordersAfterVisit}</td>
+                                  <td className="px-3 py-2.5 text-right text-gray-600">{a.paymentsAfterVisit}</td>
+                                  <td className="px-3 py-2.5 text-right">
+                                    <div className="flex items-center justify-end gap-2">
+                                      <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${b.cls}`}>{b.label}</span>
+                                      <span className="font-semibold text-indigo-700">{a.visitToOrderRate}%</span>
+                                    </div>
+                                  </td>
+                                  <td className="px-3 py-2.5 text-right font-semibold">{formatCurrency(a.revenueAfterVisit)}</td>
+                                </tr>
+                              )
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )
+                })()}
               </CardContent>
             </Card>
           )}

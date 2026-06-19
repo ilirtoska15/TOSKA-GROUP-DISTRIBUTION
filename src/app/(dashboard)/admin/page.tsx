@@ -132,6 +132,45 @@ async function fetchPenetrationTop() {
   } catch { return [] }
 }
 
+async function fetchVisitEffectivenessTop() {
+  try {
+    const startOfMonth = new Date()
+    startOfMonth.setDate(1)
+    startOfMonth.setHours(0, 0, 0, 0)
+    const [allVisits, visitsWithOrder] = await Promise.all([
+      db.visit.groupBy({
+        by: ['agentId'],
+        where: { createdAt: { gte: startOfMonth }, status: 'CLOSED' },
+        _count: { id: true },
+      }),
+      db.visit.groupBy({
+        by: ['agentId'],
+        where: { createdAt: { gte: startOfMonth }, status: 'CLOSED', hasOrder: true },
+        _count: { id: true },
+      }),
+    ])
+    const withOrderMap: Record<string, number> = {}
+    for (const r of visitsWithOrder) withOrderMap[r.agentId] = r._count.id
+    const agentIds = allVisits.map(r => r.agentId)
+    if (agentIds.length === 0) return []
+    const agents = await db.user.findMany({ where: { id: { in: agentIds } }, select: { id: true, name: true } })
+    const agentMap = Object.fromEntries(agents.map(a => [a.id, a.name]))
+    return allVisits
+      .map(r => {
+        const completed = r._count.id
+        const withOrder = withOrderMap[r.agentId] ?? 0
+        return {
+          agentName: agentMap[r.agentId] ?? r.agentId,
+          completedVisits: completed,
+          ordersAfterVisit: withOrder,
+          conversionRate: completed > 0 ? Math.round((withOrder / completed) * 100) : 0,
+        }
+      })
+      .sort((a, b) => b.conversionRate - a.conversionRate)
+      .slice(0, 5)
+  } catch { return [] }
+}
+
 async function fetchRecoveryOpportunities() {
   try {
     const now = new Date()
@@ -390,7 +429,7 @@ async function getAdminStats() {
 
 export default async function AdminDashboard() {
   const session = await auth()
-  const [stats, topProducts, decliningProducts, territoryTop, recoveryOpps, activityFeed, penetrationTop] = await Promise.all([
+  const [stats, topProducts, decliningProducts, territoryTop, recoveryOpps, activityFeed, penetrationTop, visitEffTop] = await Promise.all([
     getAdminStats(),
     fetchProductLeaderboard(),
     fetchDecliningProducts(),
@@ -398,6 +437,7 @@ export default async function AdminDashboard() {
     fetchRecoveryOpportunities(),
     fetchActivityFeed(),
     fetchPenetrationTop(),
+    fetchVisitEffectivenessTop(),
   ])
 
   return (
@@ -604,40 +644,73 @@ export default async function AdminDashboard() {
         </div>
       )}
 
-      {/* Product Penetration */}
-      {penetrationTop.length > 0 && (
-        <Card className="rounded-2xl shadow-sm">
-          <CardHeader className="pb-3 px-5 pt-5">
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-base font-semibold flex items-center gap-2">
-                <Target className="h-4 w-4 text-purple-500" />Penetrimi i Produkteve (Ky Muaj)
-              </CardTitle>
-              <Link href="/admin/reports?type=product_penetration" className="text-xs font-semibold text-primary hover:text-primary/80">
-                Raporti i plotë →
-              </Link>
-            </div>
-          </CardHeader>
-          <CardContent className="px-5 pb-5 space-y-3">
-            {penetrationTop.map((p, i) => (
-              <div key={p.name} className="space-y-1">
-                <div className="flex items-center gap-3">
-                  <span className="w-6 text-center text-xs font-bold text-gray-400 shrink-0">#{i + 1}</span>
-                  <p className="text-sm font-medium flex-1 min-w-0 truncate">{p.name}</p>
-                  <div className="text-right shrink-0">
-                    <span className="text-sm font-bold text-purple-700">{p.penetrationPct}%</span>
-                    <span className="text-xs text-gray-400 ml-1">({p.customers} klientë)</span>
+      {/* BI Insights: Penetration + Visit Effectiveness */}
+      {(penetrationTop.length > 0 || visitEffTop.length > 0) && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          {penetrationTop.length > 0 && (
+            <Card className="rounded-2xl shadow-sm">
+              <CardHeader className="pb-3 px-5 pt-5">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-base font-semibold flex items-center gap-2">
+                    <Target className="h-4 w-4 text-purple-500" />Penetrimi i Produkteve (Ky Muaj)
+                  </CardTitle>
+                  <Link href="/admin/reports?type=product_penetration" className="text-xs font-semibold text-primary hover:text-primary/80">
+                    Raporti i plotë →
+                  </Link>
+                </div>
+              </CardHeader>
+              <CardContent className="px-5 pb-5 space-y-3">
+                {penetrationTop.map((p, i) => (
+                  <div key={p.name} className="space-y-1">
+                    <div className="flex items-center gap-3">
+                      <span className="w-6 text-center text-xs font-bold text-gray-400 shrink-0">#{i + 1}</span>
+                      <p className="text-sm font-medium flex-1 min-w-0 truncate">{p.name}</p>
+                      <div className="text-right shrink-0">
+                        <span className="text-sm font-bold text-purple-700">{p.penetrationPct}%</span>
+                        <span className="text-xs text-gray-400 ml-1">({p.customers} klientë)</span>
+                      </div>
+                    </div>
+                    <div className="ml-9 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                      <div
+                        className={`h-full rounded-full ${p.penetrationPct >= 80 ? 'bg-green-500' : p.penetrationPct >= 50 ? 'bg-blue-500' : p.penetrationPct >= 20 ? 'bg-amber-400' : 'bg-red-400'}`}
+                        style={{ width: `${Math.min(p.penetrationPct, 100)}%` }}
+                      />
+                    </div>
                   </div>
+                ))}
+              </CardContent>
+            </Card>
+          )}
+
+          {visitEffTop.length > 0 && (
+            <Card className="rounded-2xl shadow-sm">
+              <CardHeader className="pb-3 px-5 pt-5">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-base font-semibold flex items-center gap-2">
+                    <Activity className="h-4 w-4 text-indigo-500" />Efektiviteti i Vizitave (Ky Muaj)
+                  </CardTitle>
+                  <Link href="/admin/reports?type=visit_effectiveness" className="text-xs font-semibold text-primary hover:text-primary/80">
+                    Raporti i plotë →
+                  </Link>
                 </div>
-                <div className="ml-9 h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                  <div
-                    className={`h-full rounded-full ${p.penetrationPct >= 80 ? 'bg-green-500' : p.penetrationPct >= 50 ? 'bg-blue-500' : p.penetrationPct >= 20 ? 'bg-amber-400' : 'bg-red-400'}`}
-                    style={{ width: `${Math.min(p.penetrationPct, 100)}%` }}
-                  />
-                </div>
-              </div>
-            ))}
-          </CardContent>
-        </Card>
+              </CardHeader>
+              <CardContent className="px-5 pb-5 space-y-2">
+                {visitEffTop.map((a, i) => (
+                  <div key={a.agentName} className="flex items-center gap-3">
+                    <span className="w-6 text-center text-xs font-bold text-gray-400 shrink-0">#{i + 1}</span>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium truncate">{a.agentName}</p>
+                      <p className="text-xs text-gray-400">{a.completedVisits} vizita · {a.ordersAfterVisit} porosi</p>
+                    </div>
+                    <span className={`text-sm font-bold shrink-0 ${a.conversionRate >= 50 ? 'text-green-600' : a.conversionRate >= 25 ? 'text-amber-600' : 'text-red-600'}`}>
+                      {a.conversionRate}%
+                    </span>
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+          )}
+        </div>
       )}
 
       {/* Activity Feed */}

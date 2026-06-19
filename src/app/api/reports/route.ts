@@ -387,41 +387,112 @@ export async function GET(req: NextRequest) {
 
   // ── Visit Effectiveness ───────────────────────────────────────────────────
   if (type === 'visit_effectiveness') {
-    const [allVisits, visitsWithOrder] = await Promise.all([
+    // Two queries: grouped counts per status + full closed list for attribution
+    const [allVisitsGrouped, closedVisits] = await Promise.all([
       db.visit.groupBy({
-        by: ['agentId'],
-        where: { createdAt: { gte: from, lte: to }, status: { in: ['CLOSED', 'MISSED'] } },
+        by: ['agentId', 'status'],
+        where: { createdAt: { gte: from, lte: to } },
         _count: { id: true },
       }),
-      db.visit.groupBy({
-        by: ['agentId'],
-        where: { createdAt: { gte: from, lte: to }, status: 'CLOSED', hasOrder: true },
-        _count: { id: true },
+      db.visit.findMany({
+        where: { createdAt: { gte: from, lte: to }, status: 'CLOSED' },
+        select: { agentId: true, customerId: true, closedAt: true, hasOrder: true, orderId: true },
+        take: 5000,
       }),
     ])
 
-    const withOrderMap: Record<string, number> = {}
-    for (const r of visitsWithOrder) withOrderMap[r.agentId] = r._count.id
+    // Revenue for visits with attributed orders
+    const orderIds = closedVisits.filter(v => v.hasOrder && v.orderId).map(v => v.orderId!)
+    const orders = orderIds.length > 0
+      ? await db.order.findMany({
+          where: { id: { in: orderIds }, status: { notIn: ['DRAFT', 'ANULUAR'] } },
+          select: { id: true, totalAmount: true },
+        })
+      : []
+    const orderRevenueMap: Record<string, number> = {}
+    for (const o of orders) orderRevenueMap[o.id] = o.totalAmount
 
-    const agentIds = allVisits.map(r => r.agentId)
-    const agents = agentIds.length > 0
-      ? await db.user.findMany({ where: { id: { in: agentIds } }, select: { id: true, name: true } })
+    // Per-agent visit status counts
+    const agentCounts: Record<string, { total: number; completed: number; missed: number; cancelled: number; planned: number }> = {}
+    for (const r of allVisitsGrouped) {
+      if (!agentCounts[r.agentId]) agentCounts[r.agentId] = { total: 0, completed: 0, missed: 0, cancelled: 0, planned: 0 }
+      const c = agentCounts[r.agentId]
+      c.total += r._count.id
+      if (r.status === 'CLOSED') c.completed = r._count.id
+      else if (r.status === 'MISSED') c.missed = r._count.id
+      else if (r.status === 'CANCELLED') c.cancelled = r._count.id
+      else if (r.status === 'OPEN') c.planned = r._count.id
+    }
+
+    // Per-agent order attribution + closed visit list for payment matching
+    const agentOrders: Record<string, { count: number; revenue: number; visits: Array<{ customerId: string; closedAt: Date | null }> }> = {}
+    for (const v of closedVisits) {
+      if (!agentOrders[v.agentId]) agentOrders[v.agentId] = { count: 0, revenue: 0, visits: [] }
+      if (v.hasOrder) {
+        agentOrders[v.agentId].count++
+        if (v.orderId) agentOrders[v.agentId].revenue += orderRevenueMap[v.orderId] ?? 0
+      }
+      agentOrders[v.agentId].visits.push({ customerId: v.customerId, closedAt: v.closedAt })
+    }
+
+    // Payment attribution: same agent (collectedById) + same customer + within 24h of closed visit
+    const paymentAgentIds = Object.keys(agentOrders)
+    const agentPayments: Record<string, { count: number }> = {}
+    if (paymentAgentIds.length > 0) {
+      const payments = await db.payment.findMany({
+        where: {
+          collectedById: { in: paymentAgentIds },
+          createdAt: { gte: from, lte: new Date(to.getTime() + 24 * 60 * 60 * 1000) },
+        },
+        select: { customerId: true, collectedById: true, createdAt: true },
+        take: 10000,
+      })
+      const WINDOW_MS = 24 * 60 * 60 * 1000
+      for (const p of payments) {
+        const visits = agentOrders[p.collectedById]?.visits ?? []
+        const matched = visits.some(v =>
+          v.customerId === p.customerId &&
+          v.closedAt &&
+          p.createdAt >= v.closedAt &&
+          p.createdAt.getTime() - v.closedAt.getTime() <= WINDOW_MS
+        )
+        if (matched) {
+          if (!agentPayments[p.collectedById]) agentPayments[p.collectedById] = { count: 0 }
+          agentPayments[p.collectedById].count++
+        }
+      }
+    }
+
+    const allAgentIds = Object.keys(agentCounts)
+    const agents = allAgentIds.length > 0
+      ? await db.user.findMany({ where: { id: { in: allAgentIds } }, select: { id: true, name: true } })
       : []
     const agentMap = Object.fromEntries(agents.map(a => [a.id, a.name]))
 
-    const effectiveness = allVisits
-      .map(r => {
-        const total = r._count.id
-        const withOrder = withOrderMap[r.agentId] ?? 0
+    const effectiveness = allAgentIds
+      .filter(id => agentCounts[id].total > 0)
+      .map(id => {
+        const c = agentCounts[id]
+        const o = agentOrders[id] ?? { count: 0, revenue: 0 }
+        const pmt = agentPayments[id] ?? { count: 0 }
+        const completedVisits = c.completed
         return {
-          agentId: r.agentId,
-          agentName: agentMap[r.agentId] ?? r.agentId,
-          totalVisits: total,
-          visitsWithOrder: withOrder,
-          conversionRate: total > 0 ? Math.round((withOrder / total) * 100) : 0,
+          agentId: id,
+          agentName: agentMap[id] ?? id,
+          totalVisits: c.total,
+          completedVisits,
+          missedVisits: c.missed,
+          cancelledVisits: c.cancelled,
+          plannedVisits: c.planned,
+          ordersAfterVisit: o.count,
+          paymentsAfterVisit: pmt.count,
+          revenueAfterVisit: o.revenue,
+          visitToOrderRate: completedVisits > 0 ? Math.round((o.count / completedVisits) * 100) : 0,
+          visitToPaymentRate: completedVisits > 0 ? Math.round((pmt.count / completedVisits) * 100) : 0,
+          averageRevenuePerVisit: completedVisits > 0 ? Math.round(o.revenue / completedVisits) : 0,
         }
       })
-      .sort((a, b) => b.conversionRate - a.conversionRate)
+      .sort((a, b) => b.visitToOrderRate - a.visitToOrderRate)
 
     return NextResponse.json({ effectiveness })
   }

@@ -20,11 +20,17 @@ const SAFE_AGENT_STATS = {
   targetValue: 0,
   realization: 0,
   pendingOrders: 0,
+  weekCompleted: 0,
+  weekOrders: 0,
+  weekConversionRate: 0,
 }
 
 async function getAgentStats(userId: string) {
   const today = new Date()
   today.setHours(0, 0, 0, 0)
+  const dow = today.getDay()
+  const startOfWeek = new Date(today)
+  startOfWeek.setDate(today.getDate() - (dow === 0 ? 6 : dow - 1))
 
   try {
     const [
@@ -36,6 +42,8 @@ async function getAgentStats(userId: string) {
       monthSales,
       target,
       pendingOrders,
+      weekCompleted,
+      weekOrders,
     ] = await Promise.all([
       db.visit.count({ where: { agentId: userId, createdAt: { gte: today } } }),
       db.order.count({ where: { createdById: userId, createdAt: { gte: today }, status: { notIn: ['DRAFT'] } } }),
@@ -60,6 +68,8 @@ async function getAgentStats(userId: string) {
         where: { userId, month: new Date().getMonth() + 1, year: new Date().getFullYear() },
       }),
       db.order.count({ where: { createdById: userId, status: { in: ['SUBMITTED', 'PRET_APROVIM'] } } }),
+      db.visit.count({ where: { agentId: userId, createdAt: { gte: startOfWeek }, status: 'CLOSED' } }),
+      db.visit.count({ where: { agentId: userId, createdAt: { gte: startOfWeek }, status: 'CLOSED', hasOrder: true } }),
     ])
 
     const monthlySalesValue = monthSales._sum.totalAmount ?? 0
@@ -76,6 +86,9 @@ async function getAgentStats(userId: string) {
       targetValue,
       realization,
       pendingOrders,
+      weekCompleted,
+      weekOrders,
+      weekConversionRate: weekCompleted > 0 ? Math.round((weekOrders / weekCompleted) * 100) : 0,
     }
   } catch (err) {
     console.error('[agjent] getAgentStats error:', err)
@@ -175,6 +188,31 @@ export default async function AgentDashboard() {
           </Link>
         </div>
       </div>
+
+      {/* Weekly Conversion Insight */}
+      {stats.weekCompleted > 0 && (
+        <Card className="rounded-2xl shadow-sm">
+          <CardContent className="p-4">
+            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">Performanca e Javës</p>
+            <div className="grid grid-cols-3 gap-3 text-center">
+              <div>
+                <p className="text-xl font-bold text-gray-900">{stats.weekCompleted}</p>
+                <p className="text-xs text-gray-400">Vizita</p>
+              </div>
+              <div>
+                <p className="text-xl font-bold text-gray-900">{stats.weekOrders}</p>
+                <p className="text-xs text-gray-400">Porosi</p>
+              </div>
+              <div>
+                <p className={`text-xl font-bold ${stats.weekConversionRate >= 50 ? 'text-green-600' : stats.weekConversionRate >= 25 ? 'text-amber-600' : 'text-red-600'}`}>
+                  {stats.weekConversionRate}%
+                </p>
+                <p className="text-xs text-gray-400">Konvertim</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Pending Orders Alert */}
       {stats.pendingOrders > 0 && (
