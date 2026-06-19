@@ -24,20 +24,24 @@ export default async function DashboardLayout({
   return (
     <div className="flex h-screen overflow-hidden bg-gray-50">
       {/* Desktop sidebar */}
-      <div className="hidden lg:flex">
+      <div className="hidden lg:flex print:hidden">
         <Sidebar userRole={role} userName={name} userEmail={email} />
       </div>
 
       {/* Main content */}
       <main className="flex-1 flex flex-col overflow-hidden">
-        <MobileHeader userRole={role} userName={name} />
+        <div className="print:hidden">
+          <MobileHeader userRole={role} userName={name} />
+        </div>
         <div className="flex-1 overflow-y-auto pb-16 lg:pb-0">
           {children}
         </div>
       </main>
 
       {/* Mobile bottom nav */}
-      <MobileNav userRole={role} />
+      <div className="print:hidden">
+        <MobileNav userRole={role} />
+      </div>
       <PushInit />
     </div>
   )

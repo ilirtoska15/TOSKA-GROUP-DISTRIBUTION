@@ -1,13 +1,15 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { Plus, Search, Package, Upload } from 'lucide-react'
+import { Plus, Search, Package, Upload, SlidersHorizontal } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-
+import { Label } from '@/components/ui/label'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { formatCurrency, debounce } from '@/lib/utils'
 import Link from 'next/link'
 import Image from 'next/image'
+import { toast } from 'sonner'
 
 export const dynamic = 'force-dynamic'
 
@@ -37,6 +39,53 @@ export default function ProductsPage() {
   const [categories, setCategories] = useState<Category[]>([])
   const [loading, setLoading] = useState(true)
   const [_viewMode, _setViewMode] = useState<'grid' | 'table'>('grid')
+
+  // Quick stock adjustment state
+  const [adjustTarget, setAdjustTarget] = useState<Product | null>(null)
+  const [adjustStock, setAdjustStock] = useState('')
+  const [adjustReason, setAdjustReason] = useState('')
+  const [adjusting, setAdjusting] = useState(false)
+
+  function openAdjust(p: Product) {
+    setAdjustTarget(p)
+    setAdjustStock(String(p.stockCopje))
+    setAdjustReason('')
+  }
+
+  async function handleStockAdjust() {
+    if (!adjustTarget) return
+    const newStock = parseInt(adjustStock, 10)
+    if (isNaN(newStock) || newStock < 0) {
+      toast.error('Stoku i ri duhet të jetë numër i plotë jo negativ')
+      return
+    }
+    if (adjustReason.trim().length < 3) {
+      toast.error('Arsyeja duhet të ketë të paktën 3 karaktere')
+      return
+    }
+    setAdjusting(true)
+    try {
+      const res = await fetch(`/api/products/${adjustTarget.id}/stock`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ newStock, reason: adjustReason.trim() }),
+      })
+      const data = await res.json()
+      if (!res.ok) { toast.error(data.error ?? 'Gabim gjatë rregullimit'); return }
+      if (data.diff === 0) {
+        toast.info('Stoku është i njëjtë — nuk u bë asnjë ndryshim')
+      } else {
+        const sign = data.diff > 0 ? '+' : ''
+        toast.success(`${adjustTarget.name}: ${data.previousStock} → ${data.newStock} (${sign}${data.diff})`)
+        setProducts(prev => prev.map(p => p.id === adjustTarget.id ? { ...p, stockCopje: data.newStock } : p))
+      }
+      setAdjustTarget(null)
+    } catch {
+      toast.error('Gabim i papritur')
+    } finally {
+      setAdjusting(false)
+    }
+  }
 
   useEffect(() => {
     fetch('/api/categories')
@@ -134,55 +183,66 @@ export default function ProductsPage() {
             const discount = p.discountPercent ?? 0
             const finalPrice = p.salesPrice * (1 - discount / 100)
             return (
-              <Link key={p.id} href={`/admin/products/${p.id}`}>
-                <div className="bg-white rounded-xl border border-gray-100 shadow-sm hover:shadow-md transition-shadow overflow-hidden group">
-                  <div className="relative h-32 bg-gray-50">
-                    <Image
-                      src={p.photo}
-                      alt={p.name}
-                      fill
-                      className="object-contain p-2"
-                      onError={(e) => { (e.target as HTMLImageElement).src = '/placeholder-product.png' }}
-                    />
-                    {p.promotionActive && (
-                      <span className="absolute top-2 left-2 bg-red-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full">
-                        PROMO
-                      </span>
-                    )}
-                    {discount > 0 && (
-                      <span className="absolute top-2 right-2 bg-orange-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full">
-                        -{discount}%
-                      </span>
-                    )}
-                    {p.stockCopje === 0 && (
-                      <span className="absolute bottom-1 right-1 bg-gray-800 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full">
-                        PA STOK
-                      </span>
-                    )}
-                  </div>
-                  <div className="p-2.5">
-                    <p className="text-xs text-gray-400 font-mono">{p.code}</p>
-                    <p className="text-sm font-semibold text-gray-900 line-clamp-2 leading-tight mt-0.5">{p.name}</p>
-                    {p.category && <p className="text-xs text-blue-500 mt-0.5">{p.category.name}</p>}
-                    {p.brand && <p className="text-xs text-gray-400">{p.brand.name}</p>}
-                    <div className="flex items-center justify-between mt-2">
-                      <div>
-                        {discount > 0 ? (
-                          <>
-                            <span className="text-sm font-bold text-primary">{formatCurrency(finalPrice)}</span>
-                            <span className="text-[10px] text-gray-400 line-through ml-1">{formatCurrency(p.salesPrice)}</span>
-                          </>
-                        ) : (
-                          <span className="text-sm font-bold text-primary">{formatCurrency(p.salesPrice)}</span>
-                        )}
+              <div key={p.id} className="relative group">
+                <Link href={`/admin/products/${p.id}`}>
+                  <div className="bg-white rounded-xl border border-gray-100 shadow-sm hover:shadow-md transition-shadow overflow-hidden">
+                    <div className="relative h-32 bg-gray-50">
+                      <Image
+                        src={p.photo}
+                        alt={p.name}
+                        fill
+                        className="object-contain p-2"
+                        onError={(e) => { (e.target as HTMLImageElement).src = '/placeholder-product.png' }}
+                      />
+                      {p.promotionActive && (
+                        <span className="absolute top-2 left-2 bg-red-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full">
+                          PROMO
+                        </span>
+                      )}
+                      {discount > 0 && (
+                        <span className="absolute top-2 right-2 bg-orange-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full">
+                          -{discount}%
+                        </span>
+                      )}
+                      {p.stockCopje === 0 && (
+                        <span className="absolute bottom-1 right-1 bg-gray-800 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full">
+                          PA STOK
+                        </span>
+                      )}
+                    </div>
+                    <div className="p-2.5 pb-1">
+                      <p className="text-xs text-gray-400 font-mono">{p.code}</p>
+                      <p className="text-sm font-semibold text-gray-900 line-clamp-2 leading-tight mt-0.5">{p.name}</p>
+                      {p.category && <p className="text-xs text-blue-500 mt-0.5">{p.category.name}</p>}
+                      {p.brand && <p className="text-xs text-gray-400">{p.brand.name}</p>}
+                      <div className="flex items-center justify-between mt-2 mb-2">
+                        <div>
+                          {discount > 0 ? (
+                            <>
+                              <span className="text-sm font-bold text-primary">{formatCurrency(finalPrice)}</span>
+                              <span className="text-[10px] text-gray-400 line-through ml-1">{formatCurrency(p.salesPrice)}</span>
+                            </>
+                          ) : (
+                            <span className="text-sm font-bold text-primary">{formatCurrency(p.salesPrice)}</span>
+                          )}
+                        </div>
+                        <span className={`text-xs font-medium ${p.stockCopje < 20 ? 'text-red-500' : 'text-green-600'}`}>
+                          {p.stockCopje} copë
+                        </span>
                       </div>
-                      <span className={`text-xs font-medium ${p.stockCopje < 20 ? 'text-red-500' : 'text-green-600'}`}>
-                        {p.stockCopje} copë
-                      </span>
                     </div>
                   </div>
-                </div>
-              </Link>
+                </Link>
+                {/* Quick stock adjust button */}
+                <button
+                  onClick={(e) => { e.preventDefault(); openAdjust(p) }}
+                  className="absolute bottom-0 left-0 right-0 flex items-center justify-center gap-1 h-7 bg-primary/90 text-white text-[10px] font-semibold rounded-b-xl opacity-0 group-hover:opacity-100 transition-opacity"
+                  title="Ndrysho Stokun"
+                >
+                  <SlidersHorizontal className="h-3 w-3" />
+                  Ndrysho Stokun
+                </button>
+              </div>
             )
           })}
         </div>
@@ -200,6 +260,62 @@ export default function ProductsPage() {
           </Button>
         </div>
       )}
+
+      {/* Quick stock adjust dialog */}
+      <Dialog open={!!adjustTarget} onOpenChange={(open) => { if (!open) setAdjustTarget(null) }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Ndrysho Stokun</DialogTitle>
+          </DialogHeader>
+          {adjustTarget && (
+            <div className="space-y-4 py-1">
+              <p className="text-sm text-gray-600">
+                <span className="font-semibold text-gray-900">{adjustTarget.name}</span>
+                <span className="text-xs text-gray-400 font-mono ml-2">{adjustTarget.code}</span>
+              </p>
+              <p className="text-sm text-gray-500">
+                Stok aktual: <span className={`font-bold ${adjustTarget.stockCopje < 20 ? 'text-red-600' : 'text-green-700'}`}>{adjustTarget.stockCopje} copë</span>
+              </p>
+              <div>
+                <Label htmlFor="adj-stock">Stoku i Ri (copë)</Label>
+                <Input
+                  id="adj-stock"
+                  type="number"
+                  min="0"
+                  value={adjustStock}
+                  onChange={(e) => setAdjustStock(e.target.value)}
+                  className="mt-1 h-11 rounded-xl"
+                  autoFocus
+                />
+                {adjustStock !== '' && !isNaN(parseInt(adjustStock)) && (
+                  <p className="text-xs mt-1 font-medium">
+                    {parseInt(adjustStock) > adjustTarget.stockCopje
+                      ? <span className="text-green-600">+{parseInt(adjustStock) - adjustTarget.stockCopje} copë</span>
+                      : parseInt(adjustStock) < adjustTarget.stockCopje
+                        ? <span className="text-red-600">{parseInt(adjustStock) - adjustTarget.stockCopje} copë</span>
+                        : <span className="text-gray-400">Pa ndryshim</span>
+                    }
+                  </p>
+                )}
+              </div>
+              <div>
+                <Label htmlFor="adj-reason">Arsyeja *</Label>
+                <Input
+                  id="adj-reason"
+                  placeholder="p.sh. inventar, korrigjim, dëmtim..."
+                  value={adjustReason}
+                  onChange={(e) => setAdjustReason(e.target.value)}
+                  className="mt-1 h-11 rounded-xl"
+                />
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAdjustTarget(null)}>Anulo</Button>
+            <Button onClick={handleStockAdjust} loading={adjusting}>Ruaj Stokun</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

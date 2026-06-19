@@ -165,3 +165,39 @@
     padding-bottom: 1rem;
   }
 }
+
+/* ===== PRINT SUPPORT ===== */
+@page {
+  size: A4;
+  margin: 1.5cm;
+}
+
+@media print {
+  /* Hide all app chrome */
+  .no-print {
+    display: none !important;
+  }
+
+  /* Ensure page background is white */
+  body {
+    background: white !important;
+    color: black !important;
+    font-size: 11pt !important;
+  }
+
+  /* Allow main content to overflow for full page print */
+  main,
+  .overflow-y-auto,
+  .overflow-hidden {
+    overflow: visible !important;
+    height: auto !important;
+  }
+
+  /* Page break helpers */
+  .print-break-before {
+    page-break-before: always;
+  }
+  .print-avoid-break {
+    page-break-inside: avoid;
+  }
+}

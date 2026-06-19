@@ -6,7 +6,7 @@ import { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import {
   ArrowLeft, Package, User, MapPin, FileText,
-  CheckCircle, XCircle, Truck, Clock
+  CheckCircle, XCircle, Truck, Clock, Printer
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -146,7 +146,7 @@ export default function OrderDetailPage() {
       {/* Header */}
       <div className="flex items-start justify-between gap-3 flex-wrap">
         <div className="flex items-center gap-3">
-          <button onClick={() => router.back()} className="p-1.5 rounded-lg hover:bg-gray-100">
+          <button onClick={() => router.back()} className="p-1.5 rounded-lg hover:bg-gray-100 no-print">
             <ArrowLeft className="h-5 w-5 text-gray-600" />
           </button>
           <div>
@@ -161,22 +161,29 @@ export default function OrderDetailPage() {
           </div>
         </div>
 
-        {transitions.length > 0 && !order.isLocked && (
-          <div className="flex gap-2 flex-wrap">
-            {transitions.map(t => (
-              <Button
-                key={t.next}
-                variant={t.variant}
-                size="sm"
-                onClick={() => handleStatusChange(t.next)}
-                disabled={updating}
-                className={t.next === 'ANULUAR' ? 'text-red-600 border-red-200 hover:bg-red-50' : ''}
-              >
-                {t.label}
-              </Button>
-            ))}
-          </div>
-        )}
+        <div className="flex gap-2 flex-wrap items-center">
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-1.5 no-print"
+            onClick={() => window.print()}
+          >
+            <Printer className="h-3.5 w-3.5" />
+            Printo
+          </Button>
+          {transitions.length > 0 && !order.isLocked && transitions.map(t => (
+            <Button
+              key={t.next}
+              variant={t.variant}
+              size="sm"
+              className={`no-print${t.next === 'ANULUAR' ? ' text-red-600 border-red-200 hover:bg-red-50' : ''}`}
+              onClick={() => handleStatusChange(t.next)}
+              disabled={updating}
+            >
+              {t.label}
+            </Button>
+          ))}
+        </div>
       </div>
 
       {order.rejectionNote && (
