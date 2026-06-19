@@ -645,26 +645,25 @@ export default function NewOrderPage() {
                   return (
                     <div
                       key={product.id}
-                      className={`bg-white rounded-2xl border shadow-sm overflow-hidden transition-all ${
+                      className={`bg-white rounded-xl border shadow-sm overflow-hidden transition-all ${
                         inCart ? 'border-primary ring-1 ring-primary/20' : 'border-gray-200'
                       } ${maxStock === 0 ? 'opacity-60' : ''}`}
                     >
-                      {/* ─── ZONA 1: Info row ─── */}
-                      <div className="flex gap-3 p-3 pb-2.5">
+                      <div className="flex gap-2.5 p-3">
 
-                        {/* Photo 112×112 — locked width, never shrinks */}
-                        <div className="relative w-[112px] h-[112px] min-w-[112px] rounded-xl overflow-hidden bg-gray-100">
+                        {/* ─ Photo 110×110 ─ */}
+                        <div className="relative w-[110px] h-[110px] min-w-[110px] rounded-lg overflow-hidden bg-gray-100">
                           {product.photo ? (
                             <Image
                               src={product.photo}
                               alt={product.name}
                               fill
                               className="object-cover"
-                              sizes="112px"
+                              sizes="110px"
                             />
                           ) : (
                             <div className="flex items-center justify-center h-full">
-                              <Package className="h-9 w-9 text-gray-300" />
+                              <Package className="h-8 w-8 text-gray-300" />
                             </div>
                           )}
                           {discount > 0 && (
@@ -674,68 +673,50 @@ export default function NewOrderPage() {
                           )}
                         </div>
 
-                        {/* Info column — fills remaining width */}
-                        <div className="flex-1 min-w-0 flex flex-col min-h-[112px]">
+                        {/* ─ Info column ─ */}
+                        <div className="flex-1 min-w-0 flex flex-col">
 
                           {/* Name */}
-                          <p className="font-semibold text-gray-900 text-sm leading-snug line-clamp-2">
+                          <p className="font-semibold text-gray-900 text-[13px] leading-tight line-clamp-2">
                             {product.name}
                           </p>
 
                           {/* Category · Brand */}
-                          <p className="text-xs text-gray-400 mt-0.5 truncate">
+                          <p className="text-[11px] text-gray-400 mt-0.5 truncate">
                             {[product.category?.name, product.brand?.name].filter(Boolean).join(' · ')}
                           </p>
 
-                          {/* Stock badge */}
-                          <div className="mt-1.5">
+                          {/* Stock badge + Copë/Pako toggle — same row */}
+                          <div className="flex items-center justify-between gap-2 mt-1.5">
                             {maxStock === 0 ? (
-                              <span className="inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-full bg-red-50 text-red-600">
-                                <span className="w-1.5 h-1.5 rounded-full bg-red-500 shrink-0" />
+                              <span className="inline-flex items-center gap-0.5 text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-red-50 text-red-600 shrink-0">
+                                <span className="w-1 h-1 rounded-full bg-red-500" />
                                 Pa stok
                               </span>
                             ) : maxStock < 5 ? (
-                              <span className="inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-full bg-amber-50 text-amber-600">
-                                <span className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0" />
-                                {maxStock} {unit === 'COPE' ? 'copë' : 'pako'} (ulët)
+                              <span className="inline-flex items-center gap-0.5 text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-amber-50 text-amber-600 shrink-0">
+                                <span className="w-1 h-1 rounded-full bg-amber-500" />
+                                {maxStock} {unit === 'COPE' ? 'copë' : 'pako'} ulët
                               </span>
                             ) : (
-                              <span className="inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-full bg-green-50 text-green-700">
-                                <span className="w-1.5 h-1.5 rounded-full bg-green-500 shrink-0" />
+                              <span className="inline-flex items-center gap-0.5 text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-green-50 text-green-700 shrink-0">
+                                <span className="w-1 h-1 rounded-full bg-green-500" />
                                 {maxStock} {unit === 'COPE' ? 'copë' : 'pako'}
                               </span>
                             )}
-                          </div>
-
-                          {/* Price row + Copë/Pako toggle — always in info column */}
-                          <div className="flex items-center justify-between mt-auto pt-1.5">
-                            <div className="flex items-baseline gap-1.5 shrink-0">
-                              <span className="text-base font-bold text-primary leading-none">
-                                {formatCurrency(price)}
-                              </span>
-                              {discount > 0 && (
-                                <span className="text-xs text-gray-400 line-through">
-                                  {formatCurrency(oldPrice)}
-                                </span>
-                              )}
-                            </div>
                             {hasPako && (
-                              <div className="flex rounded-lg border border-gray-200 overflow-hidden shrink-0 ml-2">
+                              <div className="flex rounded-md border border-gray-200 overflow-hidden shrink-0">
                                 <button
-                                  className={`px-2 h-7 text-[11px] font-semibold transition-colors ${
-                                    unit === 'COPE'
-                                      ? 'bg-primary text-white'
-                                      : 'text-gray-600 bg-white hover:bg-gray-50 active:bg-gray-100'
+                                  className={`px-1.5 h-[22px] text-[10px] font-semibold transition-colors ${
+                                    unit === 'COPE' ? 'bg-primary text-white' : 'text-gray-600 bg-white hover:bg-gray-50 active:bg-gray-100'
                                   }`}
                                   onClick={() => setUnit(product.id, 'COPE')}
                                 >
                                   Copë
                                 </button>
                                 <button
-                                  className={`px-2 h-7 text-[11px] font-semibold border-l border-gray-200 transition-colors ${
-                                    unit === 'PAKO'
-                                      ? 'bg-primary text-white'
-                                      : 'text-gray-600 bg-white hover:bg-gray-50 active:bg-gray-100'
+                                  className={`px-1.5 h-[22px] text-[10px] font-semibold border-l border-gray-200 transition-colors ${
+                                    unit === 'PAKO' ? 'bg-primary text-white' : 'text-gray-600 bg-white hover:bg-gray-50 active:bg-gray-100'
                                   }`}
                                   onClick={() => setUnit(product.id, 'PAKO')}
                                 >
@@ -744,68 +725,61 @@ export default function NewOrderPage() {
                               </div>
                             )}
                           </div>
+
+                          {/* ─ Bottom row: price left + action right ─ */}
+                          <div className="flex items-center justify-between gap-1 mt-auto pt-1.5">
+
+                            {/* Price */}
+                            <div className="flex items-baseline gap-1 shrink-0">
+                              <span className="text-sm font-bold text-primary">{formatCurrency(price)}</span>
+                              {discount > 0 && (
+                                <span className="text-[11px] text-gray-400 line-through">{formatCurrency(oldPrice)}</span>
+                              )}
+                            </div>
+
+                            {/* Action — compact, right-aligned */}
+                            {maxStock === 0 ? (
+                              <span className="text-[11px] text-gray-400 font-medium shrink-0">Pa Stok</span>
+                            ) : isBlocked ? (
+                              <span className="text-[11px] text-red-400 font-medium shrink-0">Bllokuar</span>
+                            ) : qty === 0 ? (
+                              <button
+                                className="h-10 px-3 bg-primary text-white rounded-lg text-[13px] font-semibold flex items-center gap-1 shrink-0 hover:bg-primary/90 active:bg-primary/80 transition-colors"
+                                onClick={() => setQty(product, 1)}
+                              >
+                                <Plus className="h-3.5 w-3.5" />
+                                Shto
+                              </button>
+                            ) : (
+                              <div className="flex items-center gap-0.5 shrink-0">
+                                <button
+                                  className="w-9 h-10 rounded-lg border border-gray-200 flex items-center justify-center hover:bg-gray-50 active:bg-gray-100 transition-colors"
+                                  onClick={() => setQty(product, qty - 1)}
+                                >
+                                  <Minus className="h-3.5 w-3.5 text-gray-700" />
+                                </button>
+                                <input
+                                  type="number"
+                                  min={1}
+                                  max={maxStock}
+                                  value={qty}
+                                  onChange={e => setQty(product, parseInt(e.target.value) || 0)}
+                                  className="w-9 h-10 text-center text-xs font-bold border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/30 mx-0.5"
+                                />
+                                <button
+                                  className="w-9 h-10 rounded-lg border border-gray-200 flex items-center justify-center hover:bg-gray-50 active:bg-gray-100 transition-colors disabled:opacity-40"
+                                  onClick={() => setQty(product, qty + 1)}
+                                  disabled={qty >= maxStock}
+                                >
+                                  <Plus className="h-3.5 w-3.5 text-gray-700" />
+                                </button>
+                                <div className="w-9 h-10 rounded-lg bg-green-500 text-white flex items-center justify-center ml-0.5">
+                                  <Check className="h-3.5 w-3.5" />
+                                </div>
+                              </div>
+                            )}
+                          </div>
                         </div>
-                      </div>
-
-                      {/* ─── ZONA 2: Action row — always visible, never collapses ─── */}
-                      <div className="border-t border-gray-100 px-3 pb-3 pt-2 flex items-center gap-2">
-
-                        {/* [-] */}
-                        <button
-                          className="w-11 h-11 rounded-xl border border-gray-200 flex items-center justify-center hover:bg-gray-50 active:bg-gray-100 transition-colors shrink-0 disabled:opacity-40 disabled:cursor-not-allowed"
-                          onClick={() => setQty(product, Math.max(0, qty - 1))}
-                          disabled={maxStock === 0 || isBlocked || qty === 0}
-                        >
-                          <Minus className="h-4 w-4 text-gray-700" />
-                        </button>
-
-                        {/* Qty */}
-                        <input
-                          type="number"
-                          min={0}
-                          max={maxStock}
-                          value={qty}
-                          onChange={e => setQty(product, Math.min(maxStock, Math.max(0, parseInt(e.target.value) || 0)))}
-                          className="w-14 h-11 text-center text-sm font-bold border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/30 disabled:opacity-40 disabled:bg-gray-50 shrink-0"
-                          disabled={maxStock === 0 || isBlocked}
-                        />
-
-                        {/* [+] */}
-                        <button
-                          className="w-11 h-11 rounded-xl border border-gray-200 flex items-center justify-center hover:bg-gray-50 active:bg-gray-100 transition-colors shrink-0 disabled:opacity-40 disabled:cursor-not-allowed"
-                          onClick={() => setQty(product, qty + 1)}
-                          disabled={maxStock === 0 || isBlocked || qty >= maxStock}
-                        >
-                          <Plus className="h-4 w-4 text-gray-700" />
-                        </button>
-
-                        {/* Shto / Shtuar / Pa Stok / Bllokuar */}
-                        <button
-                          className={`flex-1 h-11 rounded-xl text-sm font-semibold transition-colors flex items-center justify-center gap-1.5 ${
-                            maxStock === 0
-                              ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                              : isBlocked
-                              ? 'bg-red-50 text-red-400 cursor-not-allowed'
-                              : qty > 0
-                              ? 'bg-green-500 text-white hover:bg-green-600 active:bg-green-700'
-                              : 'bg-primary text-white hover:bg-primary/90 active:bg-primary/80'
-                          }`}
-                          onClick={() => {
-                            if (maxStock === 0 || isBlocked) return
-                            if (qty === 0) setQty(product, 1)
-                          }}
-                          disabled={maxStock === 0 || isBlocked}
-                        >
-                          {maxStock === 0 ? (
-                            'Pa Stok'
-                          ) : isBlocked ? (
-                            'Bllokuar'
-                          ) : qty > 0 ? (
-                            <><Check className="h-4 w-4" /><span>Shtuar</span></>
-                          ) : (
-                            <><Plus className="h-4 w-4" /><span>Shto</span></>
-                          )}
-                        </button>
                       </div>
                     </div>
                   )
