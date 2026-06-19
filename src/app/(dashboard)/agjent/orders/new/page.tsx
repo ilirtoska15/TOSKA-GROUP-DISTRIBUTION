@@ -720,7 +720,7 @@ export default function NewOrderPage() {
                                   }`}
                                   onClick={() => setUnit(product.id, 'PAKO')}
                                 >
-                                  ×{product.pakoCopje}
+                                  Pako×{product.pakoCopje}
                                 </button>
                               </div>
                             )}
