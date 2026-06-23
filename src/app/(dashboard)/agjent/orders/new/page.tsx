@@ -7,6 +7,7 @@ import {
   ArrowLeft, ShoppingCart, Search, X, Plus, Minus, Check, ZoomIn,
   AlertTriangle, Save, Send, Package,
   MapPin, Phone, Building2, CreditCard, Calendar, User, Store,
+  Layers, CornerDownRight,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -34,13 +35,29 @@ interface Product {
   category?: { id: string; name: string } | null
 }
 
+interface CustomerUnit {
+  id: string
+  code: string
+  businessName: string
+  unitName?: string | null
+  unitType?: string | null
+  city?: string
+  businessAddress?: string
+  status: string
+}
+
 interface Customer {
   id: string
   code: string
   businessName: string
   city?: string
+  businessAddress?: string
   status: string
   isBusinessGroup?: boolean
+  parentCustomerId?: string | null
+  unitName?: string | null
+  parentCustomer?: { id: string; businessName: string } | null
+  units?: CustomerUnit[]
   _count?: { units: number }
 }
 
@@ -292,7 +309,7 @@ export default function NewOrderPage() {
 
   // Load initial customer results
   useEffect(() => {
-    fetch('/api/customers?limit=20')
+    fetch('/api/customers?limit=20&topLevel=1')
       .then(r => r.ok ? r.json() : { customers: [] })
       .then(d => setCustomerResults(d.customers ?? []))
       .catch(() => setCustomerResults([]))
@@ -304,8 +321,8 @@ export default function NewOrderPage() {
       setCustomerLoading(true)
       try {
         const url = customerSearch.trim()
-          ? `/api/customers?search=${encodeURIComponent(customerSearch)}&limit=20`
-          : `/api/customers?limit=20`
+          ? `/api/customers?search=${encodeURIComponent(customerSearch)}&limit=20&topLevel=1`
+          : `/api/customers?limit=20&topLevel=1`
         const r = await fetch(url)
         const d = r.ok ? await r.json() : { customers: [] }
         setCustomerResults(d.customers ?? [])
@@ -455,8 +472,18 @@ export default function NewOrderPage() {
     )
   })
 
+  function selectCustomer(id: string) {
+    setCustomerId(id)
+    setPickerOpen(false)
+    setCustomerSearch('')
+  }
+
+  // A group with units must not receive orders directly — pick a unit instead
+  const groupWithUnits = !!customerDetail?.isBusinessGroup && (customerDetail?.units?.length ?? 0) > 0
+
   async function handleSubmit(status: 'DRAFT' | 'SUBMITTED') {
     if (!customerId) { toast.error('Zgjidh klientin'); return }
+    if (groupWithUnits) { toast.error('Zgjidh një njësi/pikë konkrete, jo grupin kryesor'); return }
     if (cart.length === 0) { toast.error('Shporta është bosh'); return }
 
     setSubmitting(true)
@@ -718,7 +745,7 @@ export default function NewOrderPage() {
                 <Button
                   variant="outline"
                   onClick={() => { setShowCart(false); handleSubmit('DRAFT') }}
-                  disabled={submitting || !customerId || cart.length === 0}
+                  disabled={submitting || !customerId || cart.length === 0 || groupWithUnits}
                   className="gap-1.5 min-h-[44px]"
                 >
                   <Save className="h-4 w-4" />
@@ -726,7 +753,7 @@ export default function NewOrderPage() {
                 </Button>
                 <Button
                   onClick={() => { setShowCart(false); handleSubmit('SUBMITTED') }}
-                  disabled={submitting || !customerId || cart.length === 0 || isBlocked}
+                  disabled={submitting || !customerId || cart.length === 0 || isBlocked || groupWithUnits}
                   className="gap-1.5 min-h-[44px]"
                 >
                   <Send className="h-4 w-4" />
@@ -782,29 +809,86 @@ export default function NewOrderPage() {
                         {customerSearch ? 'Nuk u gjet asnjë klient' : 'Shkruaj për të kërkuar...'}
                       </div>
                     ) : (
-                      customerResults.map(c => (
-                        <button
-                          key={c.id}
-                          className="w-full text-left px-4 py-3 hover:bg-gray-50 active:bg-gray-100 border-b last:border-0 border-gray-100 transition-colors"
-                          onClick={() => { setCustomerId(c.id); setPickerOpen(false); setCustomerSearch('') }}
-                        >
-                          <div className="flex items-center justify-between gap-2">
-                            <div className="min-w-0">
-                              <p className="font-semibold text-gray-900 text-sm truncate">{c.businessName}</p>
-                              <p className="text-xs text-gray-400 font-mono mt-0.5">
-                                {c.code}{c.city ? ` · ${c.city}` : ''}
-                                {c.isBusinessGroup ? ' · Grup' : ''}
-                              </p>
+                      customerResults.map(c => {
+                        // Group WITH units → header is not selectable; render its units to pick from
+                        if (c.isBusinessGroup && c.units && c.units.length > 0) {
+                          return (
+                            <div key={c.id} className="border-b last:border-0 border-gray-100">
+                              <div className="flex items-center gap-2 px-4 py-2.5 bg-blue-50/60">
+                                <Layers className="h-4 w-4 text-blue-500 shrink-0" />
+                                <div className="min-w-0 flex-1">
+                                  <p className="font-semibold text-gray-900 text-sm truncate">{c.businessName}</p>
+                                  <p className="text-[11px] text-blue-600">Ky biznes ka {c.units.length} njësi — zgjidh një pikë konkrete.</p>
+                                </div>
+                                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 shrink-0">GRUP</span>
+                              </div>
+                              {c.units.map(u => {
+                                const blocked = u.status === 'BLOCKED'
+                                return (
+                                  <button
+                                    key={u.id}
+                                    disabled={blocked}
+                                    className="w-full text-left pl-9 pr-4 py-2.5 hover:bg-gray-50 active:bg-gray-100 border-t border-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                    onClick={() => selectCustomer(u.id)}
+                                  >
+                                    <div className="flex items-center justify-between gap-2">
+                                      <div className="min-w-0 flex items-start gap-1.5">
+                                        <CornerDownRight className="h-3.5 w-3.5 text-gray-300 mt-0.5 shrink-0" />
+                                        <div className="min-w-0">
+                                          <p className="text-sm font-medium text-gray-800 truncate">{u.unitName || u.businessName}</p>
+                                          <p className="text-[11px] text-gray-400 truncate">
+                                            {u.code}{u.businessAddress ? ` · ${u.businessAddress}` : u.city ? ` · ${u.city}` : ''}
+                                          </p>
+                                        </div>
+                                      </div>
+                                      {blocked ? (
+                                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-red-100 text-red-700 shrink-0">BLLOKUAR</span>
+                                      ) : (
+                                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-purple-100 text-purple-700 shrink-0">NJËSI</span>
+                                      )}
+                                    </div>
+                                  </button>
+                                )
+                              })}
                             </div>
-                            {c.status === 'BLOCKED' && (
-                              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-red-100 text-red-700 shrink-0">BLLOKUAR</span>
-                            )}
-                            {c.isBusinessGroup && c.status !== 'BLOCKED' && (
-                              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 shrink-0">GRUP</span>
-                            )}
-                          </div>
-                        </button>
-                      ))
+                          )
+                        }
+
+                        // Unit (from search) → selectable, show parent business
+                        // Standalone / empty group → selectable
+                        const isUnit = !c.isBusinessGroup && !!c.parentCustomerId
+                        const blocked = c.status === 'BLOCKED'
+                        return (
+                          <button
+                            key={c.id}
+                            disabled={blocked}
+                            className="w-full text-left px-4 py-3 hover:bg-gray-50 active:bg-gray-100 border-b last:border-0 border-gray-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            onClick={() => selectCustomer(c.id)}
+                          >
+                            <div className="flex items-center justify-between gap-2">
+                              <div className="min-w-0">
+                                <p className="font-semibold text-gray-900 text-sm truncate">
+                                  {isUnit ? (c.parentCustomer?.businessName ?? c.businessName) : c.businessName}
+                                </p>
+                                {isUnit && c.unitName && (
+                                  <p className="text-[11px] text-purple-600 truncate">Njësia: {c.unitName}</p>
+                                )}
+                                <p className="text-xs text-gray-400 font-mono mt-0.5">
+                                  {c.code}{c.city ? ` · ${c.city}` : ''}
+                                  {c.isBusinessGroup ? ' · Grup (pa njësi)' : ''}
+                                </p>
+                              </div>
+                              {blocked ? (
+                                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-red-100 text-red-700 shrink-0">BLLOKUAR</span>
+                              ) : isUnit ? (
+                                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-purple-100 text-purple-700 shrink-0">NJËSI</span>
+                              ) : c.isBusinessGroup ? (
+                                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 shrink-0">GRUP</span>
+                              ) : null}
+                            </div>
+                          </button>
+                        )
+                      })
                     )}
                   </div>
                 )}
@@ -827,20 +911,34 @@ export default function NewOrderPage() {
                 onClear={() => { setCustomerId(''); setCustomerDetail(null) }}
               />
             </div>
-            {customerDetail?.isBusinessGroup && (customerDetail.units?.length ?? 0) > 0 && (
-              <div className="flex items-start gap-2.5 bg-blue-50 border border-blue-200 rounded-xl px-3 py-2.5">
-                <AlertTriangle className="h-4 w-4 text-blue-500 shrink-0 mt-0.5" />
-                <div>
-                  <p className="text-sm font-semibold text-blue-800">Grup Biznesesh me {customerDetail.units!.length} njësi</p>
-                  <p className="text-xs text-blue-600 mt-0.5">Sigurohuni që porosia shkon tek njësia e duhur, jo tek grupi kryesor.</p>
+            {groupWithUnits && (
+              <div className="bg-amber-50 border border-amber-200 rounded-xl px-3 py-3 space-y-2.5">
+                <div className="flex items-start gap-2.5">
+                  <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-sm font-semibold text-amber-800">Ky biznes ka {customerDetail!.units!.length} njësi</p>
+                    <p className="text-xs text-amber-700 mt-0.5">Porosia nuk mund t&apos;i lidhet grupit kryesor. Zgjidh një pikë konkrete:</p>
+                  </div>
+                </div>
+                <div className="space-y-1.5">
+                  {customerDetail!.units!.map(u => (
+                    <button
+                      key={u.id}
+                      onClick={() => selectCustomer(u.id)}
+                      className="w-full flex items-center gap-2 text-left bg-white border border-amber-200 rounded-lg px-3 py-2 hover:bg-amber-100/40 active:bg-amber-100 transition-colors"
+                    >
+                      <CornerDownRight className="h-3.5 w-3.5 text-amber-400 shrink-0" />
+                      <span className="text-sm font-medium text-gray-800 truncate">{u.unitName || u.businessName}</span>
+                    </button>
+                  ))}
                 </div>
               </div>
             )}
           </>
         )}
 
-        {/* ─ Products section — only when customer selected ─ */}
-        {customerId && !loadingDetail && (
+        {/* ─ Products section — only when a real customer/unit is selected (not a group) ─ */}
+        {customerId && !loadingDetail && !groupWithUnits && (
           <>
             {/* Search + Category */}
             {/* Search bar */}
@@ -1107,7 +1205,7 @@ export default function NewOrderPage() {
             <Button
               variant="outline"
               onClick={() => handleSubmit('DRAFT')}
-              disabled={submitting || !customerId}
+              disabled={submitting || !customerId || groupWithUnits}
               className="gap-1.5 shrink-0 h-11 px-4"
             >
               <Save className="h-4 w-4" />
@@ -1115,7 +1213,7 @@ export default function NewOrderPage() {
             </Button>
             <Button
               onClick={() => handleSubmit('SUBMITTED')}
-              disabled={submitting || !customerId || isBlocked}
+              disabled={submitting || !customerId || isBlocked || groupWithUnits}
               className="gap-1.5 shrink-0 h-11 px-4"
             >
               <Send className="h-4 w-4" />

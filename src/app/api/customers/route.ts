@@ -42,6 +42,9 @@ export async function GET(req: NextRequest) {
     const agentId = searchParams.get('agentId') ?? ''
     const type = searchParams.get('type') ?? ''           // GROUP | UNIT | CUSTOMER
     const parentCustomerId = searchParams.get('parentCustomerId') ?? ''
+    // topLevel=1 → return only root rows (groups + standalone), with their units nested.
+    // Used by the admin list to render a hierarchy instead of flat duplicates.
+    const topLevel = searchParams.get('topLevel') === '1'
     const page = Math.max(1, parseInt(searchParams.get('page') || '1', 10) || 1)
     const limit = Math.min(200, Math.max(1, parseInt(searchParams.get('limit') || '20', 10) || 20))
     const skip = (page - 1) * limit
@@ -62,11 +65,14 @@ export async function GET(req: NextRequest) {
     if (type === 'GROUP') where.isBusinessGroup = true
     else if (type === 'UNIT') where.parentCustomerId = { not: null }
     else if (type === 'CUSTOMER') { where.isBusinessGroup = false; where.parentCustomerId = null }
+    // Default tree view: hide units at top level — they render nested under their group.
+    // Skipped while searching so a unit can still be found by name/code.
+    else if (topLevel && !search.trim()) where.parentCustomerId = null
 
-    // Agents can only see their own customers
-    if (session.user.role === 'AGJENT') {
-      where.agentId = session.user.id
-    }
+    // Agents can only see their own customers — and only their own nested units
+    const isAgent = session.user.role === 'AGJENT'
+    if (isAgent) where.agentId = session.user.id
+    const unitsWhere = isAgent ? { agentId: session.user.id } : undefined
 
     const [customers, total] = await Promise.all([
       db.customer.findMany({
@@ -76,6 +82,16 @@ export async function GET(req: NextRequest) {
           region: { select: { id: true, name: true } },
           zone: { select: { id: true, name: true } },
           parentCustomer: { select: { id: true, code: true, businessName: true } },
+          units: {
+            where: unitsWhere,
+            select: {
+              id: true, code: true, businessName: true, unitName: true, unitType: true,
+              city: true, phone: true, businessAddress: true, status: true,
+              agent: { select: { id: true, name: true } },
+              _count: { select: { orders: true } },
+            },
+            orderBy: { businessName: 'asc' },
+          },
           _count: { select: { orders: true, visits: true, units: true } },
         },
         orderBy: { businessName: 'asc' },

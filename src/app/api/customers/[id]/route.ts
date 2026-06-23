@@ -43,7 +43,14 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
         region: { select: { id: true, name: true } },
         zone: { select: { id: true, name: true } },
         parentCustomer: { select: { id: true, code: true, businessName: true } },
-        units: { select: { id: true, code: true, businessName: true, unitName: true, unitType: true, status: true }, orderBy: { businessName: 'asc' } },
+        units: {
+          select: {
+            id: true, code: true, businessName: true, unitName: true, unitType: true,
+            status: true, city: true, phone: true, businessAddress: true,
+            _count: { select: { orders: true } },
+          },
+          orderBy: { businessName: 'asc' },
+        },
         orders: {
           orderBy: { createdAt: 'desc' },
           take: 10,

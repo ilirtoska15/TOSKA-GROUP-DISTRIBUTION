@@ -233,6 +233,7 @@ export default function CustomersImportPage() {
                       <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 w-12">#</th>
                       <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 w-8"></th>
                       <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500">Emri Biznesit</th>
+                      <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500">Lloji</th>
                       <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500">Kodi</th>
                       <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500">Qyteti</th>
                       <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500">Telefon</th>
@@ -251,6 +252,15 @@ export default function CustomersImportPage() {
                               : <CheckCircle className="h-4 w-4 text-green-500" />}
                         </td>
                         <td className="px-4 py-2.5 font-medium text-gray-800 max-w-[200px] truncate">{row.businessName || <span className="text-red-400 italic">mungon</span>}</td>
+                        <td className="px-4 py-2.5">
+                          {(() => {
+                            const t = String(row.customerType ?? '')
+                            const parent = String(row.parentBusinessCode ?? '')
+                            if (t === 'GROUP') return <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-blue-100 text-blue-700">GRUP</span>
+                            if (t === 'UNIT') return <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-purple-100 text-purple-700" title={parent ? `Pjesë e: ${parent}` : ''}>NJËSI{parent ? ` → ${parent}` : ''}</span>
+                            return <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-500">I VETËM</span>
+                          })()}
+                        </td>
                         <td className="px-4 py-2.5 text-gray-500 font-mono text-xs">{row.code || '—'}</td>
                         <td className="px-4 py-2.5 text-gray-600">{row.city || '—'}</td>
                         <td className="px-4 py-2.5 text-gray-600">{row.phone || '—'}</td>

@@ -1,7 +1,7 @@
-﻿'use client'
+'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { Plus, Search, Upload, Layers, Building2, Users } from 'lucide-react'
+import { Plus, Search, Upload, Layers, Building2, Users, Store, CornerDownRight } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -12,6 +12,20 @@ import { PageHeader } from '@/components/ui/page-header'
 import { EmptyState } from '@/components/ui/empty-state'
 
 export const dynamic = 'force-dynamic'
+
+interface Unit {
+  id: string
+  code: string
+  businessName: string
+  unitName?: string | null
+  unitType?: string | null
+  city: string
+  phone: string
+  businessAddress?: string
+  status: string
+  agent?: { name: string } | null
+  _count?: { orders: number }
+}
 
 interface Customer {
   id: string
@@ -24,8 +38,33 @@ interface Customer {
   parentCustomerId?: string | null
   unitName?: string | null
   agent?: { name: string } | null
+  parentCustomer?: { id: string; code: string; businessName: string } | null
+  units?: Unit[]
   _count: { orders: number; visits: number; units: number }
   createdAt: string
+}
+
+// ─── Badges ────────────────────────────────────────────────────
+function GroupBadge() {
+  return (
+    <span className="inline-flex items-center gap-0.5 text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-blue-100 text-blue-700">
+      <Layers className="h-2.5 w-2.5" />GRUP
+    </span>
+  )
+}
+function UnitBadge() {
+  return (
+    <span className="inline-flex items-center gap-0.5 text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-purple-100 text-purple-700">
+      <Building2 className="h-2.5 w-2.5" />NJËSI
+    </span>
+  )
+}
+function SoloBadge() {
+  return (
+    <span className="inline-flex items-center gap-0.5 text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-500">
+      <Store className="h-2.5 w-2.5" />I VETËM
+    </span>
+  )
 }
 
 export default function CustomersPage() {
@@ -46,6 +85,7 @@ export default function CustomersPage() {
         search,
         status: statusFilter,
         type: typeFilter,
+        topLevel: '1',
       })
       const res = await fetch(`/api/customers?${params}`)
       if (!res.ok) {
@@ -74,6 +114,84 @@ export default function CustomersPage() {
   }, 400)
 
   const totalPages = Math.ceil(total / 20)
+
+  // Render an indented unit row beneath a group (or as a search result with parent context)
+  const renderUnitRow = (u: Unit, opts?: { parent?: { id: string; businessName: string } | null }) => (
+    <TableRow key={u.id} className="cursor-pointer bg-gray-50/60 hover:bg-gray-100/70">
+      <TableCell className="py-2">
+        <Link href={`/admin/customers/${u.id}`} className="text-gray-500 font-mono text-xs hover:underline">
+          {u.code}
+        </Link>
+      </TableCell>
+      <TableCell className="py-2">
+        <div className="flex items-start gap-1.5 pl-5">
+          <CornerDownRight className="h-3.5 w-3.5 text-gray-300 mt-0.5 shrink-0" />
+          <div className="min-w-0">
+            <div className="flex items-center gap-2 flex-wrap">
+              <Link href={`/admin/customers/${u.id}`} className="text-sm font-medium text-gray-700 hover:text-primary">
+                {u.unitName || u.businessName}
+              </Link>
+              <UnitBadge />
+              {u.unitType && <span className="text-[10px] text-gray-400 uppercase">{u.unitType}</span>}
+            </div>
+            {opts?.parent && (
+              <p className="text-[11px] text-gray-400">Pjesë e: {opts.parent.businessName}</p>
+            )}
+            {u.businessAddress && !opts?.parent && (
+              <p className="text-[11px] text-gray-400 truncate">{u.businessAddress}</p>
+            )}
+          </div>
+        </div>
+      </TableCell>
+      <TableCell className="hidden md:table-cell text-gray-500 text-sm py-2">{u.city || '—'}</TableCell>
+      <TableCell className="hidden md:table-cell text-gray-500 text-sm py-2">{u.phone || '—'}</TableCell>
+      <TableCell className="hidden lg:table-cell text-gray-500 text-sm py-2">{u.agent?.name ?? '-'}</TableCell>
+      <TableCell className="hidden lg:table-cell text-center text-sm py-2">{u._count?.orders ?? 0}</TableCell>
+      <TableCell className="py-2">
+        <span className={`badge ${getStatusColor(u.status)}`}>{getStatusLabel(u.status)}</span>
+      </TableCell>
+    </TableRow>
+  )
+
+  const renderMainRow = (c: Customer) => {
+    const isGroup = c.isBusinessGroup
+    const isUnit = !isGroup && !!c.parentCustomerId
+    return (
+      <TableRow key={c.id} className={`cursor-pointer hover:bg-gray-50 ${isGroup ? 'bg-blue-50/30' : ''}`}>
+        <TableCell>
+          <Link href={`/admin/customers/${c.id}`} className="text-primary font-mono text-sm hover:underline">
+            {c.code}
+          </Link>
+        </TableCell>
+        <TableCell>
+          <div className="min-w-0">
+            <div className="flex items-center gap-2 flex-wrap">
+              {isGroup && <Layers className="h-4 w-4 text-blue-500 shrink-0" />}
+              <Link href={`/admin/customers/${c.id}`} className="font-semibold text-gray-900 hover:text-primary">
+                {c.businessName}
+              </Link>
+              {isGroup ? <GroupBadge /> : isUnit ? <UnitBadge /> : <SoloBadge />}
+              {isGroup && (
+                <span className="text-[11px] font-medium text-blue-600">
+                  {c._count.units} {c._count.units === 1 ? 'njësi' : 'njësi'}
+                </span>
+              )}
+            </div>
+            {isUnit && c.parentCustomer && (
+              <p className="text-[11px] text-gray-400">Pjesë e: {c.parentCustomer.businessName}</p>
+            )}
+          </div>
+        </TableCell>
+        <TableCell className="hidden md:table-cell text-gray-500 text-sm">{c.city || '—'}</TableCell>
+        <TableCell className="hidden md:table-cell text-gray-500 text-sm">{c.phone || '—'}</TableCell>
+        <TableCell className="hidden lg:table-cell text-gray-500 text-sm">{c.agent?.name ?? '-'}</TableCell>
+        <TableCell className="hidden lg:table-cell text-center text-sm">{c._count.orders}</TableCell>
+        <TableCell>
+          <span className={`badge ${getStatusColor(c.status)}`}>{getStatusLabel(c.status)}</span>
+        </TableCell>
+      </TableRow>
+    )
+  }
 
   return (
     <div className="p-4 sm:p-6 space-y-4">
@@ -120,14 +238,14 @@ export default function CustomersPage() {
           </SelectContent>
         </Select>
         <Select value={typeFilter} onValueChange={(v) => { setTypeFilter(v); setPage(1) }}>
-          <SelectTrigger className="w-full sm:w-36">
+          <SelectTrigger className="w-full sm:w-48">
             <SelectValue placeholder="Lloji" />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="">Të gjithë</SelectItem>
-            <SelectItem value="CUSTOMER">Klientë</SelectItem>
-            <SelectItem value="GROUP">Grupe</SelectItem>
-            <SelectItem value="UNIT">Njësi</SelectItem>
+            <SelectItem value="CUSTOMER">Klientë të vetëm</SelectItem>
+            <SelectItem value="GROUP">Grupe biznesesh</SelectItem>
+            <SelectItem value="UNIT">Njësi / Pika</SelectItem>
           </SelectContent>
         </Select>
       </div>
@@ -175,39 +293,14 @@ export default function CustomersPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {customers.map((c) => (
-                  <TableRow key={c.id} className="cursor-pointer hover:bg-gray-50">
-                    <TableCell>
-                      <Link href={`/admin/customers/${c.id}`} className="text-primary font-mono text-sm hover:underline">
-                        {c.code}
-                      </Link>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <Link href={`/admin/customers/${c.id}`} className="font-medium text-gray-900 hover:text-primary">
-                          {c.businessName}
-                        </Link>
-                        {c.isBusinessGroup && (
-                          <span className="inline-flex items-center gap-0.5 text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-blue-100 text-blue-700">
-                            <Layers className="h-2.5 w-2.5" />GRUP
-                          </span>
-                        )}
-                        {c.parentCustomerId && (
-                          <span className="inline-flex items-center gap-0.5 text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-purple-100 text-purple-700">
-                            <Building2 className="h-2.5 w-2.5" />{c.unitName ?? 'NJËSI'}
-                          </span>
-                        )}
-                      </div>
-                    </TableCell>
-                    <TableCell className="hidden md:table-cell text-gray-500 text-sm">{c.city}</TableCell>
-                    <TableCell className="hidden md:table-cell text-gray-500 text-sm">{c.phone}</TableCell>
-                    <TableCell className="hidden lg:table-cell text-gray-500 text-sm">{c.agent?.name ?? '-'}</TableCell>
-                    <TableCell className="hidden lg:table-cell text-center text-sm">{c._count.orders}</TableCell>
-                    <TableCell>
-                      <span className={`badge ${getStatusColor(c.status)}`}>{getStatusLabel(c.status)}</span>
-                    </TableCell>
-                  </TableRow>
-                ))}
+                {customers.map((c) => {
+                  const rows = [renderMainRow(c)]
+                  // Groups render their units indented immediately beneath (skip in UNIT filter, where units are the main rows)
+                  if (c.isBusinessGroup && typeFilter !== 'UNIT' && c.units && c.units.length > 0) {
+                    c.units.forEach((u) => rows.push(renderUnitRow(u)))
+                  }
+                  return rows
+                })}
               </TableBody>
             </Table>
           </div>

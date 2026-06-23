@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -54,6 +54,7 @@ interface ParentCustomer {
 
 export default function NewCustomerPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [agents, setAgents] = useState<{ id: string; name: string }[]>([])
   const [loading, setLoading] = useState(false)
   const [customerType, setCustomerType] = useState<CustomerType>('CUSTOMER')
@@ -91,6 +92,25 @@ export default function NewCustomerPage() {
       setSelectedAgentId(parent.agentId)
     }
   }
+
+  // Preselect a parent group when arriving from a group's "Shto Njësi" button
+  useEffect(() => {
+    if (searchParams.get('type') !== 'UNIT') return
+    const pid = searchParams.get('parentId')
+    if (!pid) { setCustomerType('UNIT'); return }
+    fetch(`/api/customers/${pid}`)
+      .then(r => r.ok ? r.json() : null)
+      .then((parent: ParentCustomer | null) => {
+        if (!parent?.id) return
+        setCustomerType('UNIT')
+        setParentId(parent.id)
+        setParentName(parent.businessName)
+        setParentData(parent)
+        autofillFromParent(parent)
+      })
+      .catch(() => {})
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams])
 
   useEffect(() => {
     fetch('/api/users?role=AGJENT')

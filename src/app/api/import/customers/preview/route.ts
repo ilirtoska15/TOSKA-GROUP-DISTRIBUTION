@@ -10,6 +10,10 @@ const MAX_SIZE = 100 * 1024 * 1024
 const FIELD_ALIASES: Record<string, string[]> = {
   businessName: ['emribiznesit', 'businessname', 'emri', 'name', 'biznesi'],
   code: ['kodi', 'code', 'kodiklientit'],
+  customerType: ['llojiklientit', 'customertype', 'lloji', 'tipi', 'type'],
+  parentBusinessCode: ['kodibiznesitkryesor', 'parentbusinesscode', 'parentcode', 'kodiprind', 'kodigrupit', 'grupi'],
+  unitName: ['emrinjesise', 'unitname', 'njesia', 'emrinjesia'],
+  unitType: ['llojinjesise', 'unittype', 'tipinjesise'],
   businessAddress: ['adresa', 'businessaddress', 'address', 'adresabiznesit'],
   phone: ['telefon', 'phone', 'tel', 'numeritelfonit', 'nrtelfonit'],
   city: ['qyteti', 'city'],
@@ -29,6 +33,10 @@ export interface ParsedCustomerRow {
   rowIndex: number
   businessName: string
   code: string
+  customerType: string
+  parentBusinessCode: string
+  unitName: string
+  unitType: string
   businessAddress: string
   phone: string
   city: string
@@ -73,6 +81,10 @@ function validateRow(rowIndex: number, row: unknown[], idx: Record<string, numbe
 
   const businessName = g('businessName')
   const code = g('code')
+  const parentBusinessCode = g('parentBusinessCode')
+  const unitName = g('unitName')
+  const unitTypeRaw = g('unitType').toUpperCase()
+  const rawType = g('customerType').toUpperCase().replace(/\s+/g, '')
   const businessAddress = g('businessAddress')
   const phone = g('phone')
   const city = g('city')
@@ -87,10 +99,30 @@ function validateRow(rowIndex: number, row: unknown[], idx: Record<string, numbe
   const agentEmail = g('agentEmail')
   const notes = g('notes')
 
+  // Determine customer type: explicit column, else inferred from parent code
+  const typeMap: Record<string, string> = {
+    GROUP: 'GROUP', GRUP: 'GROUP', GRUPI: 'GROUP',
+    UNIT: 'UNIT', NJESI: 'UNIT', NJESIA: 'UNIT', PIKE: 'UNIT', PIKA: 'UNIT',
+    CUSTOMER: 'CUSTOMER', KLIENT: 'CUSTOMER', IVETEM: 'CUSTOMER', VETEM: 'CUSTOMER',
+  }
+  let customerType = typeMap[rawType] ?? ''
+  if (!customerType) customerType = parentBusinessCode ? 'UNIT' : 'CUSTOMER'
+  // A row with a parent code is always a unit, regardless of the declared type
+  if (parentBusinessCode) customerType = 'UNIT'
+
+  const unitType = ['DYQAN', 'MAGAZIN', 'ZYRE', 'FILIAL', 'OTHER'].includes(unitTypeRaw) ? unitTypeRaw : ''
+
   if (!businessName) errors.push(`Rreshti ${rowIndex}: mungon emri i biznesit`)
-  if (!businessAddress) warnings.push(`Rreshti ${rowIndex}: adresa mungon`)
-  if (!phone) warnings.push(`Rreshti ${rowIndex}: telefoni mungon`)
-  if (!city) warnings.push(`Rreshti ${rowIndex}: qyteti mungon`)
+  if (customerType === 'UNIT' && !parentBusinessCode) {
+    errors.push(`Rreshti ${rowIndex}: njësia kërkon "Kodi Biznesit Kryesor"`)
+  }
+  if (customerType !== 'UNIT') {
+    if (!businessAddress) warnings.push(`Rreshti ${rowIndex}: adresa mungon`)
+    if (!phone) warnings.push(`Rreshti ${rowIndex}: telefoni mungon`)
+    if (!city) warnings.push(`Rreshti ${rowIndex}: qyteti mungon`)
+  } else if (!businessAddress) {
+    warnings.push(`Rreshti ${rowIndex}: adresa e njësisë mungon`)
+  }
 
   const status = ['ACTIVE', 'INACTIVE', 'BLOCKED'].includes(rawStatus) ? rawStatus : 'ACTIVE'
   if (rawStatus && !['ACTIVE', 'INACTIVE', 'BLOCKED', ''].includes(rawStatus)) {
@@ -115,7 +147,9 @@ function validateRow(rowIndex: number, row: unknown[], idx: Record<string, numbe
   if (lngRaw && !lngOk) warnings.push(`Rreshti ${rowIndex}: longitude i pavlefshëm — u injorua`)
 
   return {
-    rowIndex, businessName, code, businessAddress, phone, city,
+    rowIndex, businessName, code,
+    customerType, parentBusinessCode, unitName, unitType,
+    businessAddress, phone, city,
     businessNumber, vatNumber, zone,
     lat: latOk ? latRaw : '',
     lng: lngOk ? lngRaw : '',

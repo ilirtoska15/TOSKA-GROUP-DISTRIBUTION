@@ -5,7 +5,7 @@ import { useParams } from 'next/navigation'
 import {
   ArrowLeft, MapPin, Phone, Building2, User, Edit, AlertTriangle, CheckCircle,
   Ban, Package, Layers, RotateCcw, Calendar, TrendingUp, TrendingDown,
-  ShoppingCart, DollarSign, Activity
+  ShoppingCart, DollarSign, Activity, Plus, CornerDownRight
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -45,7 +45,7 @@ interface Customer {
   region?: { name: string } | null
   zone?: { name: string } | null
   parentCustomer?: { id: string; code: string; businessName: string } | null
-  units?: Array<{ id: string; code: string; businessName: string; unitName?: string; unitType?: string; status: string }>
+  units?: Array<{ id: string; code: string; businessName: string; unitName?: string; unitType?: string; status: string; city?: string; phone?: string; businessAddress?: string; _count?: { orders: number } }>
   orders: Array<{ id: string; reference: string; status: string; totalAmount: number; createdAt: string }>
   visits: Array<{ id: string; reference: string; status: string; openedAt: string; agent: { name: string } }>
   payments: Array<{ id: string; reference: string; amount: number; method: string; createdAt: string }>
@@ -679,48 +679,93 @@ export default function CustomerDetailPage() {
               </CardContent>
             </Card>
 
-            {/* Business Structure */}
-            {(customer.isBusinessGroup || customer.parentCustomer) && (
+            {/* Business Structure — GROUP */}
+            {customer.isBusinessGroup && (
+              <Card className="rounded-2xl shadow-sm">
+                <CardHeader className="pb-2 px-5 pt-5">
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                      <Layers className="h-4 w-4 text-blue-500" />Njësitë / Pikat
+                    </CardTitle>
+                    <Link href={`/admin/customers/new?type=UNIT&parentId=${customer.id}`}>
+                      <Button size="sm" variant="outline" className="gap-1 h-8">
+                        <Plus className="h-3.5 w-3.5" />Shto Njësi
+                      </Button>
+                    </Link>
+                  </div>
+                </CardHeader>
+                <CardContent className="px-5 pb-5 space-y-3">
+                  {/* Aggregate summary */}
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="bg-blue-50 rounded-xl p-3 text-center">
+                      <p className="text-lg font-bold text-blue-700">{customer.units?.length ?? 0}</p>
+                      <p className="text-[10px] text-gray-500">Njësi gjithsej</p>
+                    </div>
+                    <div className="bg-gray-50 rounded-xl p-3 text-center">
+                      <p className="text-lg font-bold text-gray-900">
+                        {(customer.units ?? []).reduce((s, u) => s + (u._count?.orders ?? 0), 0)}
+                      </p>
+                      <p className="text-[10px] text-gray-500">Porosi nga njësitë</p>
+                    </div>
+                  </div>
+
+                  {customer.units && customer.units.length > 0 ? (
+                    <div className="space-y-1.5">
+                      {customer.units.map(u => (
+                        <Link key={u.id} href={`/admin/customers/${u.id}`}
+                          className="flex items-center justify-between p-2.5 rounded-xl border border-gray-100 hover:bg-gray-50 transition-colors">
+                          <div className="flex items-start gap-1.5 min-w-0">
+                            <CornerDownRight className="h-3.5 w-3.5 text-gray-300 mt-0.5 shrink-0" />
+                            <div className="min-w-0">
+                              <p className="text-xs font-medium truncate">{u.unitName || u.businessName}</p>
+                              <p className="text-[10px] text-gray-400 truncate">
+                                {[u.businessAddress, u.city].filter(Boolean).join(', ') || u.code}
+                                {u.unitType ? ` · ${u.unitType}` : ''}
+                              </p>
+                            </div>
+                          </div>
+                          <span className={`badge text-[10px] shrink-0 ${getStatusColor(u.status)}`}>{getStatusLabel(u.status)}</span>
+                        </Link>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-xs text-gray-400 text-center py-2">Ende nuk ka njësi. Shto njësinë e parë.</p>
+                  )}
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Business Structure — UNIT */}
+            {!customer.isBusinessGroup && customer.parentCustomer && (
               <Card className="rounded-2xl shadow-sm">
                 <CardHeader className="pb-2 px-5 pt-5">
                   <CardTitle className="text-sm font-semibold flex items-center gap-2">
-                    <Layers className="h-4 w-4 text-blue-500" />Struktura e Biznesit
+                    <Building2 className="h-4 w-4 text-purple-500" />Njësi e Biznesit
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="px-5 pb-5 space-y-3">
-                  {customer.isBusinessGroup && (
-                    <div className="px-3 py-2 bg-blue-50 rounded-xl text-blue-700 text-xs font-semibold">Grup Biznesi</div>
-                  )}
-                  {customer.parentCustomer && (
-                    <div>
-                      <span className="text-xs text-gray-500">Grupi Prind</span>
-                      <Link href={`/admin/customers/${customer.parentCustomer.id}`}
-                        className="block mt-0.5 text-primary hover:underline text-sm font-medium">
-                        {customer.parentCustomer.businessName}
-                      </Link>
-                    </div>
-                  )}
+                  <div className="px-3 py-2.5 bg-purple-50 rounded-xl">
+                    <p className="text-[10px] text-purple-500 font-semibold uppercase tracking-wide">Pjesë e</p>
+                    <Link href={`/admin/customers/${customer.parentCustomer.id}`}
+                      className="block mt-0.5 text-purple-700 hover:underline text-sm font-bold">
+                      {customer.parentCustomer.businessName}
+                    </Link>
+                  </div>
                   {customer.unitName && (
                     <div className="flex justify-between text-sm">
                       <span className="text-gray-500">Emër Njësie</span>
                       <span className="font-medium">{customer.unitName}</span>
                     </div>
                   )}
-                  {customer.units && customer.units.length > 0 && (
-                    <div className="space-y-1.5">
-                      <p className="text-xs text-gray-500 font-medium">{customer.units.length} Njësi</p>
-                      {customer.units.map(u => (
-                        <Link key={u.id} href={`/admin/customers/${u.id}`}
-                          className="flex items-center justify-between p-2.5 rounded-xl border border-gray-100 hover:bg-gray-50 transition-colors">
-                          <div>
-                            <p className="text-xs font-medium">{u.businessName}</p>
-                            {u.unitName && <p className="text-[10px] text-gray-400">{u.unitName}</p>}
-                          </div>
-                          <span className={`badge text-[10px] ${getStatusColor(u.status)}`}>{getStatusLabel(u.status)}</span>
-                        </Link>
-                      ))}
+                  {customer.unitType && (
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-500">Lloji</span>
+                      <span className="font-medium">{customer.unitType}</span>
                     </div>
                   )}
+                  <p className="text-[11px] text-gray-400 leading-relaxed">
+                    Të dhënat juridike (nr. biznesit, TVSH) trashëgohen nga biznesi kryesor. Të dhënat e adresës dhe kontaktit janë specifike për këtë njësi.
+                  </p>
                 </CardContent>
               </Card>
             )}

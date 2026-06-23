@@ -13,22 +13,34 @@ export async function GET() {
 
   try {
     const headers = [
-      'Emri Biznesit *', 'Kodi', 'Adresa', 'Telefon', 'Qyteti',
+      'Emri Biznesit *', 'Kodi', 'Lloji Klientit', 'Kodi Biznesit Kryesor', 'Emri Njesise', 'Lloji Njesise',
+      'Adresa', 'Telefon', 'Qyteti',
       'Nr Biznesit', 'Nr TVSH', 'Zona', 'Latitude', 'Longitude',
       'Statusi', 'Limiti Borxhit', 'Afati Pages (dite)', 'Email Agjentit', 'Shenime',
     ]
+    // Standalone customer
     const ex1 = [
-      'Supermarketi Besa', 'MK000001', 'Rr. Elbasanit 45', '+355 69 123 4567', 'Tirane',
+      'Supermarketi Besa', 'MK000001', 'CUSTOMER', '', '', '',
+      'Rr. Elbasanit 45', '+355 69 123 4567', 'Tirane',
       'L72309048L', '', 'Zona 1', '41.3275', '19.8187',
       'ACTIVE', '50000', '30', 'agjent@toska.al', '',
     ]
+    // Business group (parent)
     const ex2 = [
-      'Dyqani Fatosi', '', 'Rr. Myslym Shyri 12', '+355 68 987 6543', 'Durres',
-      '', 'K91820001V', 'Zona 2', '', '',
-      'ACTIVE', '0', '14', '', 'Klient i ri',
+      'Dyqani Agim', 'MK000010', 'GROUP', '', '', '',
+      'Rr. e Durresit', '+355 68 111 2222', 'Tirane',
+      'K91820001V', 'M99887766', 'Zona 2', '', '',
+      'ACTIVE', '100000', '30', 'agjent@toska.al', 'Grup biznesi',
+    ]
+    // Unit belonging to the group above (linked via Kodi Biznesit Kryesor = MK000010)
+    const ex3 = [
+      'Dyqani Agim', '', 'UNIT', 'MK000010', 'Agimi 3', 'DYQAN',
+      'Rr. Myslym Shyri 12', '+355 68 987 6543', 'Durres',
+      '', '', 'Zona 2', '41.3215', '19.4565',
+      'ACTIVE', '0', '30', '', 'Pika 3',
     ]
 
-    const ws = XLSX.utils.aoa_to_sheet([headers, ex1, ex2])
+    const ws = XLSX.utils.aoa_to_sheet([headers, ex1, ex2, ex3])
     ws['!cols'] = headers.map(() => ({ wch: 22 }))
 
     const wb = XLSX.utils.book_new()
