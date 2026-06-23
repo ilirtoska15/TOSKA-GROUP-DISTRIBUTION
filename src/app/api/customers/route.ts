@@ -57,6 +57,7 @@ export async function GET(req: NextRequest) {
         { phone: { contains: search, mode: 'insensitive' } },
         { city: { contains: search, mode: 'insensitive' } },
         { businessAddress: { contains: search, mode: 'insensitive' } },
+        { businessNumber: { contains: search, mode: 'insensitive' } },
       ]
     }
     if (status) where.status = status
@@ -137,6 +138,29 @@ export async function POST(req: NextRequest) {
       regionId: parsed.regionId?.trim() || undefined,
       zoneId: parsed.zoneId?.trim() || undefined,
       parentCustomerId: parsed.parentCustomerId?.trim() || null,
+      isBusinessGroup: parsed.isBusinessGroup,
+    }
+
+    // Unit creation: resolve the parent business and inherit its legal & commercial data.
+    if (data.parentCustomerId) {
+      const parent = await db.customer.findUnique({ where: { id: data.parentCustomerId } })
+      if (!parent) {
+        return NextResponse.json({ success: false, error: 'Biznesi kryesor nuk u gjet' }, { status: 400 })
+      }
+      // A unit cannot be the parent of another unit — flatten to the top-level business.
+      data.parentCustomerId = parent.parentCustomerId ?? parent.id
+      const topParent = parent.parentCustomerId
+        ? (await db.customer.findUnique({ where: { id: parent.parentCustomerId } })) ?? parent
+        : parent
+
+      data.businessName = data.businessName?.trim() || topParent.businessName
+      data.phone = data.phone?.trim() || topParent.phone
+      data.businessNumber = data.businessNumber || topParent.businessNumber || undefined
+      data.vatNumber = data.vatNumber || topParent.vatNumber || undefined
+      data.agentId = data.agentId || topParent.agentId || undefined
+      data.debtLimit = topParent.debtLimit
+      data.paymentTermDays = topParent.paymentTermDays
+      data.isBusinessGroup = false
     }
 
     const code = await generateReference(db, 'customer')
