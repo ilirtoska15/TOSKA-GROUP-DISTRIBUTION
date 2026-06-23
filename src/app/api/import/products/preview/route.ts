@@ -9,7 +9,7 @@ const MAX_SIZE = 100 * 1024 * 1024
 
 const FIELD_ALIASES: Record<string, string[]> = {
   name: ['emriproduktit', 'name', 'emri', 'produkti'],
-  code: ['kodi', 'code', 'kodiproduktit'],
+  code: ['kodi', 'code', 'kodiproduktit', 'productcode', 'sku'],
   category: ['kategoria', 'category', 'cat'],
   brand: ['brand', 'brandi', 'marka'],
   description: ['pershkrimi', 'description', 'pershkrim'],

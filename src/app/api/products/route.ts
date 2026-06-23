@@ -114,12 +114,27 @@ export async function POST(req: NextRequest) {
 
     const body = await req.json()
     const data = createSchema.parse(body)
+    const { code: rawCode, ...rest } = data
 
-    const code = await generateReference(db, 'product')
+    // Manual code (optional). Empty → auto-generate.
+    const manualCode = rawCode?.trim().toUpperCase() || ''
+    let code: string
+    if (manualCode) {
+      if (!CODE_RE.test(manualCode)) {
+        return NextResponse.json({ success: false, error: 'Kodi mund të përmbajë vetëm shkronja, numra, - dhe _' }, { status: 400 })
+      }
+      const dup = await db.product.findUnique({ where: { code: manualCode } })
+      if (dup) {
+        return NextResponse.json({ success: false, error: 'Ky kod produkti ekziston tashmë.' }, { status: 400 })
+      }
+      code = manualCode
+    } else {
+      code = await generateReference(db, 'product')
+    }
 
     const product = await db.product.create({
       data: {
-        ...data,
+        ...rest,
         code,
         expiryDate: data.expiryDate ? new Date(data.expiryDate) : undefined,
       },
@@ -136,6 +151,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(product, { status: 201 })
   } catch (err) {
     if (err instanceof z.ZodError) return NextResponse.json({ error: err.errors }, { status: 400 })
+    if ((err as { code?: string })?.code === 'P2002') {
+      return NextResponse.json({ success: false, error: 'Ky kod produkti ekziston tashmë.' }, { status: 400 })
+    }
     const msg = err instanceof Error ? err.message : 'Internal server error'
     console.error('[products] POST error:', err)
     return NextResponse.json({ error: msg }, { status: 500 })

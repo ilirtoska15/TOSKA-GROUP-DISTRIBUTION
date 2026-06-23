@@ -19,6 +19,7 @@ export const dynamic = 'force-dynamic'
 
 const schema = z.object({
   name: z.string().min(2, 'Emri duhet të jetë të paktën 2 karaktere'),
+  code: z.string().max(50, 'Kodi është shumë i gjatë').optional(),
   photo: z.string().min(1, 'Foto e produktit është e detyrueshme'),
   salesPrice: z.coerce.number().min(0.01, 'Çmimi duhet të jetë pozitiv'),
   discountPercent: z.coerce.number().min(0, 'Rabati nuk mund të jetë negativ').max(100, 'Rabati nuk mund të jetë mbi 100%').default(0),
@@ -77,6 +78,7 @@ export default function NewProductPage() {
     try {
       const payload = {
         ...data,
+        code: data.code?.trim() || undefined,
         photo: photoUrl,
         pakoCopje: data.pakoCopje ? Number(data.pakoCopje) : undefined,
         salesPrice: Number(data.salesPrice),
@@ -141,6 +143,12 @@ export default function NewProductPage() {
             <CardTitle className="text-base">Informacioni Bazë</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
+            <div>
+              <Label htmlFor="code">Kodi i Produktit</Label>
+              <Input id="code" {...register('code')} placeholder="PR000001" />
+              <p className="text-xs text-gray-400 mt-0.5">Lëre bosh për gjenerim automatik.</p>
+              {errors.code && <p className="text-xs text-red-500 mt-1">{errors.code.message}</p>}
+            </div>
             <div>
               <Label htmlFor="name">Emri i Produktit *</Label>
               <Input id="name" {...register('name')} placeholder="p.sh. Ujë Mineral 1.5L" />

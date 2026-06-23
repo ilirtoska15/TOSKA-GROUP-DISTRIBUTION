@@ -22,6 +22,7 @@ export const runtime = 'nodejs'
 
 const schema = z.object({
   name: z.string().min(2, 'Emri duhet të jetë të paktën 2 karaktere'),
+  code: z.string().min(1, 'Kodi i produktit kërkohet').max(50, 'Kodi është shumë i gjatë'),
   photo: z.string().min(1, 'Foto e produktit është e detyrueshme'),
   salesPrice: z.coerce.number().min(0.01, 'Çmimi duhet të jetë pozitiv'),
   discountPercent: z.coerce.number().min(0).max(100).default(0),
@@ -105,6 +106,7 @@ export default function ProductDetailPage() {
         setBrands(brs)
         reset({
           name: prod.name,
+          code: prod.code,
           photo: prod.photo,
           salesPrice: prod.salesPrice,
           discountPercent: prod.discountPercent ?? 0,
@@ -141,6 +143,7 @@ export default function ProductDetailPage() {
     try {
       const payload = {
         name: data.name,
+        code: data.code.trim(),
         photo: photoUrl,
         salesPrice: Number(data.salesPrice),
         discountPercent: Number(data.discountPercent ?? 0),
@@ -275,6 +278,11 @@ export default function ProductDetailPage() {
         <Card>
           <CardHeader><CardTitle className="text-base">Informacioni Bazë</CardTitle></CardHeader>
           <CardContent className="space-y-4">
+            <div>
+              <Label htmlFor="code">Kodi i Produktit *</Label>
+              <Input id="code" {...register('code')} placeholder="PR000001" />
+              {errors.code && <p className="text-xs text-red-500 mt-1">{errors.code.message}</p>}
+            </div>
             <div>
               <Label htmlFor="name">Emri i Produktit *</Label>
               <Input id="name" {...register('name')} placeholder="Emri i produktit" />

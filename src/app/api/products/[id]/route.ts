@@ -8,8 +8,11 @@ export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
 import { z } from 'zod'
 
+const CODE_RE = /^[A-Z0-9_-]+$/
+
 const updateSchema = z.object({
   name: z.string().min(1).optional(),
+  code: z.string().trim().max(50).optional(),
   brandId: z.string().optional().nullable(),
   categoryId: z.string().optional().nullable(),
   description: z.string().optional().nullable(),
@@ -55,12 +58,31 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   try {
     const body = await req.json()
     const data = updateSchema.parse(body)
+    const { code: rawCode, ...rest } = data
+
+    // Code update (optional). If present it must be non-empty and unique.
+    let codeUpdate: string | undefined
+    if (rawCode !== undefined) {
+      const c = rawCode.trim().toUpperCase()
+      if (!c) {
+        return NextResponse.json({ success: false, error: 'Kodi i produktit nuk mund të jetë bosh.' }, { status: 400 })
+      }
+      if (!CODE_RE.test(c)) {
+        return NextResponse.json({ success: false, error: 'Kodi mund të përmbajë vetëm shkronja, numra, - dhe _' }, { status: 400 })
+      }
+      const dup = await db.product.findFirst({ where: { code: c, NOT: { id: params.id } } })
+      if (dup) {
+        return NextResponse.json({ success: false, error: 'Ky kod produkti ekziston tashmë.' }, { status: 400 })
+      }
+      codeUpdate = c
+    }
 
     const prev = await db.product.findUnique({ where: { id: params.id } })
     const product = await db.product.update({
       where: { id: params.id },
       data: {
-        ...data,
+        ...rest,
+        ...(codeUpdate ? { code: codeUpdate } : {}),
         expiryDate: data.expiryDate ? new Date(data.expiryDate) : data.expiryDate === null ? null : undefined,
       },
     })
@@ -77,6 +99,9 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     return NextResponse.json(product)
   } catch (err) {
     if (err instanceof z.ZodError) return NextResponse.json({ error: err.errors }, { status: 400 })
+    if ((err as { code?: string })?.code === 'P2002') {
+      return NextResponse.json({ success: false, error: 'Ky kod produkti ekziston tashmë.' }, { status: 400 })
+    }
     return NextResponse.json({ error: 'Server error' }, { status: 500 })
   }
 }
