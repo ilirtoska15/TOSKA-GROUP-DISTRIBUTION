@@ -154,6 +154,13 @@ export async function POST(req: NextRequest) {
     if (!parentCache.has(id)) parentCache.set(id, await db.customer.findUnique({ where: { id } }))
     return parentCache.get(id) ?? null
   }
+  // Parents that receive a unit become business groups (drives hierarchical display).
+  const markedGroups = new Set<string>()
+  const markAsGroup = async (parentId: string) => {
+    if (markedGroups.has(parentId)) return
+    markedGroups.add(parentId)
+    await db.customer.update({ where: { id: parentId }, data: { isBusinessGroup: true } }).catch(() => {})
+  }
 
   for (const row of unitRows) {
     try {
@@ -196,6 +203,7 @@ export async function POST(req: NextRequest) {
         if (onDuplicate === 'skip') { skipped++; continue }
         const updated = await db.customer.update({ where: { code: row.code }, data })
         codeToId.set(updated.code, updated.id)
+        await markAsGroup(parentId)
         imported++
         continue
       }
@@ -203,6 +211,7 @@ export async function POST(req: NextRequest) {
       const code = row.code || await generateReference(db, 'customer')
       const created = await db.customer.create({ data: { ...data, code } })
       codeToId.set(created.code, created.id)
+      await markAsGroup(parentId)
       imported++
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Gabim i panjohur'

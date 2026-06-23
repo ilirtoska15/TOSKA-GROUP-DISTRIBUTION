@@ -45,10 +45,10 @@ interface Customer {
 }
 
 // ─── Badges ────────────────────────────────────────────────────
-function GroupBadge() {
+function BizBadge() {
   return (
     <span className="inline-flex items-center gap-0.5 text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-blue-100 text-blue-700">
-      <Layers className="h-2.5 w-2.5" />GRUP
+      <Store className="h-2.5 w-2.5" />BIZNES
     </span>
   )
 }
@@ -56,13 +56,6 @@ function UnitBadge() {
   return (
     <span className="inline-flex items-center gap-0.5 text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-purple-100 text-purple-700">
       <Building2 className="h-2.5 w-2.5" />NJËSI
-    </span>
-  )
-}
-function SoloBadge() {
-  return (
-    <span className="inline-flex items-center gap-0.5 text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-500">
-      <Store className="h-2.5 w-2.5" />I VETËM
     </span>
   )
 }
@@ -154,10 +147,10 @@ export default function CustomersPage() {
   )
 
   const renderMainRow = (c: Customer) => {
-    const isGroup = c.isBusinessGroup
-    const isUnit = !isGroup && !!c.parentCustomerId
+    const isUnit = !!c.parentCustomerId
+    const hasUnits = !isUnit && c._count.units > 0
     return (
-      <TableRow key={c.id} className={`cursor-pointer hover:bg-gray-50 ${isGroup ? 'bg-blue-50/30' : ''}`}>
+      <TableRow key={c.id} className={`cursor-pointer hover:bg-gray-50 ${hasUnits ? 'bg-blue-50/30' : ''}`}>
         <TableCell>
           <Link href={`/admin/customers/${c.id}`} className="text-primary font-mono text-sm hover:underline">
             {c.code}
@@ -166,14 +159,14 @@ export default function CustomersPage() {
         <TableCell>
           <div className="min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
-              {isGroup && <Layers className="h-4 w-4 text-blue-500 shrink-0" />}
+              {hasUnits && <Layers className="h-4 w-4 text-blue-500 shrink-0" />}
               <Link href={`/admin/customers/${c.id}`} className="font-semibold text-gray-900 hover:text-primary">
                 {c.businessName}
               </Link>
-              {isGroup ? <GroupBadge /> : isUnit ? <UnitBadge /> : <SoloBadge />}
-              {isGroup && (
+              {isUnit ? <UnitBadge /> : <BizBadge />}
+              {hasUnits && (
                 <span className="text-[11px] font-medium text-blue-600">
-                  {c._count.units} {c._count.units === 1 ? 'njësi' : 'njësi'}
+                  {c._count.units} njësi
                 </span>
               )}
             </div>
@@ -295,8 +288,8 @@ export default function CustomersPage() {
               <TableBody>
                 {customers.map((c) => {
                   const rows = [renderMainRow(c)]
-                  // Groups render their units indented immediately beneath (skip in UNIT filter, where units are the main rows)
-                  if (c.isBusinessGroup && typeFilter !== 'UNIT' && c.units && c.units.length > 0) {
+                  // A business renders its units indented immediately beneath (skip in UNIT filter, where units are the main rows)
+                  if (typeFilter !== 'UNIT' && !c.parentCustomerId && c.units && c.units.length > 0) {
                     c.units.forEach((u) => rows.push(renderUnitRow(u)))
                   }
                   return rows

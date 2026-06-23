@@ -145,6 +145,14 @@ export async function POST(req: NextRequest) {
       data: { ...data, code },
     })
 
+    // A business that gets a unit becomes a group (drives hierarchical display + order-flow guard)
+    if (data.parentCustomerId) {
+      await db.customer.update({
+        where: { id: data.parentCustomerId },
+        data: { isBusinessGroup: true },
+      }).catch(() => { /* parent may not exist; ignore */ })
+    }
+
     await createAuditLog({
       userId: session.user.id,
       module: 'customers',

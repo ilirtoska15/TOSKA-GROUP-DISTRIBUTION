@@ -679,15 +679,15 @@ export default function CustomerDetailPage() {
               </CardContent>
             </Card>
 
-            {/* Business Structure — GROUP */}
-            {customer.isBusinessGroup && (
+            {/* Business Structure — any top-level business can have units */}
+            {!customer.parentCustomer && (
               <Card className="rounded-2xl shadow-sm">
                 <CardHeader className="pb-2 px-5 pt-5">
                   <div className="flex items-center justify-between">
                     <CardTitle className="text-sm font-semibold flex items-center gap-2">
                       <Layers className="h-4 w-4 text-blue-500" />Njësitë / Pikat
                     </CardTitle>
-                    <Link href={`/admin/customers/new?type=UNIT&parentId=${customer.id}`}>
+                    <Link href={`/admin/customers/${customer.id}/units/new`}>
                       <Button size="sm" variant="outline" className="gap-1 h-8">
                         <Plus className="h-3.5 w-3.5" />Shto Njësi
                       </Button>
