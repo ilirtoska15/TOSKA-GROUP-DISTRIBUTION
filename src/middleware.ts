@@ -5,8 +5,14 @@ export default auth((req) => {
   const { pathname } = req.nextUrl
   const session = req.auth
 
-  // Public routes
-  if (pathname.startsWith('/catalog') || pathname.startsWith('/api/catalog')) {
+  // Public routes (no login) — isolated from the platform.
+  // /api/admin/* is intentionally NOT public; it is protected below.
+  if (
+    pathname.startsWith('/catalog') ||
+    pathname.startsWith('/api/catalog') ||
+    pathname.startsWith('/katalog') ||
+    pathname.startsWith('/api/public')
+  ) {
     return NextResponse.next()
   }
 

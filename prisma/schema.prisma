@@ -173,6 +173,32 @@ model NewMarketRequest {
 }
 
 // ============================================================
+// PUBLIC ORDER REQUESTS (from public /katalog, no login)
+// ============================================================
+
+model PublicOrderRequest {
+  id           String   @id @default(cuid())
+  reference    String   @unique // PUB-YYYY-000001
+  businessName String
+  contactName  String
+  phone        String
+  address      String
+  city         String
+  notes        String?
+  items        Json     // [{ productId, name, code, unit, quantity, finalUnitPrice, lineTotal }]
+  totalAmount  Float    @default(0)
+  status       String   @default("PENDING") // PENDING, APPROVED, REJECTED
+  reviewedById String?
+  reviewNote   String?
+  customerId   String?  // set when linked/created on approval
+  orderId      String?  // set when an order is created on approval
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@map("public_order_requests")
+}
+
+// ============================================================
 // CATEGORIES & BRANDS
 // ============================================================
 

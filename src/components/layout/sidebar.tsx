@@ -10,7 +10,7 @@ import {
   DollarSign, RotateCcw, AlertTriangle, BarChart3, Settings,
   MapPin, Warehouse, Target, LogOut,
   ChevronLeft, ChevronRight, Building2, Car, Receipt,
-  Shield, ClipboardList, TrendingUp, Boxes, Bell
+  Shield, ClipboardList, TrendingUp, Boxes, Bell, Globe
 } from 'lucide-react'
 
 export interface NavItem {
@@ -26,6 +26,7 @@ export const NAV_ITEMS: NavItem[] = [
   { href: '/admin',             label: 'Dashboard', icon: LayoutDashboard, roles: ['ADMIN'], group: 'OPERACIONET' },
   { href: '/admin/customers',   label: 'Klientët',  icon: Users,           roles: ['ADMIN'], group: 'OPERACIONET' },
   { href: '/admin/orders',      label: 'Porositë',  icon: ShoppingCart,    roles: ['ADMIN'], group: 'OPERACIONET' },
+  { href: '/admin/public-orders', label: 'Kërkesa Online', icon: Globe,     roles: ['ADMIN'], group: 'OPERACIONET' },
   { href: '/admin/deliveries',  label: 'Dërgesat',  icon: Truck,           roles: ['ADMIN'], group: 'OPERACIONET' },
   { href: '/admin/visits',      label: 'Vizitat',   icon: MapPin,          roles: ['ADMIN'], group: 'OPERACIONET' },
 
