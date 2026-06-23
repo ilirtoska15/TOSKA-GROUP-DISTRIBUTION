@@ -9,8 +9,11 @@ import { z } from 'zod'
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
 
+const CODE_RE = /^[A-Z0-9_-]+$/
+
 const createSchema = z.object({
   name: z.string().min(1),
+  code: z.string().trim().max(50).optional(),
   brandId: z.string().optional(),
   categoryId: z.string().optional(),
   description: z.string().optional(),
