@@ -69,12 +69,8 @@ export async function GET(req: NextRequest) {
   }
 
   if (type === 'debt') {
-    // Replaced the per-customer relation load (all active customers × their orders + payments)
-    // with three lean parallel queries aggregated in JS. Output is byte-identical.
-    // NOTE: DELIVERED_STATUS is preserved EXACTLY as the original literal to keep output
-    // unchanged. It looks mis-encoded ('DORÃ‹ZUAR' vs canonical 'DORËZUAR') — see report;
-    // not "fixed" here because that would change the report's output.
-    const DELIVERED_STATUS = 'DORÃ‹ZUAR'
+    // Three lean parallel queries aggregated in JS (replaces a per-customer relation load).
+    const DELIVERED_STATUS = 'DORËZUAR'
     const [activeCustomers, delivered, paid] = await Promise.all([
       db.customer.findMany({ where: { status: 'ACTIVE' }, select: { id: true, businessName: true, code: true } }),
       db.order.groupBy({ by: ['customerId'], where: { status: DELIVERED_STATUS }, _sum: { totalAmount: true } }),

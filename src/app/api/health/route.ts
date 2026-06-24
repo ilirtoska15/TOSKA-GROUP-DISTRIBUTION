@@ -54,7 +54,7 @@ export async function GET() {
         status: 'ACTIVE',
         orders: {
           some: {
-            status: 'DORÃ‹ZUAR',
+            status: 'DORËZUAR',
             createdAt: { lt: thirtyDaysAgo },
           },
         },

@@ -105,7 +105,7 @@ export async function GET(req: NextRequest) {
     const rawCustomers = await db.customer.findMany({
       where: { status: 'ACTIVE' },
       include: {
-        orders: { where: { status: 'DORÃ‹ZUAR' }, select: { totalAmount: true } },
+        orders: { where: { status: 'DORËZUAR' }, select: { totalAmount: true } },
         payments: { select: { amount: true } },
       },
     })

@@ -110,7 +110,7 @@ export async function POST(req: NextRequest) {
       if (data.status === 'DELIVERED') {
         updateData.deliveredAt = new Date()
         // Update order status
-        await db.order.update({ where: { id: delivery.orderId }, data: { status: 'DORÃ‹ZUAR', isLocked: true } })
+        await db.order.update({ where: { id: delivery.orderId }, data: { status: 'DORËZUAR', isLocked: true } })
       }
       if (data.status === 'FAILED') {
         updateData.failedAt = new Date()
