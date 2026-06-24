@@ -28,15 +28,16 @@ export async function GET(req: NextRequest) {
   to.setHours(23, 59, 59, 999)
 
   if (type === 'sales') {
+    // The UI table uses only reference, customer name, date, amount, status.
+    // Drop the heavy lines→product→brand + createdBy includes (never rendered).
     const orders = await db.order.findMany({
       where: {
         createdAt: { gte: from, lte: to },
         status: { notIn: ['DRAFT', 'ANULUAR'] },
       },
-      include: {
-        customer: { select: { businessName: true, code: true } },
-        createdBy: { select: { name: true } },
-        lines: { include: { product: { select: { name: true, code: true, brand: { select: { name: true } } } } } },
+      select: {
+        id: true, reference: true, totalAmount: true, status: true, createdAt: true,
+        customer: { select: { businessName: true } },
       },
       orderBy: { createdAt: 'desc' },
     })
@@ -68,18 +69,27 @@ export async function GET(req: NextRequest) {
   }
 
   if (type === 'debt') {
-    const customers = await db.customer.findMany({
-      where: { status: 'ACTIVE' },
-      include: {
-        orders: { where: { status: 'DORÃ‹ZUAR' }, select: { totalAmount: true } },
-        payments: { select: { amount: true } },
-      },
-    })
+    // Replaced the per-customer relation load (all active customers × their orders + payments)
+    // with three lean parallel queries aggregated in JS. Output is byte-identical.
+    // NOTE: DELIVERED_STATUS is preserved EXACTLY as the original literal to keep output
+    // unchanged. It looks mis-encoded ('DORÃ‹ZUAR' vs canonical 'DORËZUAR') — see report;
+    // not "fixed" here because that would change the report's output.
+    const DELIVERED_STATUS = 'DORÃ‹ZUAR'
+    const [activeCustomers, delivered, paid] = await Promise.all([
+      db.customer.findMany({ where: { status: 'ACTIVE' }, select: { id: true, businessName: true, code: true } }),
+      db.order.groupBy({ by: ['customerId'], where: { status: DELIVERED_STATUS }, _sum: { totalAmount: true } }),
+      db.payment.groupBy({ by: ['customerId'], _sum: { amount: true } }),
+    ])
 
-    const debtReport = customers
+    const deliveredMap: Record<string, number> = {}
+    for (const r of delivered) deliveredMap[r.customerId] = r._sum.totalAmount ?? 0
+    const paidMap: Record<string, number> = {}
+    for (const r of paid) paidMap[r.customerId] = r._sum.amount ?? 0
+
+    const debtReport = activeCustomers
       .map((c) => {
-        const totalOrders = c.orders.reduce((s, o) => s + o.totalAmount, 0)
-        const totalPaid = c.payments.reduce((s, p) => s + p.amount, 0)
+        const totalOrders = deliveredMap[c.id] ?? 0
+        const totalPaid = paidMap[c.id] ?? 0
         const debt = totalOrders - totalPaid
         return { customerId: c.id, businessName: c.businessName, code: c.code, totalOrders, totalPaid, debt }
       })
@@ -90,17 +100,28 @@ export async function GET(req: NextRequest) {
   }
 
   if (type === 'brands') {
-    const lines = await db.orderLine.findMany({
+    // Aggregate per product in the DB, then map products → brand and roll up.
+    // Avoids loading every order line row with a nested product/brand include.
+    const grouped = await db.orderLine.groupBy({
+      by: ['productId'],
       where: { order: { createdAt: { gte: from, lte: to }, status: { notIn: ['DRAFT', 'ANULUAR'] } } },
-      include: { product: { include: { brand: { select: { name: true } } } } },
+      _sum: { quantityCopje: true, lineTotal: true },
     })
 
+    const products = grouped.length > 0
+      ? await db.product.findMany({
+          where: { id: { in: grouped.map((g) => g.productId) } },
+          select: { id: true, brand: { select: { name: true } } },
+        })
+      : []
+    const brandOf = new Map(products.map((p) => [p.id, p.brand?.name ?? 'Pa Brand']))
+
     const brandMap: Record<string, { name: string; quantity: number; total: number }> = {}
-    for (const line of lines) {
-      const brand = line.product.brand?.name ?? 'Pa Brand'
+    for (const g of grouped) {
+      const brand = brandOf.get(g.productId) ?? 'Pa Brand'
       if (!brandMap[brand]) brandMap[brand] = { name: brand, quantity: 0, total: 0 }
-      brandMap[brand].quantity += line.quantityCopje
-      brandMap[brand].total += line.lineTotal
+      brandMap[brand].quantity += g._sum.quantityCopje ?? 0
+      brandMap[brand].total += g._sum.lineTotal ?? 0
     }
 
     return NextResponse.json({ brands: Object.values(brandMap).sort((a, b) => b.total - a.total) })
@@ -602,8 +623,8 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json({ error: 'Invalid report type' }, { status: 400 })
   } catch (err) {
-    const msg = err instanceof Error ? err.message : 'Internal server error'
+    // Log full detail server-side; never expose raw Prisma/internal messages to the client.
     console.error('[reports] GET error:', err)
-    return NextResponse.json({ error: msg }, { status: 500 })
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }
