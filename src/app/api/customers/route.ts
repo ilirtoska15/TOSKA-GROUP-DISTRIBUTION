@@ -92,6 +92,7 @@ export async function GET(req: NextRequest) {
               _count: { select: { orders: true } },
             },
             orderBy: { businessName: 'asc' },
+            take: 50, // safety bound — _count.units still reflects the true total
           },
           _count: { select: { orders: true, visits: true, units: true } },
         },

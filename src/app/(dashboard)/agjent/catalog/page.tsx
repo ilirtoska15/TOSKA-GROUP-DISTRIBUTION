@@ -344,6 +344,7 @@ export default function AgentCatalogPage() {
                     src={p.photo}
                     alt={p.name}
                     fill
+                    sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 200px"
                     className="object-contain p-2"
                     onError={(e) => { (e.target as HTMLImageElement).src = '/placeholder-product.png' }}
                   />
@@ -456,7 +457,7 @@ export default function AgentCatalogPage() {
                   return (
                     <div key={i} className="flex items-center gap-3 p-3 rounded-lg border border-gray-100">
                       <div className="relative w-12 h-12 bg-gray-50 rounded-lg shrink-0">
-                        <Image src={item.photo} alt={item.name} fill className="object-contain" />
+                        <Image src={item.photo} alt={item.name} fill sizes="48px" className="object-contain" />
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium text-gray-900 truncate">{item.name}</p>

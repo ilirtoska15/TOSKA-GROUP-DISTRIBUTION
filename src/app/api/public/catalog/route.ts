@@ -75,7 +75,11 @@ export async function GET(req: NextRequest) {
 
     const categories = await db.category.findMany({ orderBy: { name: 'asc' } })
 
-    return NextResponse.json({ products: publicProducts, categories, showPrice })
+    // Public, non-sensitive data — let the CDN serve a short-lived cached copy.
+    return NextResponse.json(
+      { products: publicProducts, categories, showPrice },
+      { headers: { 'Cache-Control': 'public, s-maxage=30, stale-while-revalidate=60' } },
+    )
   } catch (err) {
     console.error('[GET /api/public/catalog]', err)
     return NextResponse.json({ products: [], categories: [], showPrice: false, error: 'Internal server error' }, { status: 500 })

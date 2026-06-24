@@ -3,7 +3,7 @@ import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { generateReference } from '@/lib/utils'
 import { createAuditLog } from '@/lib/audit'
-import { getStockLevel, addStockMovement, convertToBase } from '@/lib/stock'
+import { getMultipleStockLevels, addStockMovement, convertToBase } from '@/lib/stock'
 import { sendPushToRole } from '@/lib/push'
 import { notifyRoles, createNotificationSafe } from '@/lib/notifications'
 import { z } from 'zod'
@@ -101,12 +101,18 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Klienti është bllokuar. Nuk mund të krijohen porosi.' }, { status: 400 })
     }
 
-    // Build order lines — fetch prices from DB, do conversion server-side
+    // Build order lines — fetch prices from DB, do conversion server-side.
+    // Batch product + stock lookups up front to avoid N+1 round-trips per line.
+    const lineProductIds = Array.from(new Set(data.lines.map((l) => l.productId)))
+    const productList = await db.product.findMany({ where: { id: { in: lineProductIds } } })
+    const productById = new Map(productList.map((p) => [p.id, p]))
+    const stockMap = data.status === 'SUBMITTED' ? await getMultipleStockLevels(lineProductIds) : {}
+
     const orderLines = []
     let totalAmount = 0
 
     for (const line of data.lines) {
-      const product = await db.product.findUnique({ where: { id: line.productId } })
+      const product = productById.get(line.productId)
       if (!product) {
         return NextResponse.json({ error: `Produkti nuk u gjet (${line.productId})` }, { status: 404 })
       }
@@ -122,7 +128,7 @@ export async function POST(req: NextRequest) {
 
       // Stock check only for SUBMITTED orders
       if (data.status === 'SUBMITTED') {
-        const stock = await getStockLevel(product.id)
+        const stock = stockMap[product.id] ?? 0
         if (quantityCopje > stock) {
           return NextResponse.json({
             error: `Stok i pamjaftueshëm për "${product.name}". Disponibël: ${stock} copë, Kërkuar: ${quantityCopje} copë`,

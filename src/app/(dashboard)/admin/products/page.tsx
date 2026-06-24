@@ -190,6 +190,7 @@ export default function ProductsPage() {
                         src={p.photo}
                         alt={p.name}
                         fill
+                        sizes="(max-width: 640px) 50vw, (max-width: 1280px) 25vw, 200px"
                         className="object-contain p-2"
                         onError={(e) => { (e.target as HTMLImageElement).src = '/placeholder-product.png' }}
                       />
